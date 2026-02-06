@@ -2,7 +2,7 @@ services:
   web:
     build: .
     container_name: vpn_dashboard_web
-    entrypoint: [ "/app/scripts/entrypoint.sh" ]
+    entrypoint: [ "/bin/bash", "/app/scripts/entrypoint.sh" ]
     volumes:
       - .:/app
     ports:
