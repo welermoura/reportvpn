@@ -2,7 +2,7 @@ services:
   web:
     build: .
     container_name: vpn_dashboard_web
-    command: python manage.py runserver 0.0.0.0:8000
+    entrypoint: [ "/app/scripts/entrypoint.sh" ]
     volumes:
       - .:/app
     ports:
@@ -11,6 +11,7 @@ services:
       - .env
     environment:
       - DJANGO_SETTINGS_MODULE=vpn_dashboard.settings
+      - ALLOWED_HOSTS=*
     restart: unless-stopped
 
   scheduler:

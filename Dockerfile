@@ -25,6 +25,7 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # Copiar o projeto
 COPY . /app/
+RUN chmod +x /app/scripts/entrypoint.sh
 
 # Expor a porta 8000
 EXPOSE 8000
