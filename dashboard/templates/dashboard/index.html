@@ -148,31 +148,61 @@
             <thead>
                 <tr>
                     <th style="width: 250px;">
-                        User
+                        <a href="?ordering={% if request.GET.ordering == 'user' %}-user{% else %}user{% endif %}&{{ request.GET.urlencode }}&page=1"
+                            class="sort-header">
+                            User {% if request.GET.ordering == 'user' %}▲{% elif request.GET.ordering == '-user' %}▼{%
+                            endif %}
+                        </a>
                         <input type="text" class="form-control form-control-sm mt-1 filter-input"
                             placeholder="Filtrar User..." data-field="user_q"
                             value="{{ request.GET.user_q|default:'' }}" style="font-weight: normal;">
                     </th>
                     <th style="width: 150px;">
-                        Cargo
+                        <a href="?ordering={% if request.GET.ordering == 'ad_title' %}-ad_title{% else %}ad_title{% endif %}&{{ request.GET.urlencode }}&page=1"
+                            class="sort-header">
+                            Cargo {% if request.GET.ordering == 'ad_title' %}▲{% elif request.GET.ordering ==
+                            '-ad_title' %}▼{% endif %}
+                        </a>
                         <input type="text" class="form-control form-control-sm mt-1 filter-input"
                             placeholder="Filtrar Cargo..." data-field="title_q"
                             value="{{ request.GET.title_q|default:'' }}" style="font-weight: normal;">
                     </th>
                     <th style="width: 150px;">
-                        Depto
+                        <a href="?ordering={% if request.GET.ordering == 'ad_department' %}-ad_department{% else %}ad_department{% endif %}&{{ request.GET.urlencode }}&page=1"
+                            class="sort-header">
+                            Depto {% if request.GET.ordering == 'ad_department' %}▲{% elif request.GET.ordering ==
+                            '-ad_department' %}▼{% endif %}
+                        </a>
                         <input type="text" class="form-control form-control-sm mt-1 filter-input"
                             placeholder="Filtrar Depto..." data-field="dept_q"
                             value="{{ request.GET.dept_q|default:'' }}" style="font-weight: normal;">
                     </th>
                     <th style="width: 100px;">Qtd Conexões</th>
-                    <th style="width: 150px;">Acesso</th>
+                    <th style="width: 150px;">
+                        <a href="?ordering={% if request.GET.ordering == 'start_time' %}-start_time{% else %}start_time{% endif %}&{{ request.GET.urlencode }}&page=1"
+                            class="sort-header">
+                            Acesso {% if request.GET.ordering == 'start_time' %}▲{% elif request.GET.ordering ==
+                            '-start_time' %}▼{% endif %}
+                        </a>
+                    </th>
                     <th>Origem</th>
                     <th>Cidade</th>
                     <th>País</th>
-                    <th>Volume</th>
-                    <th>Duração</th>
-                    <th>Status</th>
+                    <th>
+                        <a href="?ordering={% if request.GET.ordering == 'volume' %}-volume{% else %}volume{% endif %}&{{ request.GET.urlencode }}&page=1"
+                            class="sort-header">
+                            Volume {% if request.GET.ordering == 'volume' %}▲{% elif request.GET.ordering == '-volume'
+                            %}▼{% endif %}
+                        </a>
+                    </th>
+                    <th>
+                        <a href="?ordering={% if request.GET.ordering == 'duration' %}-duration{% else %}duration{% endif %}&{{ request.GET.urlencode }}&page=1"
+                            class="sort-header">
+                            Duração {% if request.GET.ordering == 'duration' %}▲{% elif request.GET.ordering ==
+                            '-duration' %}▼{% endif %}
+                        </a>
+                    </th>
+                    <!-- <th>Status</th> Removed -->
                 </tr>
             </thead>
             <tbody>
@@ -218,9 +248,7 @@
                     </td>
                     <td style="font-weight: 600;">{{ log.formatted_volume }}</td>
                     <td>{{ log.formatted_duration }}</td>
-                    <td>
-                        <span class="badge badge-success">OK</span>
-                    </td>
+                    <!-- <td>Status Removed</td> -->
                 </tr>
                 {% empty %}
                 <tr>

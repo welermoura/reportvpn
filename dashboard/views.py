@@ -54,18 +54,34 @@ class VPNLogListView(LoginRequiredMixin, ListView):
             except ValueError:
                 pass
         
+        # Annotation for Volume Sorting
+        queryset = queryset.annotate(
+            total_volume=Sum('bandwidth_in') + Sum('bandwidth_out')
+        )
+
         # Annotate with daily connection count for each user
-        # We need to correlate by user and the specific date of the log entry
         daily_count_subquery = VPNLog.objects.filter(
             user=OuterRef('user'),
             start_time__date=OuterRef('start_time__date')
         ).values('user').annotate(
             count=Count('id')
         ).values('count')
-       # Add Subquery to main queryset
-        qs = queryset.annotate(daily_connection_count=Subquery(daily_count_subquery, output_field=IntegerField()))
         
-        return qs
+        # Add Subquery to main queryset
+        qs = queryset.annotate(
+            daily_connection_count=Subquery(daily_count_subquery, output_field=IntegerField())
+        )
+
+        # Dynamic Ordering
+        ordering = self.request.GET.get('ordering', '-start_time')
+        
+        # Map virtual fields if necessary
+        if ordering == 'volume':
+            ordering = '-total_volume'
+        elif ordering == '-volume':
+            ordering = 'total_volume'
+            
+        return qs.order_by(ordering)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
