@@ -13,11 +13,14 @@ python manage.py migrate --noinput
 echo "Verificando superusuário..."
 python manage.py init_admin || echo "Erro ao criar admin ou já existe."
 
-# Executar o comando passado (geralmente runserver)
+# Executar o comando passado (geralmente start)
 # Se nenhum comando for passado, usa o padrão
 if [ "$#" -eq 0 ]; then
-    echo "Iniciando servidor Django..."
-    exec python manage.py runserver 0.0.0.0:8000
+    echo "Coletando arquivos estáticos..."
+    python manage.py collectstatic --noinput
+
+    echo "Iniciando servidor Gunicorn..."
+    exec gunicorn vpn_dashboard.wsgi:application --bind 0.0.0.0:8000 --workers 3
 else
     exec "$@"
 fi
