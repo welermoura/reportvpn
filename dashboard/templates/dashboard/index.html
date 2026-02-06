@@ -30,21 +30,27 @@
     </div>
 
     <!-- Charts Row -->
-    <div class="row" style="display: flex; gap: 20px;">
-        <div class="card" style="flex: 1;">
+    <div class="row" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+        <div class="card">
             <div class="card-header">Conexões (30 Dias)</div>
             <div style="height: 250px;">
                 <canvas id="trendChart"></canvas>
             </div>
         </div>
-        <div class="card" style="flex: 1;">
-            <div class="card-header">Top 5 Departamentos</div>
+        <div class="card">
+            <div class="card-header">Top Departamentos</div>
             <div style="height: 250px;">
                 <canvas id="deptChart"></canvas>
             </div>
         </div>
-        <div class="card" style="flex: 1;">
-            <div class="card-header">Top 5 Usuários (Volume)</div>
+        <div class="card">
+            <div class="card-header" style="color: #f6c23e;">Top Cargos</div>
+            <div style="height: 250px;">
+                <canvas id="titleChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">Top Usuários (Volume)</div>
             <div style="height: 250px;">
                 <canvas id="userChart"></canvas>
             </div>
@@ -107,7 +113,20 @@
                     options: { maintainAspectRatio: false }
                 });
 
-                // 3. User Chart
+                // 3. Title Chart (New)
+                new Chart(document.getElementById('titleChart'), {
+                    type: 'pie',
+                    data: {
+                        labels: data.titles.labels,
+                        datasets: [{
+                            data: data.titles.data,
+                            backgroundColor: ['#f6c23e', '#e74a3b', '#4e73df', '#1cc88a', '#36b9cc']
+                        }]
+                    },
+                    options: { maintainAspectRatio: false }
+                });
+
+                // 4. User Chart
                 new Chart(document.getElementById('userChart'), {
                     type: 'bar',
                     data: {
