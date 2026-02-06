@@ -7,8 +7,12 @@ from datetime import timedelta
 from vpn_logs.models import VPNLog
 from integrations.models import FortiAnalyzerConfig
 from django.db.models import Sum, Count, Q, Subquery, OuterRef, IntegerField, Case, When, Value
-
-# ... (imports remain the same)
+from django.shortcuts import render
+from django.http import HttpResponse, JsonResponse
+from django.template.loader import get_template
+from xhtml2pdf import pisa
+from io import BytesIO
+import datetime
 
 class VPNLogListView(LoginRequiredMixin, ListView):
     model = VPNLog
@@ -131,7 +135,65 @@ class VPNLogListView(LoginRequiredMixin, ListView):
             
         return context
 
-# ... export_logs_pdf remains similar ...
+@login_required
+def export_logs_pdf(request):
+    # Reuse filtering logic manually since we are not in a ListView
+    queryset = VPNLog.objects.all()
+    
+    # 1. Date Filter
+    date_str = request.GET.get('date')
+    if date_str:
+        queryset = queryset.filter(start_time__date=date_str)
+    
+    # 2. Column Filters
+    user_q = request.GET.get('user_q')
+    if user_q:
+        queryset = queryset.filter(user__icontains=user_q)
+
+    title_q = request.GET.get('title_q')
+    if title_q:
+        queryset = queryset.filter(ad_title__icontains=title_q)
+
+    dept_q = request.GET.get('dept_q')
+    if dept_q:
+        queryset = queryset.filter(ad_department__icontains=dept_q)
+
+    # 3. Annotation (Copying logic from ListView)
+    daily_count_subquery = VPNLog.objects.filter(
+        user=OuterRef('user'), 
+        start_time__date=OuterRef('start_time__date')
+    ).values('user').annotate(count=Count('id')).values('count')
+    
+    logs = queryset.annotate(
+        daily_connection_count=Subquery(daily_count_subquery, output_field=IntegerField())
+    ).order_by('-start_time')
+
+    # Prepare context
+    filter_desc = []
+    if date_str: filter_desc.append(f"Data: {date_str}")
+    if user_q: filter_desc.append(f"User: {user_q}")
+    if title_q: filter_desc.append(f"Cargo: {title_q}")
+    if dept_q: filter_desc.append(f"Depto: {dept_q}")
+    
+    context = {
+        'logs': logs,
+        'filter_desc': " | ".join(filter_desc) if filter_desc else "Todos os registros"
+    }
+
+    # Render PDF
+    template = get_template('dashboard/pdf_template.html')
+    html = template.render(context)
+    result = BytesIO()
+    
+    pdf = pisa.pisaDocument(BytesIO(html.encode("UTF-8")), result)
+    
+    if not pdf.err:
+        response = HttpResponse(result.getvalue(), content_type='application/pdf')
+        filename = f"vpn_report_{timezone.now().strftime('%Y%m%d_%H%M')}.pdf"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+    
+    return HttpResponse("Erro ao gerar PDF", status=500)
 
 @login_required
 def dashboard_stats_api(request):
