@@ -83,7 +83,7 @@ class VPNLogListView(LoginRequiredMixin, ListView):
                 When(country_code__in=trusted_countries, then=Value(0)),
                 When(country_code__isnull=True, then=Value(0)), # Null country not necessarily suspicious? Or maybe 0.5? sticking to 0 for now.
                 default=Value(1),
-                output_field=models.IntegerField()
+                output_field=IntegerField()
             )
         )
 
