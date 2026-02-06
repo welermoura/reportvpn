@@ -1,0 +1,299 @@
+{% extends 'dashboard/base.html' %}
+
+{% block content %}
+<!-- Collapsible Stats & Charts Section -->
+<div style="margin-bottom: 20px;">
+    <button id="toggleChartsBtn" class="btn"
+        style="background: rgba(255, 255, 255, 0.05); color: var(--text-primary); width: 100%; text-align: left; padding: 15px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.3s ease;">
+        <span style="font-weight: 600; display: flex; align-items: center; gap: 10px;">
+            📊 Visualizar Gráficos e Estatísticas
+        </span>
+        <span id="toggleIcon">▼</span>
+    </button>
+</div>
+
+<div id="chartsContainer" style="display: none; flex-direction: column; gap: 20px; margin-bottom: 30px;">
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <span class="stat-label">Total de Conexões</span>
+            <span class="stat-value">{{ page_obj.paginator.count }}</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Usuários Ativos</span>
+            <span class="stat-value" style="color: var(--success-color);">{{ active_users_count|default:"-" }}</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">Volume de Dados</span>
+            <span class="stat-value" style="color: var(--accent-color);">{{ total_volume|default:"-" }}</span>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row" style="display: flex; gap: 20px;">
+        <div class="card" style="flex: 1;">
+            <div class="card-header">Conexões (30 Dias)</div>
+            <div style="height: 250px;">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+        <div class="card" style="flex: 1;">
+            <div class="card-header">Top 5 Departamentos</div>
+            <div style="height: 250px;">
+                <canvas id="deptChart"></canvas>
+            </div>
+        </div>
+        <div class="card" style="flex: 1;">
+            <div class="card-header">Top 5 Usuários (Volume)</div>
+            <div style="height: 250px;">
+                <canvas id="userChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Toggle Logic
+        const btn = document.getElementById('toggleChartsBtn');
+        const container = document.getElementById('chartsContainer');
+        const icon = document.getElementById('toggleIcon');
+
+        btn.addEventListener('click', () => {
+            if (container.style.display === 'none') {
+                container.style.display = 'flex';
+                icon.textContent = '▲';
+                btn.style.background = 'rgba(255, 255, 255, 0.1)';
+            } else {
+                container.style.display = 'none';
+                icon.textContent = '▼';
+                btn.style.background = 'rgba(255, 255, 255, 0.05)';
+            }
+        });
+
+        fetch('{% url "dashboard:stats_api" %}')
+            .then(response => response.json())
+            .then(data => {
+                // 1. Trend Chart
+                new Chart(document.getElementById('trendChart'), {
+                    type: 'line',
+                    data: {
+                        labels: data.trend.labels,
+                        datasets: [{
+                            label: 'Conexões',
+                            data: data.trend.data,
+                            borderColor: '#007bff',
+                            backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: { maintainAspectRatio: false }
+                });
+
+                // 2. Dept Chart
+                new Chart(document.getElementById('deptChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.departments.labels,
+                        datasets: [{
+                            data: data.departments.data,
+                            backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b']
+                        }]
+                    },
+                    options: { maintainAspectRatio: false }
+                });
+
+                // 3. User Chart
+                new Chart(document.getElementById('userChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.users.labels,
+                        datasets: [{
+                            label: 'Volume (MB)',
+                            data: data.users.data,
+                            backgroundColor: '#36b9cc'
+                        }]
+                    },
+                    options: { maintainAspectRatio: false }
+                });
+            });
+    });
+</script>
+
+<div class="card">
+    <div class="card-header">
+        <h2>Histórico de Acesso</h2>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <a href="{% url 'dashboard:export_pdf' %}?{{ request.GET.urlencode }}" class="btn btn-primary"
+                style="padding: 5px 15px; font-size: 0.9rem;">
+                📄 Exportar PDF
+            </a>
+            <form id="filterForm" method="get" style="display: flex; gap: 10px;">
+                <input type="date" name="date" class="form-control" value="{{ request.GET.date|default:'' }}"
+                    style="width: auto;">
+                <!-- Hidden inputs to maintain state when date changes -->
+                <input type="hidden" name="user_q" value="{{ request.GET.user_q|default:'' }}">
+                <input type="hidden" name="title_q" value="{{ request.GET.title_q|default:'' }}">
+                <input type="hidden" name="dept_q" value="{{ request.GET.dept_q|default:'' }}">
+            </form>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="width: 250px;">
+                        User
+                        <input type="text" class="form-control form-control-sm mt-1 filter-input"
+                            placeholder="Filtrar User..." data-field="user_q"
+                            value="{{ request.GET.user_q|default:'' }}" style="font-weight: normal;">
+                    </th>
+                    <th style="width: 150px;">
+                        Cargo
+                        <input type="text" class="form-control form-control-sm mt-1 filter-input"
+                            placeholder="Filtrar Cargo..." data-field="title_q"
+                            value="{{ request.GET.title_q|default:'' }}" style="font-weight: normal;">
+                    </th>
+                    <th style="width: 150px;">
+                        Depto
+                        <input type="text" class="form-control form-control-sm mt-1 filter-input"
+                            placeholder="Filtrar Depto..." data-field="dept_q"
+                            value="{{ request.GET.dept_q|default:'' }}" style="font-weight: normal;">
+                    </th>
+                    <th style="width: 100px;">Qtd Conexões</th>
+                    <th style="width: 150px;">Acesso</th>
+                    <th>Origem</th>
+                    <th>Cidade</th>
+                    <th>País</th>
+                    <th>Volume</th>
+                    <th>Duração</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr class="{% if log.country_code and log.country_code not in trusted_countries %}row-warning{% endif %}"
+                    style="animation: fadeIn 0.3s ease-out forwards; animation-delay: {{ forloop.counter0 }}00ms;">
+                    <td>
+                        <div style="display: flex; flex-direction: column;">
+                            <span style="font-weight: 600; color: var(--text-primary);">
+                                {% if log.ad_display_name %}
+                                {{ log.ad_display_name }}
+                                {% else %}
+                                {{ log.user }}
+                                {% endif %}
+                            </span>
+                            <span style="font-size: 0.75rem; color: var(--text-secondary);">{{ log.user }}</span>
+                        </div>
+                    </td>
+                    <td style="font-size: 0.9rem;">{{ log.ad_title|default:"-" }}</td>
+                    <td>
+                        {% if log.ad_department %}
+                        <span class="badge" style="background: rgba(255, 255, 255, 0.1); font-weight: 500;">
+                            {{ log.ad_department }}
+                        </span>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td style="font-weight: bold; text-align: center;">
+                        {{ log.daily_connection_count }}
+                    </td>
+                    <td style="font-size: 0.9rem; color: var(--text-secondary);">
+                        {{ log.start_time|date:"d/m/Y H:i" }}
+                    </td>
+                    <td style="font-size: 0.9rem;">{{ log.source_ip }}</td>
+                    <td style="font-size: 0.9rem;">{{ log.city|default:"-" }}</td>
+                    <td style="font-size: 0.9rem;">
+                        {% if log.country_code %}
+                        {{ log.country_name }} ({{ log.country_code }})
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td style="font-weight: 600;">{{ log.formatted_volume }}</td>
+                    <td>{{ log.formatted_duration }}</td>
+                    <td>
+                        <span class="badge badge-success">OK</span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="11" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">📭</div>
+                        Nenhum registro encontrado.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Paginação -->
+    {% if is_paginated %}
+    <div style="margin-top: 2rem; display: flex; justify-content: center; gap: 15px; align-items: center;">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}&date={{ request.GET.date }}&user_q={{ request.GET.user_q }}&title_q={{ request.GET.title_q }}&dept_q={{ request.GET.dept_q }}"
+            class="btn btn-secondary">← Anterior</a>
+        {% endif %}
+
+        <span style="color: var(--text-secondary); font-size: 0.9rem;">
+            Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+        </span>
+
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}&date={{ request.GET.date }}&user_q={{ request.GET.user_q }}&title_q={{ request.GET.title_q }}&dept_q={{ request.GET.dept_q }}"
+            class="btn btn-secondary">Próxima →</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    // Auto-search Debounce Logic
+    let timeout = null;
+    const filterInputs = document.querySelectorAll('.filter-input');
+    const dateInput = document.querySelector('input[name="date"]');
+
+    // Function to update URL and reload
+    function updateFilters() {
+        const params = new URLSearchParams(window.location.search);
+
+        // Update params from inputs
+        filterInputs.forEach(input => {
+            const field = input.dataset.field;
+            if (input.value) {
+                params.set(field, input.value);
+            } else {
+                params.delete(field);
+            }
+        });
+
+        if (dateInput.value) {
+            params.set('date', dateInput.value);
+        } else {
+            params.delete('date');
+        }
+
+        // Reset to page 1 on filter change
+        params.delete('page');
+
+        window.location.search = params.toString();
+    }
+
+    // Attach event listeners
+    filterInputs.forEach(input => {
+        input.addEventListener('input', () => {
+            clearTimeout(timeout);
+            timeout = setTimeout(updateFilters, 600); // 600ms debounce
+        });
+    });
+
+    dateInput.addEventListener('change', updateFilters);
+</script>
+{% endblock %}

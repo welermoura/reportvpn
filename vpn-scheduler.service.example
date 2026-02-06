@@ -1,0 +1,23 @@
+[Unit]
+Description=VPN Dashboard Log Scheduler
+After=network.target
+
+[Service]
+# Ajuste o usuário e grupo conforme necessário
+User=www-data
+Group=www-data
+
+# Ajuste os caminhos para o diretório do projeto
+WorkingDirectory=/opt/vpn_dashboard
+Environment="PATH=/opt/vpn_dashboard/venv/bin:/usr/local/bin"
+Environment="DJANGO_SETTINGS_MODULE=vpn_dashboard.settings"
+
+# Comando para rodar o scheduler
+ExecStart=/opt/vpn_dashboard/venv/bin/python scheduler.py
+
+# Reiniciar automaticamente se falhar
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

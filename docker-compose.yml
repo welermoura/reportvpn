@@ -1,0 +1,23 @@
+services:
+  web:
+    build: .
+    container_name: vpn_dashboard_web
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=vpn_dashboard.settings
+      # Adicione outras variÃ¡veis de ambiente aqui se necessÃ¡rio
+    restart: unless-stopped
+
+  scheduler:
+    build: .
+    container_name: vpn_dashboard_scheduler
+    command: python scheduler.py
+    volumes:
+      - .:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=vpn_dashboard.settings
+    restart: unless-stopped
