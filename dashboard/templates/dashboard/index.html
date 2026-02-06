@@ -169,8 +169,12 @@
                     <th style="width: 250px;">
                         <a href="?ordering={% if request.GET.ordering == 'user' %}-user{% else %}user{% endif %}&{{ request.GET.urlencode }}&page=1"
                             class="sort-header">
-                            User {% if request.GET.ordering == 'user' %}▲{% elif request.GET.ordering == '-user' %}▼{%
-                            endif %}
+                            User
+                            {% if request.GET.ordering == 'user' %}
+                            ▲
+                            {% elif request.GET.ordering == '-user' %}
+                            ▼
+                            {% endif %}
                         </a>
                         <input type="text" class="form-control form-control-sm mt-1 filter-input"
                             placeholder="Filtrar User..." data-field="user_q"
@@ -179,8 +183,12 @@
                     <th style="width: 150px;">
                         <a href="?ordering={% if request.GET.ordering == 'ad_title' %}-ad_title{% else %}ad_title{% endif %}&{{ request.GET.urlencode }}&page=1"
                             class="sort-header">
-                            Cargo {% if request.GET.ordering == 'ad_title' %}▲{% elif request.GET.ordering ==
-                            '-ad_title' %}▼{% endif %}
+                            Cargo
+                            {% if request.GET.ordering == 'ad_title' %}
+                            ▲
+                            {% elif request.GET.ordering == '-ad_title' %}
+                            ▼
+                            {% endif %}
                         </a>
                         <input type="text" class="form-control form-control-sm mt-1 filter-input"
                             placeholder="Filtrar Cargo..." data-field="title_q"
@@ -189,8 +197,12 @@
                     <th style="width: 150px;">
                         <a href="?ordering={% if request.GET.ordering == 'ad_department' %}-ad_department{% else %}ad_department{% endif %}&{{ request.GET.urlencode }}&page=1"
                             class="sort-header">
-                            Depto {% if request.GET.ordering == 'ad_department' %}▲{% elif request.GET.ordering ==
-                            '-ad_department' %}▼{% endif %}
+                            Depto
+                            {% if request.GET.ordering == 'ad_department' %}
+                            ▲
+                            {% elif request.GET.ordering == '-ad_department' %}
+                            ▼
+                            {% endif %}
                         </a>
                         <input type="text" class="form-control form-control-sm mt-1 filter-input"
                             placeholder="Filtrar Depto..." data-field="dept_q"
@@ -200,8 +212,12 @@
                     <th style="width: 150px;">
                         <a href="?ordering={% if request.GET.ordering == 'start_time' %}-start_time{% else %}start_time{% endif %}&{{ request.GET.urlencode }}&page=1"
                             class="sort-header">
-                            Acesso {% if request.GET.ordering == 'start_time' %}▲{% elif request.GET.ordering ==
-                            '-start_time' %}▼{% endif %}
+                            Acesso
+                            {% if request.GET.ordering == 'start_time' %}
+                            ▲
+                            {% elif request.GET.ordering == '-start_time' %}
+                            ▼
+                            {% endif %}
                         </a>
                     </th>
                     <th>Origem</th>
@@ -210,15 +226,23 @@
                     <th>
                         <a href="?ordering={% if request.GET.ordering == 'volume' %}-volume{% else %}volume{% endif %}&{{ request.GET.urlencode }}&page=1"
                             class="sort-header">
-                            Volume {% if request.GET.ordering == 'volume' %}▲{% elif request.GET.ordering == '-volume'
-                            %}▼{% endif %}
+                            Volume
+                            {% if request.GET.ordering == 'volume' %}
+                            ▲
+                            {% elif request.GET.ordering == '-volume' %}
+                            ▼
+                            {% endif %}
                         </a>
                     </th>
                     <th>
                         <a href="?ordering={% if request.GET.ordering == 'duration' %}-duration{% else %}duration{% endif %}&{{ request.GET.urlencode }}&page=1"
                             class="sort-header">
-                            Duração {% if request.GET.ordering == 'duration' %}▲{% elif request.GET.ordering ==
-                            '-duration' %}▼{% endif %}
+                            Duração
+                            {% if request.GET.ordering == 'duration' %}
+                            ▲
+                            {% elif request.GET.ordering == '-duration' %}
+                            ▼
+                            {% endif %}
                         </a>
                     </th>
                     <!-- <th>Status</th> Removed -->
