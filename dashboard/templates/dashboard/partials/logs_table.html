@@ -54,7 +54,8 @@
                     <a href="#" class="sort-header" hx-get="?{% param_replace ordering='volume' %}&page=1"
                         hx-target="#logs-table-container" hx-push-url="true">
                         Volume
-                        {% if request.GET.ordering == 'volume' %}▲{% elif request.GET.ordering == '-volume' %}▼{% endif %}
+                        {% if request.GET.ordering == 'volume' %}▲{% elif request.GET.ordering == '-volume' %}▼{% endif
+                        %}
                     </a>
                 </th>
                 <th>
