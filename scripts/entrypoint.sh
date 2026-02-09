@@ -20,7 +20,7 @@ if [ "$#" -eq 0 ]; then
     python manage.py collectstatic --noinput
 
     echo "Iniciando servidor Gunicorn..."
-    exec gunicorn vpn_dashboard.wsgi:application --bind 0.0.0.0:8000 --workers 3
+    exec gunicorn vpn_dashboard.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120
 else
     exec "$@"
 fi

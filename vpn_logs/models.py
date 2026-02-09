@@ -7,6 +7,7 @@ class VPNLog(models.Model):
     user = models.CharField(max_length=255, db_index=True, help_text="Nome de usuário da VPN")
     source_ip = models.GenericIPAddressField(help_text="IP de origem da conexão")
     start_time = models.DateTimeField(db_index=True, help_text="Data e hora de início da conexão")
+    start_date = models.DateField(null=True, blank=True, db_index=True, help_text="Data de início (para otimização)")
     end_time = models.DateTimeField(null=True, blank=True, help_text="Data e hora de fim da conexão")
     duration = models.IntegerField(null=True, blank=True, help_text="Duração em segundos")
     bandwidth_in = models.BigIntegerField(default=0, help_text="Bytes recebidos")
@@ -14,9 +15,9 @@ class VPNLog(models.Model):
     status = models.CharField(max_length=50, help_text="Status da conexão (ex: tunnel-up, tunnel-down)")
     
     # Campos enriquecidos do AD
-    ad_department = models.CharField(max_length=255, null=True, blank=True, help_text="Departamento do usuário (AD)")
+    ad_department = models.CharField(max_length=255, null=True, blank=True, db_index=True, help_text="Departamento do usuário (AD)")
     ad_email = models.EmailField(null=True, blank=True, help_text="Email do usuário (AD)")
-    ad_title = models.CharField(max_length=255, null=True, blank=True, help_text="Cargo do usuário (AD)")
+    ad_title = models.CharField(max_length=255, null=True, blank=True, db_index=True, help_text="Cargo do usuário (AD)")
     ad_display_name = models.CharField(max_length=255, null=True, blank=True, help_text="Nome completo do usuário (AD)")
     
     # Campos GeoIP
@@ -28,6 +29,11 @@ class VPNLog(models.Model):
     raw_data = models.JSONField(default=dict, help_text="Dados brutos do log")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if self.start_time and not self.start_date:
+            self.start_date = self.start_time.date()
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = "Log de VPN"

@@ -123,6 +123,7 @@ def fetch_vpn_logs_task(self):
                 user=username,
                 source_ip=source_ip,
                 start_time=start_time,
+                start_date=start_time.date(),
                 end_time=end_time,
                 duration=duration,
                 bandwidth_in=int(log.get('rcvdbyte', 0)),

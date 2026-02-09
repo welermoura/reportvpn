@@ -59,7 +59,7 @@ class VPNLogListView(LoginRequiredMixin, ListView):
         if date_str:
             try:
                 filter_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
-                queryset = queryset.filter(start_time__date=filter_date)
+                queryset = queryset.filter(start_date=filter_date)
             except ValueError:
                 pass
         
@@ -71,7 +71,7 @@ class VPNLogListView(LoginRequiredMixin, ListView):
         # Annotate with daily connection count for each user
         daily_count_subquery = VPNLog.objects.filter(
             user=OuterRef('user'),
-            start_time__date=OuterRef('start_time__date')
+            start_date=OuterRef('start_date')
         ).values('user').annotate(
             count=Count('id')
         ).values('count')
@@ -148,7 +148,7 @@ def export_logs_pdf(request):
     # 1. Date Filter
     date_str = request.GET.get('date')
     if date_str:
-        queryset = queryset.filter(start_time__date=date_str)
+        queryset = queryset.filter(start_date=date_str)
     
     # 2. Column Filters
     user_q = request.GET.get('user_q')
@@ -166,7 +166,7 @@ def export_logs_pdf(request):
     # 3. Annotation (Copying logic from ListView)
     daily_count_subquery = VPNLog.objects.filter(
         user=OuterRef('user'), 
-        start_time__date=OuterRef('start_time__date')
+        start_date=OuterRef('start_date')
     ).values('user').annotate(count=Count('id')).values('count')
     
     logs = queryset.annotate(
@@ -204,13 +204,13 @@ def export_logs_pdf(request):
 def dashboard_stats_api(request):
     # 1. Daily Trend (Last 30 Days)
     last_30_days = timezone.now().date() - timedelta(days=30)
-    daily_trend = VPNLog.objects.filter(start_time__date__gte=last_30_days)\
-        .values('start_time__date')\
+    daily_trend = VPNLog.objects.filter(start_date__gte=last_30_days)\
+        .values('start_date')\
         .annotate(count=Count('id'))\
-        .order_by('start_time__date')
+        .order_by('start_date')
         
     trend_data = {
-        'labels': [entry['start_time__date'].strftime('%d/%m') for entry in daily_trend],
+        'labels': [entry['start_date'].strftime('%d/%m') for entry in daily_trend],
         'data': [entry['count'] for entry in daily_trend]
     }
     
