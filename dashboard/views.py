@@ -81,17 +81,6 @@ class VPNLogListView(LoginRequiredMixin, ListView):
             daily_connection_count=Subquery(daily_count_subquery, output_field=IntegerField())
         )
 
-        # Annotate Suspicious Activity 
-        # (Assuming country_code is stored as 2-letter ISO, match directly or handle nulls)
-        qs = qs.annotate(
-            is_suspicious=Case(
-                When(country_code__in=trusted_countries, then=Value(0)),
-                When(country_code__isnull=True, then=Value(0)), # Null country not necessarily suspicious? Or maybe 0.5? sticking to 0 for now.
-                default=Value(1),
-                output_field=IntegerField()
-            )
-        )
-
         # Dynamic Ordering
         ordering = self.request.GET.get('ordering')
         
@@ -102,8 +91,6 @@ class VPNLogListView(LoginRequiredMixin, ListView):
             elif ordering == '-volume':
                 ordering = 'total_volume'
             
-            # User specific ordering overrides suspicion sorting? 
-            # Ideally suspicion should always be top priority unless explicitly sorting by something else?
             # Creating a composite ordering: Suspicious first, then the requested field.
             return qs.order_by('-is_suspicious', ordering)
         

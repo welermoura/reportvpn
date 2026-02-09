@@ -25,6 +25,9 @@ class VPNLog(models.Model):
     country_name = models.CharField(max_length=100, null=True, blank=True, help_text="Nome do país")
     country_code = models.CharField(max_length=10, null=True, blank=True, help_text="Código do país (ISO)")
 
+    # Campos Calculados (Armazenados para performance)
+    is_suspicious = models.BooleanField(default=False, db_index=True, help_text="Indica se o acesso é suspeito (país não confiável)")
+
     
     raw_data = models.JSONField(default=dict, help_text="Dados brutos do log")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -33,6 +36,25 @@ class VPNLog(models.Model):
     def save(self, *args, **kwargs):
         if self.start_time and not self.start_date:
             self.start_date = self.start_time.date()
+            
+        # Calcular is_suspicious se não for bypassado (para performance em bulk)
+        if not getattr(self, 'bypass_suspicious_check', False):
+            from integrations.models import FortiAnalyzerConfig
+            try:
+                config = FortiAnalyzerConfig.load()
+                trusted = [c.strip().upper() for c in config.trusted_countries.split(',')]
+                code = self.country_code.upper() if self.country_code else None
+                
+                # Se não tem código, assumimos não suspeito (ou política definida)
+                # Se tem código e não está na lista, é suspeito
+                if code and code not in trusted:
+                    self.is_suspicious = True
+                else:
+                    self.is_suspicious = False
+            except Exception:
+                # Fallback em caso de erro no config (migrações inicializando, etc)
+                pass
+
         super().save(*args, **kwargs)
 
     class Meta:

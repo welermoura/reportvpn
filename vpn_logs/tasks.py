@@ -30,6 +30,14 @@ def fetch_vpn_logs_task(self):
         ad_client = ActiveDirectoryClient()
         geoip_client = GeoIPClient()
 
+        # Load Trusted Countries once
+        from integrations.models import FortiAnalyzerConfig
+        try:
+            config = FortiAnalyzerConfig.load()
+            trusted_countries_list = [c.strip().upper() for c in config.trusted_countries.split(',')]
+        except:
+            trusted_countries_list = []
+
         # Configurações de busca
         days_ago = 365
         start_date = timezone.now() - datetime.timedelta(days=days_ago)
@@ -118,7 +126,14 @@ def fetch_vpn_logs_task(self):
             if source_ip and source_ip != '0.0.0.0':
                 geo_info = geoip_client.get_location(source_ip) or {}
 
-            VPNLog.objects.create(
+            # Determine suspicious (Pre-calc for performance)
+            is_suspicious = False
+            if geo_info.get('country_code'):
+                code = geo_info.get('country_code').upper()
+                if code not in trusted_countries_list:
+                    is_suspicious = True
+
+            log_entry = VPNLog(
                 session_id=session_id,
                 user=username,
                 source_ip=source_ip,
@@ -136,8 +151,13 @@ def fetch_vpn_logs_task(self):
                 ad_display_name=ad_info.get('display_name'),
                 city=geo_info.get('city'),
                 country_name=geo_info.get('country_name'),
-                country_code=geo_info.get('country_code')
+                country_code=geo_info.get('country_code'),
+                is_suspicious=is_suspicious
             )
+            # Bypass DB check in save() method
+            log_entry.bypass_suspicious_check = True
+            log_entry.save()
+            
             count_new += 1
 
         logger.info(f"Processamento concluido. {count_new} novos logs.")
