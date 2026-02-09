@@ -12,16 +12,43 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=vpn_dashboard.settings
       - ALLOWED_HOSTS=*
+    depends_on:
+      - redis
     restart: unless-stopped
 
-  scheduler:
+  redis:
+    image: redis:7-alpine
+    container_name: vpn_dashboard_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  celery_worker:
     build: .
-    container_name: vpn_dashboard_scheduler
-    command: python scheduler.py
+    container_name: vpn_dashboard_worker
+    command: celery -A vpn_dashboard worker --loglevel=info
     volumes:
       - .:/app
     env_file:
       - .env
     environment:
       - DJANGO_SETTINGS_MODULE=vpn_dashboard.settings
+    depends_on:
+      - web
+      - redis
+    restart: unless-stopped
+
+  celery_beat:
+    build: .
+    container_name: vpn_dashboard_beat
+    command: celery -A vpn_dashboard beat --loglevel=info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - DJANGO_SETTINGS_MODULE=vpn_dashboard.settings
+    depends_on:
+      - web
+      - redis
     restart: unless-stopped

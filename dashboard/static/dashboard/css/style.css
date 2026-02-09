@@ -159,6 +159,16 @@ body {
     border-bottom: var(--glass-border);
 }
 
+.table th a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.table th a:hover {
+    color: var(--accent-color);
+}
+
 .table td {
     padding: 1rem;
     border-bottom: var(--glass-border);

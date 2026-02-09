@@ -1,0 +1,145 @@
+<div id="logs-table-container" class="table-responsive fade-in">
+    {% load dashboard_extras %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th style="width: 250px;">
+                    <a href="#" hx-get="?{% param_replace ordering='-user' %}&page=1" hx-target="#logs-table-container"
+                        hx-push-url="true" class="sort-header">
+                        User
+                        {% if request.GET.ordering == 'user' %}▲{% elif request.GET.ordering == '-user' %}▼{% endif %}
+                    </a>
+                    <input type="text" class="form-control form-control-sm mt-1" placeholder="Filtrar User..."
+                        name="user_q" value="{{ request.GET.user_q|default:'' }}" hx-get="."
+                        hx-trigger="keyup changed delay:500ms, search" hx-target="#logs-table-container"
+                        hx-include="#filterForm" hx-push-url="true" style="font-weight: normal;">
+                </th>
+                <th style="width: 150px;">
+                    <a href="#" class="sort-header" hx-get="?{% param_replace ordering='ad_title' %}&page=1"
+                        hx-target="#logs-table-container" hx-push-url="true">
+                        Cargo
+                        {% if request.GET.ordering == 'ad_title' %}▲{% elif request.GET.ordering == '-ad_title' %}▼{%
+                        endif %}
+                    </a>
+                    <input type="text" class="form-control form-control-sm mt-1" placeholder="Filtrar Cargo..."
+                        name="title_q" value="{{ request.GET.title_q|default:'' }}" hx-get="."
+                        hx-trigger="keyup changed delay:500ms, search" hx-target="#logs-table-container"
+                        hx-include="#filterForm" hx-push-url="true" style="font-weight: normal;">
+                </th>
+                <th style="width: 150px;">
+                    <a href="#" class="sort-header" hx-get="?{% param_replace ordering='ad_department' %}&page=1"
+                        hx-target="#logs-table-container" hx-push-url="true">
+                        Depto
+                        {% if request.GET.ordering == 'ad_department' %}▲{% elif request.GET.ordering ==
+                        '-ad_department' %}▼{% endif %}
+                    </a>
+                    <input type="text" class="form-control form-control-sm mt-1" placeholder="Filtrar Depto..."
+                        name="dept_q" value="{{ request.GET.dept_q|default:'' }}" hx-get="."
+                        hx-trigger="keyup changed delay:500ms, search" hx-target="#logs-table-container"
+                        hx-include="#filterForm" hx-push-url="true" style="font-weight: normal;">
+                </th>
+                <th style="width: 100px;">Qtd Conexões</th>
+                <th style="width: 150px;">
+                    <a href="#" class="sort-header" hx-get="?{% param_replace ordering='start_time' %}&page=1"
+                        hx-target="#logs-table-container" hx-push-url="true">
+                        Acesso
+                        {% if request.GET.ordering == 'start_time' %}▲{% elif request.GET.ordering == '-start_time'
+                        %}▼{% endif %}
+                    </a>
+                </th>
+                <th>Origem</th>
+                <th>Cidade</th>
+                <th>País</th>
+                <th>
+                    <a href="#" class="sort-header" hx-get="?{% param_replace ordering='volume' %}&page=1"
+                        hx-target="#logs-table-container" hx-push-url="true">
+                        Volume
+                        {% if request.GET.ordering == 'volume' %}▲{% elif request.GET.ordering == '-volume' %}▼{% endif
+                        %}
+                    </a>
+                </th>
+                <th>
+                    <a href="#" class="sort-header" hx-get="?{% param_replace ordering='duration' %}&page=1"
+                        hx-target="#logs-table-container" hx-push-url="true">
+                        Duração
+                        {% if request.GET.ordering == 'duration' %}▲{% elif request.GET.ordering == '-duration' %}▼{%
+                        endif %}
+                    </a>
+
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr class="{% if log.country_code and log.country_code not in trusted_countries %}row-warning{% endif %}">
+                <td>
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-weight: 600; color: var(--text-primary);">
+                            {{ log.ad_display_name|default:log.user }}
+                        </span>
+                        <span style="font-size: 0.75rem; color: var(--text-secondary);">{{ log.user }}</span>
+                    </div>
+                </td>
+                <td style="font-size: 0.9rem;">{{ log.ad_title|default:"-" }}</td>
+                <td>
+                    {% if log.ad_department %}
+                    <span class="badge" style="background: rgba(255, 255, 255, 0.1); font-weight: 500;">
+                        {{ log.ad_department }}
+                    </span>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td style="font-weight: bold; text-align: center;">
+                    {{ log.daily_connection_count }}
+                </td>
+                <td style="font-size: 0.9rem; color: var(--text-secondary);">
+                    {{ log.start_time|date:"d/m/Y H:i" }}
+                </td>
+                <td style="font-size: 0.9rem;">{{ log.source_ip }}</td>
+                <td style="font-size: 0.9rem;">{{ log.city|default:"-" }}</td>
+                <td style="font-size: 0.9rem;">
+                    {% if log.country_code %}
+                    {{ log.country_name }} ({{ log.country_code }})
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td style="font-weight: 600;">{{ log.formatted_volume }}</td>
+                <td>{{ log.formatted_duration }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="11" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                    <div style="font-size: 2rem; margin-bottom: 1rem;">📭</div>
+                    Nenhum registro encontrado.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Paginação HTMX -->
+    {% if is_paginated %}
+    <div style="margin-top: 2rem; display: flex; justify-content: center; gap: 15px; align-items: center;">
+        {% if page_obj.has_previous %}
+        <a href="#" hx-get="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode }}"
+            hx-target="#logs-table-container" hx-push-url="true" class="btn btn-secondary">← Anterior</a>
+        {% endif %}
+
+        <span style="color: var(--text-secondary); font-size: 0.9rem;">
+            Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+        </span>
+
+        {% if page_obj.has_next %}
+        <a href="#" hx-get="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode }}"
+            hx-target="#logs-table-container" hx-push-url="true" class="btn btn-secondary">Próxima →</a>
+        {% endif %}
+
+        <!-- Loading Indicator -->
+        <span class="htmx-indicator" style="margin-left: 10px;">
+            ⏳ Carregando...
+        </span>
+    </div>
+    {% endif %}
+</div>

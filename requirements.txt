@@ -3,7 +3,6 @@ django-filter==25.1
 djangorestframework==3.15.2
 ldap3==2.9.1
 requests==2.32.3
-schedule==1.2.2
 python-dateutil==2.9.0
 asgiref>=3.9.1
 sqlparse==0.5.3
@@ -13,3 +12,7 @@ geoip2==4.8.0
 xhtml2pdf
 gunicorn
 whitenoise
+celery
+redis
+django-celery-beat
+django-redis

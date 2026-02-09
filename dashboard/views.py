@@ -19,6 +19,11 @@ class VPNLogListView(LoginRequiredMixin, ListView):
     template_name = 'dashboard/index.html'
     context_object_name = 'logs'
     paginate_by = 20
+
+    def get_template_names(self):
+        if self.request.headers.get('HX-Request') == 'true':
+            return ['dashboard/partials/logs_table.html']
+        return ['dashboard/index.html']
     
     def get_queryset(self):
         queryset = super().get_queryset()
