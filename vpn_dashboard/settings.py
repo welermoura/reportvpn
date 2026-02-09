@@ -150,6 +150,14 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
+# Celery Beat Schedule - Automatic Tasks
+CELERY_BEAT_SCHEDULE = {
+    'fetch-vpn-logs-every-10-minutes': {
+        'task': 'vpn_logs.tasks.fetch_vpn_logs_task',
+        'schedule': 600.0,  # 10 minutos em segundos
+    },
+}
+
 # Cache Configuration (Redis)
 CACHES = {
     "default": {

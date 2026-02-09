@@ -18,8 +18,7 @@
                     <a href="#" class="sort-header" hx-get="?{% param_replace ordering='ad_title' %}&page=1"
                         hx-target="#logs-table-container" hx-push-url="true">
                         Cargo
-                        {% if request.GET.ordering == 'ad_title' %}▲{% elif request.GET.ordering == '-ad_title' %}▼{%
-                        endif %}
+                        {% if request.GET.ordering == 'ad_title' %}▲{% elif request.GET.ordering == '-ad_title' %}▼{% endif %}
                     </a>
                     <input type="text" class="form-control form-control-sm mt-1" placeholder="Filtrar Cargo..."
                         name="title_q" value="{{ request.GET.title_q|default:'' }}" hx-get="."
@@ -30,8 +29,7 @@
                     <a href="#" class="sort-header" hx-get="?{% param_replace ordering='ad_department' %}&page=1"
                         hx-target="#logs-table-container" hx-push-url="true">
                         Depto
-                        {% if request.GET.ordering == 'ad_department' %}▲{% elif request.GET.ordering ==
-                        '-ad_department' %}▼{% endif %}
+                        {% if request.GET.ordering == 'ad_department' %}▲{% elif request.GET.ordering == '-ad_department' %}▼{% endif %}
                     </a>
                     <input type="text" class="form-control form-control-sm mt-1" placeholder="Filtrar Depto..."
                         name="dept_q" value="{{ request.GET.dept_q|default:'' }}" hx-get="."
@@ -43,8 +41,7 @@
                     <a href="#" class="sort-header" hx-get="?{% param_replace ordering='start_time' %}&page=1"
                         hx-target="#logs-table-container" hx-push-url="true">
                         Acesso
-                        {% if request.GET.ordering == 'start_time' %}▲{% elif request.GET.ordering == '-start_time'
-                        %}▼{% endif %}
+                        {% if request.GET.ordering == 'start_time' %}▲{% elif request.GET.ordering == '-start_time' %}▼{% endif %}
                     </a>
                 </th>
                 <th>Origem</th>
@@ -54,16 +51,14 @@
                     <a href="#" class="sort-header" hx-get="?{% param_replace ordering='volume' %}&page=1"
                         hx-target="#logs-table-container" hx-push-url="true">
                         Volume
-                        {% if request.GET.ordering == 'volume' %}▲{% elif request.GET.ordering == '-volume' %}▼{% endif
-                        %}
+                        {% if request.GET.ordering == 'volume' %}▲{% elif request.GET.ordering == '-volume' %}▼{% endif %}
                     </a>
                 </th>
                 <th>
                     <a href="#" class="sort-header" hx-get="?{% param_replace ordering='duration' %}&page=1"
                         hx-target="#logs-table-container" hx-push-url="true">
                         Duração
-                        {% if request.GET.ordering == 'duration' %}▲{% elif request.GET.ordering == '-duration' %}▼{%
-                        endif %}
+                        {% if request.GET.ordering == 'duration' %}▲{% elif request.GET.ordering == '-duration' %}▼{% endif %}
                     </a>
 
                 </th>
