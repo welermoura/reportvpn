@@ -1,0 +1,337 @@
+/* Admin Interface Custom Styling - VPN Analytics */
+
+:root {
+    --bg-color: #0f172a;
+    --card-bg: rgba(30, 41, 59, 0.7);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --accent-color: #3b82f6;
+    --accent-glow: rgba(59, 130, 246, 0.5);
+    --success-color: #10b981;
+    --border-color: rgba(255, 255, 255, 0.1);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Override Django Admin Background */
+body {
+    background-color: var(--bg-color) !important;
+    color: var(--text-primary) !important;
+    background-image:
+        radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 40%) !important;
+}
+
+/* Header */
+#header {
+    background: rgba(15, 23, 42, 0.8) !important;
+    backdrop-filter: blur(12px);
+    border-bottom: var(--glass-border) !important;
+    color: var(--text-primary) !important;
+}
+
+#branding h1, #branding h1 a:link, #branding h1 a:visited {
+    color: var(--text-primary) !important;
+    background: linear-gradient(to right, #3b82f6, #8b5cf6);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+#user-tools a {
+    color: var(--text-secondary) !important;
+}
+
+#user-tools a:hover {
+    color: var(--accent-color) !important;
+}
+
+/* Breadcrumbs */
+div.breadcrumbs {
+    background: rgba(30, 41, 59, 0.5) !important;
+    border-bottom: var(--glass-border) !important;
+    color: var(--text-secondary) !important;
+}
+
+div.breadcrumbs a {
+    color: var(--accent-color) !important;
+}
+
+/* Content Area */
+#content {
+    background: transparent !important;
+}
+
+/* Modules */
+.module {
+    background: var(--card-bg) !important;
+    backdrop-filter: blur(16px);
+    border: var(--glass-border) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3) !important;
+}
+
+.module h2, .module caption, .inline-group h2 {
+    background: rgba(15, 23, 42, 0.6) !important;
+    color: var(--text-primary) !important;
+    border-bottom: var(--glass-border) !important;
+}
+
+/* Tables */
+table {
+    background: transparent !important;
+}
+
+thead th, thead td {
+    background: rgba(15, 23, 42, 0.6) !important;
+    color: var(--text-secondary) !important;
+    border-bottom: var(--glass-border) !important;
+}
+
+tbody th, tbody td {
+    background: transparent !important;
+    color: var(--text-primary) !important;
+    border-bottom: var(--glass-border) !important;
+}
+
+tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+tbody tr.selected {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+}
+
+/* Forms */
+.form-row {
+    background: transparent !important;
+    border-bottom: var(--glass-border) !important;
+}
+
+input[type="text"], input[type="password"], input[type="email"], 
+input[type="url"], input[type="number"], input[type="date"],
+input[type="time"], input[type="datetime-local"], textarea, select {
+    background: rgba(15, 23, 42, 0.6) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: var(--text-primary) !important;
+    border-radius: 8px !important;
+}
+
+input[type="text"]:focus, input[type="password"]:focus, 
+input[type="email"]:focus, textarea:focus, select:focus {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 2px var(--accent-glow) !important;
+    outline: none !important;
+}
+
+/* Buttons */
+.button, input[type="submit"], input[type="button"], .submit-row input, button {
+    background: var(--accent-color) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 0.5rem 1rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.3s !important;
+    box-shadow: 0 0 15px var(--accent-glow) !important;
+}
+
+.button:hover, input[type="submit"]:hover, input[type="button"]:hover, 
+.submit-row input:hover, button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 0 25px var(--accent-glow) !important;
+}
+
+.button.default, input[type="submit"].default, .submit-row input.default {
+    background: var(--accent-color) !important;
+}
+
+a.button.default:hover, input[type="submit"].default:hover {
+    background: #2563eb !important;
+}
+
+/* Delete button */
+.deletelink, .deletelink-box a {
+    background: rgba(239, 68, 68, 0.8) !important;
+    color: white !important;
+}
+
+.deletelink:hover, .deletelink-box a:hover {
+    background: rgba(239, 68, 68, 1) !important;
+}
+
+/* Links */
+a, a:link, a:visited {
+    color: var(--accent-color) !important;
+}
+
+a:hover {
+    color: #60a5fa !important;
+}
+
+/* Messages */
+.messagelist li {
+    background: var(--card-bg) !important;
+    border: var(--glass-border) !important;
+    color: var(--text-primary) !important;
+    border-radius: 8px !important;
+}
+
+.messagelist li.success {
+    background: rgba(16, 185, 129, 0.2) !important;
+    border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+.messagelist li.warning {
+    background: rgba(245, 158, 11, 0.2) !important;
+    border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+
+.messagelist li.error {
+    background: rgba(239, 68, 68, 0.2) !important;
+    border: 1px solid rgba(239, 68, 68, 0.3) !important;
+}
+
+/* Dashboard */
+#content-main {
+    background: transparent !important;
+}
+
+.dashboard .module table th {
+    width: 100%;
+}
+
+.dashboard .module table td {
+    white-space: nowrap;
+}
+
+/* Changelist */
+#changelist {
+    background: transparent !important;
+}
+
+#changelist-filter {
+    background: var(--card-bg) !important;
+    backdrop-filter: blur(16px);
+    border: var(--glass-border) !important;
+    border-radius: 16px !important;
+}
+
+#changelist-filter h2 {
+    background: rgba(15, 23, 42, 0.6) !important;
+    color: var(--text-primary) !important;
+}
+
+#changelist-filter h3 {
+    color: var(--text-secondary) !important;
+}
+
+#changelist-filter li {
+    background: transparent !important;
+}
+
+#changelist-filter li.selected a {
+    color: var(--accent-color) !important;
+    font-weight: 600 !important;
+}
+
+/* Pagination */
+.paginator {
+    color: var(--text-secondary) !important;
+}
+
+.paginator a, .paginator a:link, .paginator a:visited {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    color: var(--text-primary) !important;
+    border-radius: 8px !important;
+}
+
+.paginator a:hover {
+    background: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* Calendar Widget */
+.calendarbox, .clockbox {
+    background: var(--card-bg) !important;
+    border: var(--glass-border) !important;
+    border-radius: 8px !important;
+}
+
+.calendar caption, .calendarbox h2 {
+    background: rgba(15, 23, 42, 0.6) !important;
+    color: var(--text-primary) !important;
+}
+
+.calendar td, .calendar th {
+    background: transparent !important;
+    color: var(--text-primary) !important;
+}
+
+.calendar td a {
+    color: var(--accent-color) !important;
+}
+
+.calendar td.selected a {
+    background: var(--accent-color) !important;
+    color: white !important;
+}
+
+/* Help Text */
+.help, p.help, form .help {
+    color: var(--text-secondary) !important;
+}
+
+/* Errors */
+.errorlist {
+    background: rgba(239, 68, 68, 0.2) !important;
+    border: 1px solid rgba(239, 68, 68, 0.3) !important;
+    color: #fca5a5 !important;
+    border-radius: 8px !important;
+}
+
+/* Fieldsets */
+.aligned label {
+    color: var(--text-secondary) !important;
+}
+
+fieldset.module {
+    background: var(--card-bg) !important;
+    border: var(--glass-border) !important;
+    border-radius: 16px !important;
+}
+
+/* Selector */
+.selector {
+    background: transparent !important;
+}
+
+.selector-available, .selector-chosen {
+    background: var(--card-bg) !important;
+    border: var(--glass-border) !important;
+    border-radius: 8px !important;
+}
+
+.selector-available h2, .selector-chosen h2 {
+    background: rgba(15, 23, 42, 0.6) !important;
+    color: var(--text-primary) !important;
+}
+
+.selector select {
+    background: rgba(15, 23, 42, 0.6) !important;
+    color: var(--text-primary) !important;
+    border: var(--glass-border) !important;
+}
+
+.selector-chooser {
+    background: transparent !important;
+}
+
+/* Related Widget Wrapper */
+.related-widget-wrapper-link {
+    opacity: 0.8;
+}
+
+.related-widget-wrapper-link:hover {
+    opacity: 1;
+}

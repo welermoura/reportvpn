@@ -71,7 +71,7 @@ ROOT_URLCONF = 'vpn_dashboard.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'dashboard' / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
