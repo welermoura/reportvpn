@@ -1,0 +1,692 @@
+{% extends 'dashboard/base.html' %}
+
+{% block content %}
+<div id="webfilter-dashboard-root"></div>
+
+<!-- React & Dependencies -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+<!-- Custom Styles for Premium Look (Copied EXACTLY from vpn_react.html) -->
+<style>
+    :root {
+        --glass-bg: rgba(25, 28, 41, 0.6);
+        --glass-border: rgba(255, 255, 255, 0.08);
+        --accent-blue: #4e73df;
+        --accent-green: #1cc88a;
+        --text-secondary: #858796;
+    }
+
+    .premium-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(15px);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.4);
+        transition: all 0.3s ease;
+    }
+
+    .stat-value-premium {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: white;
+    }
+
+    .stat-label {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        font-weight: 500;
+        margin-bottom: 8px;
+    }
+
+    .chart-box {
+        background: var(--glass-bg);
+        border-radius: 12px;
+        border: 1px solid var(--glass-border);
+        padding: 20px;
+        height: 300px;
+    }
+
+    .chart-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: white;
+        margin-bottom: 20px;
+    }
+
+    .table-premium {
+        width: 100%;
+        font-family: 'Inter', sans-serif;
+        font-size: 16px;
+        font-weight: 400;
+        color: rgb(248, 250, 252);
+        border-collapse: collapse;
+    }
+
+    .table-premium th {
+        color: var(--text-secondary);
+        font-weight: 600;
+        padding: 12px 8px;
+        border-bottom: 1px solid var(--glass-border);
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .table-premium td {
+        padding: 12px 8px;
+        color: #d1d3e2;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .table-premium tr:hover {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .user-avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 6px;
+        background: #4e73df;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: white;
+        margin-right: 8px;
+        font-size: 0.7rem;
+    }
+
+    .pulse-live {
+        width: 8px;
+        height: 8px;
+        background: #1cc88a;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+        box-shadow: 0 0 0 rgba(28, 200, 138, 0.4);
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(28, 200, 138, 0.7);
+        }
+
+        70% {
+            transform: scale(1.1);
+            box-shadow: 0 0 0 10px rgba(28, 200, 138, 0);
+        }
+
+        100% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(28, 200, 138, 0);
+        }
+    }
+
+    .filters-bar {
+        background: transparent;
+        padding: 10px 0;
+        margin-bottom: 15px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    .filters-label {
+        font-weight: bold;
+        color: #fff;
+        margin-right: 10px;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+    }
+
+    .filter-input {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #fff;
+        padding: 6px 12px;
+        border-radius: 4px;
+        min-width: 150px;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .filter-input:focus {
+        border-color: #4e73df;
+        outline: none;
+    }
+
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+    }
+
+    .btn-primary {
+        background-color: #4e73df;
+        border-color: #4e73df;
+        color: white;
+        border-radius: 4px;
+        cursor: pointer;
+        border: 1px solid transparent;
+    }
+
+    .btn-success {
+        background-color: #1cc88a;
+        border-color: #1cc88a;
+        color: white;
+        border-radius: 4px;
+        cursor: pointer;
+        border: 1px solid transparent;
+    }
+
+    .btn-secondary {
+        background-color: #858796;
+        border-color: #858796;
+        color: white;
+        border-radius: 4px;
+        cursor: pointer;
+        border: 1px solid transparent;
+    }
+</style>
+
+<script type="text/babel">
+    {% verbatim %}
+    const { useState, useEffect, useCallback, useRef } = React;
+    const { createRoot } = ReactDOM;
+
+    // --- Components ---
+
+    const StatsCharts = ({ stats, onFilterChange }) => {
+        const catRef = useRef(null);
+        const siteRef = useRef(null);
+        const chartInstances = useRef({});
+
+        useEffect(() => {
+            if (!stats) return;
+            Object.values(chartInstances.current).forEach(c => c.destroy());
+
+            const chartOptions = {
+                responsive: true, maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        titleColor: '#f8fafc',
+                        bodyColor: '#cbd5e1',
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                        borderWidth: 1,
+                    }
+                },
+                scales: {
+                    y: { ticks: { color: '#858796', font: { family: 'Inter' } }, grid: { display: false } },
+                    x: { ticks: { color: '#858796', font: { family: 'Inter' } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                }
+            };
+
+            // Categories Chart
+            if (stats.top_categories) {
+                chartInstances.current.categories = new Chart(catRef.current, {
+                    type: 'bar',
+                    data: {
+                        labels: stats.top_categories.map(item => item.category),
+                        datasets: [{
+                            label: 'Eventos',
+                            data: stats.top_categories.map(item => item.count),
+                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                            borderRadius: 4,
+                            barThickness: 20
+                        }]
+                    },
+                    options: {
+                        ...chartOptions,
+                        onClick: (event, elements) => {
+                            if (elements.length > 0 && onFilterChange) {
+                                const index = elements[0].index;
+                                const value = stats.top_categories[index].category;
+                                onFilterChange('category', value);
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Sites Chart
+            if (stats.top_sites) {
+                chartInstances.current.sites = new Chart(siteRef.current, {
+                    type: 'bar',
+                    data: {
+                        labels: stats.top_sites.map(item => item.url),
+                        datasets: [{
+                            label: 'Eventos',
+                            data: stats.top_sites.map(item => item.count),
+                            backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                            borderRadius: 4,
+                            barThickness: 20
+                        }]
+                    },
+                    options: {
+                        ...chartOptions,
+                        onClick: (event, elements) => {
+                            if (elements.length > 0 && onFilterChange) {
+                                const index = elements[0].index;
+                                const value = stats.top_sites[index].url;
+                                onFilterChange('url', value);
+                            }
+                        }
+                    }
+                });
+            }
+
+            return () => Object.values(chartInstances.current).forEach(c => c.destroy());
+        }, [stats]);
+
+        return (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+                <div className="chart-box">
+                    <div className="chart-title">Top Categorias Bloqueadas</div>
+                    <div style={{ height: '220px' }}><canvas ref={catRef}></canvas></div>
+                </div>
+                <div className="chart-box">
+                    <div className="chart-title">Top Sites Bloqueados</div>
+                    <div style={{ height: '220px' }}><canvas ref={siteRef}></canvas></div>
+                </div>
+            </div>
+        );
+    };
+
+    const WebFilterDetailsModal = ({ event, onClose }) => {
+        if (!event) return null;
+
+        const formatTime = (ts) => new Date(ts).toLocaleString('pt-BR');
+        const details = event.details || {};
+        const displayName = event.ad_display_name || event.username || 'N/A';
+        const displaySub = event.username || event.src_ip || 'N/A';
+        const initials = displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+        return (
+            <div style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+            }} onClick={onClose}>
+                <div style={{
+                    background: '#1a1d2d', border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '12px', padding: '24px', width: '900px', maxWidth: '95%', maxHeight: '90vh',
+                    overflowY: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', position: 'relative'
+                }} onClick={e => e.stopPropagation()}>
+                    <button onClick={onClose} style={{
+                        position: 'absolute', top: '15px', right: '15px',
+                        background: 'transparent', border: 'none', color: '#fff', fontSize: '1.2rem', cursor: 'pointer'
+                    }}>✕</button>
+
+                    <h3 style={{ color: 'white', marginTop: 0, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px' }}>
+                        Detalhes do Evento Web
+                    </h3>
+
+                    {/* Identity Card */}
+                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '20px', borderRadius: '8px', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                        <div style={{ background: '#4e73df', width: '60px', height: '60px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', color: 'white' }}>
+                            {initials}
+                        </div>
+                        <div>
+                            <div style={{ color: 'white', fontWeight: 700, fontSize: '1.3rem' }}>
+                                {displayName}
+                            </div>
+                            <div style={{ display: 'flex', gap: '20px', marginTop: '8px', fontSize: '0.9rem', color: '#d1d3e2' }}>
+                                <span>👤 {displaySub}</span>
+                                {event.user_department && <span>🏢 {event.user_department}</span>}
+                                {event.ad_title && <span>💼 {event.ad_title}</span>}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                            <div>
+                                <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Data e Hora</label>
+                                <div style={{ fontSize: '0.95rem', color: '#d1d3e2' }}><i className="far fa-clock me-2"></i>{formatTime(event.timestamp)}</div>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                <div>
+                                    <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Ação</label>
+                                    <span style={{
+                                        padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600,
+                                        background: event.action === 'blocked' ? 'rgba(220, 53, 69, 0.2)' : 'rgba(28, 200, 138, 0.2)',
+                                        color: event.action === 'blocked' ? '#dc3545' : '#1cc88a'
+                                    }}>
+                                        {event.action_display || event.action}
+                                    </span>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Categoria</label>
+                                    <span style={{
+                                        padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600,
+                                        background: 'rgba(54, 185, 204, 0.2)', color: '#36b9cc'
+                                    }}>{event.category}</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>URL / Site</label>
+                                <div style={{ wordBreak: 'break-all', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px', fontSize: '0.9rem', color: '#60a5fa', fontFamily: 'monospace' }}>
+                                    {event.url}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                            <div>
+                                <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Rede</label>
+                                <div style={{ fontSize: '0.9rem', color: '#d1d3e2' }}>
+                                    <div><span style={{ color: '#858796' }}>Origem:</span> {event.src_ip} {event.src_country && `(${event.src_country})`}</div>
+                                    <div><span style={{ color: '#858796' }}>Destino:</span> {event.dst_ip || '-'} {event.dst_country && `(${event.dst_country})`}</div>
+                                </div>
+                            </div>
+                            {details.msg && (
+                                <div>
+                                    <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Mensagem do Sistema</label>
+                                    <div style={{ fontSize: '0.85rem', color: '#d1d3e2', background: 'rgba(59, 130, 246, 0.1)', padding: '8px', borderRadius: '4px', borderLeft: '2px solid #4e73df' }}>
+                                        {details.msg}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Policy & Traffic Details */}
+                            <div>
+                                <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Política & Tráfego</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '0.9rem', color: '#d1d3e2' }}>
+                                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '8px', borderRadius: '4px' }}>
+                                        <div style={{ color: '#858796', fontSize: '0.75rem' }}>Direção</div>
+                                        <div>{details.direction ? details.direction.toUpperCase() : '-'}</div>
+                                    </div>
+                                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '8px', borderRadius: '4px' }}>
+                                        <div style={{ color: '#858796', fontSize: '0.75rem' }}>ID da Política</div>
+                                        <div>{details.policyid || '-'}</div>
+                                    </div>
+                                    {details.profile && (
+                                        <div style={{ gridColumn: '1 / -1', background: 'rgba(255, 255, 255, 0.03)', padding: '8px', borderRadius: '4px' }}>
+                                            <div style={{ color: '#858796', fontSize: '0.75rem' }}>Perfil Web (Profile)</div>
+                                            <div>{details.profile}</div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    function WebFilterDashboard() {
+        const [events, setEvents] = useState([]);
+        const [stats, setStats] = useState(null);
+        const [loading, setLoading] = useState(true);
+        const [page, setPage] = useState(1);
+        const [totalPages, setTotalPages] = useState(1);
+        const [showCharts, setShowCharts] = useState(false);
+        const [categoryOptions, setCategoryOptions] = useState([]);
+        const [selectedEvent, setSelectedEvent] = useState(null);
+
+        const getTodayDate = () => {
+            const today = new Date();
+            return today.toISOString().split('T')[0];
+        };
+
+        const [filters, setFilters] = useState({
+            username: '', category: '', action: '', department: '', url: '',
+            start_date: getTodayDate(), end_date: getTodayDate()
+        });
+
+        useEffect(() => {
+            fetch('/api/security-events/webfilter/categories/')
+                .then(res => res.json())
+                .then(data => Array.isArray(data) ? setCategoryOptions(data.sort()) : null)
+                .catch(console.error);
+        }, []);
+
+        useEffect(() => {
+            fetchData(true);
+            const interval = setInterval(() => fetchData(false), 60000);
+            return () => clearInterval(interval);
+        }, [page, filters]);
+
+        const fetchData = async (showLoading = true) => {
+            if (showLoading) setLoading(true);
+            try {
+                const params = new URLSearchParams({
+                    page: page,
+                    ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
+                });
+
+                const [eventsRes, statsRes] = await Promise.all([
+                    fetch(`/api/security-events/webfilter/?${params}`),
+                    fetch('/api/security-events/webfilter/stats/')
+                ]);
+
+                const eventsData = await eventsRes.json();
+                setEvents(eventsData.results || []);
+                setTotalPages(Math.ceil((eventsData.count || 0) / 50));
+
+                if (statsRes.ok) setStats(await statsRes.json());
+            } catch (err) {
+                console.error(err);
+            } finally {
+                if (showLoading) setLoading(false);
+            }
+        };
+
+        const handleFilterChange = (field, value) => {
+            setFilters(prev => ({ ...prev, [field]: value }));
+            setPage(1);
+        };
+
+        const handleExport = (type) => {
+            const params = new URLSearchParams();
+            Object.entries(filters).forEach(([key, value]) => {
+                if (value) params.append(key, value);
+            });
+            window.location.href = `/security/export/webfilter/${type}/?${params.toString()}`;
+        };
+
+        const clearFilters = () => {
+            setFilters({
+                username: '', category: '', action: '', department: '', url: '',
+                start_date: getTodayDate(), end_date: getTodayDate()
+            });
+            setPage(1);
+        };
+
+        return (
+            <div style={{ padding: '0px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h2 style={{ fontSize: '1.4rem', color: 'white', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '1.2rem' }}>🌐</span> Filtro de Conteúdo Web
+                    </h2>
+                    <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.3)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--glass-border)' }}>
+                        <span className="pulse-live"></span>
+                        <span style={{ fontSize: '0.7rem', color: '#858796', fontWeight: 600 }}>LIVE UPDATING</span>
+                    </div>
+                </div>
+
+                <div className="premium-card" style={{ marginBottom: '20px', padding: '10px 20px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }} onClick={() => setShowCharts(!showCharts)}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>📊 Visualizar Gráficos e Estatísticas</span>
+                    <span>{showCharts ? '▲' : '▼'}</span>
+                </div>
+
+                {showCharts && (
+                    <React.Fragment>
+                        <StatsCharts stats={stats} onFilterChange={handleFilterChange} />
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+                            <div className="premium-card" style={{ padding: '24px' }}>
+                                <div className="stat-label">Total de Eventos</div>
+                                <div className="stat-value-premium" style={{ color: '#36b9cc' }}>
+                                    {stats?.total_events?.toLocaleString() || 0}
+                                </div>
+                            </div>
+                            <div className="premium-card" style={{ padding: '24px' }}>
+                                <div className="stat-label">Acessos Bloqueados</div>
+                                <div className="stat-value-premium" style={{ color: '#dc3545' }}>
+                                    {stats?.blocked_events?.toLocaleString() || 0}
+                                </div>
+                            </div>
+                        </div>
+                    </React.Fragment>
+                )}
+
+                <div className="premium-card" style={{ padding: '0', overflow: 'hidden', marginBottom: '20px' }}>
+
+                    <div className="filters-bar" style={{ margin: 0, padding: '15px 20px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                        <span className="filters-label">FILTROS:</span>
+
+                        <input
+                            type="text" className="filter-input" placeholder="Usuário..."
+                            value={filters.username} onChange={(e) => handleFilterChange('username', e.target.value)}
+                        />
+                        <input
+                            type="text" className="filter-input" placeholder="Site / URL..."
+                            value={filters.url} onChange={(e) => handleFilterChange('url', e.target.value)}
+                        />
+                        <select
+                            className="filter-input" style={{ width: '180px' }}
+                            value={filters.category} onChange={(e) => handleFilterChange('category', e.target.value)}
+                        >
+                            <option value="">Todas Categorias</option>
+                            {categoryOptions.map((cat, idx) => <option key={idx} value={cat}>{cat}</option>)}
+                        </select>
+                        <select
+                            className="filter-input" style={{ width: '150px' }}
+                            value={filters.action} onChange={(e) => handleFilterChange('action', e.target.value)}
+                        >
+                            <option value="">Todas Ações</option>
+                            <option value="blocked">Bloqueado</option>
+                            <option value="passthrough">Permitido</option>
+                        </select>
+                        <input
+                            type="date" className="filter-input"
+                            value={filters.start_date} onChange={(e) => handleFilterChange('start_date', e.target.value)}
+                            style={{ colorScheme: 'dark' }}
+                        />
+
+                        <div style={{ flexGrow: 1 }}></div>
+
+                        <button className="btn btn-primary btn-sm" style={{ marginRight: '8px', display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => handleExport('pdf')}>
+                            📄 PDF
+                        </button>
+                        <button className="btn btn-success btn-sm" style={{ marginRight: '8px', display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => handleExport('xlsx')}>
+                            📊 Excel
+                        </button>
+                        <button className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={clearFilters}>
+                            🧹 Limpar
+                        </button>
+                    </div>
+
+                    <div style={{ padding: '0 15px 15px 15px', overflowX: 'auto' }}>
+                        <table className="table-premium">
+                            <thead>
+                                <tr>
+                                    <th>Data/Hora</th>
+                                    <th>Usuário</th>
+                                    <th>IP Origem</th>
+                                    <th>Categoria</th>
+                                    <th>URL / Site</th>
+                                    <th>Ação</th>
+                                    <th style={{ textAlign: 'center' }}>Detalhes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {loading && events.length === 0 ? (
+                                    <tr><td colSpan="7" style={{ textAlign: 'center', padding: '40px' }}>Carregando dados...</td></tr>
+                                ) : events.length === 0 ? (
+                                    <tr><td colSpan="7" style={{ textAlign: 'center', padding: '40px' }}>Nenhum evento encontrado.</td></tr>
+                                ) : (
+                                    events.map((event, index) => (
+                                        <tr key={index}>
+                                            <td>
+                                                <div>{new Date(event.timestamp).toLocaleDateString()}</div>
+                                                <div style={{ fontSize: '0.75rem', color: '#858796' }}>{new Date(event.timestamp).toLocaleTimeString()}</div>
+                                            </td>
+                                            <td>
+                                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                    <div className="user-avatar">{(event.ad_display_name || event.username || 'UK').substring(0, 2).toUpperCase()}</div>
+                                                    <div>
+                                                        <div style={{ fontWeight: 600, color: 'white' }}>{event.ad_display_name || event.username}</div>
+                                                        <div style={{ fontSize: '0.7rem', color: '#5a5c69' }}>
+                                                            <span>{event.user_department || 'N/A'}</span>
+                                                            {event.user_department && <span> • </span>}
+                                                            <span>{event.ad_title}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td style={{ color: '#d1d3e2' }}>{event.src_ip}</td>
+                                            <td>
+                                                <span style={{
+                                                    padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem',
+                                                    background: 'rgba(54, 185, 204, 0.15)', color: '#36b9cc', border: '1px solid rgba(54, 185, 204, 0.2)'
+                                                }}>{event.category || 'Outros'}</span>
+                                            </td>
+                                            <td>
+                                                <div style={{ maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#858796' }} title={event.url}>
+                                                    {event.url}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span style={{
+                                                    padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600,
+                                                    background: event.action === 'blocked' ? 'rgba(220, 53, 69, 0.2)' : 'rgba(28, 200, 138, 0.2)',
+                                                    color: event.action === 'blocked' ? '#dc3545' : '#1cc88a'
+                                                }}>
+                                                    {event.action_display}
+                                                </span>
+                                            </td>
+                                            <td style={{ textAlign: 'center' }}>
+                                                <button
+                                                    className="btn-sm"
+                                                    style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer', color: '#d1d3e2' }}
+                                                    onClick={() => setSelectedEvent(event)}
+                                                    title="Ver Detalhes"
+                                                >
+                                                    👁️
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Pagination */}
+                    <div style={{ padding: '15px', borderTop: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ color: '#858796', fontSize: '0.9rem' }}>
+                            Página {page} de {totalPages}
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button className="btn btn-secondary btn-sm" onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1}>
+                                <i className="fas fa-chevron-left"></i>
+                            </button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages}>
+                                <i className="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {selectedEvent && <WebFilterDetailsModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />}
+            </div>
+        );
+    }
+
+    const container = document.getElementById('webfilter-dashboard-root');
+    const root = createRoot(container);
+    root.render(<WebFilterDashboard />);
+    {% endverbatim %}
+</script>
+{% endblock %}

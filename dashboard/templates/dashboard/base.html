@@ -5,23 +5,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}VPN Dashboard{% endblock %}</title>
+    <title>{% block title %}Report VPN{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'dashboard/css/style.css' %}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/htmx.org@1.9.10"
         integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC"
         crossorigin="anonymous"></script>
+    {% block extra_head %}{% endblock %}
 </head>
 
 <body>
     <div class="background-glow"></div>
     <nav class="navbar">
         <a href="{% url 'dashboard:index' %}" class="navbar-brand">
-            <span style="font-size: 1.2em;">🛡️</span> VPN Analytics
+            <span style="font-size: 1.2em;">🛡️</span> Report VPN
         </a>
         <div class="nav-links">
-            <a href="{% url 'dashboard:index' %}">Dashboard</a>
-            <a href="{% url 'admin:index' %}">Configurações</a>
+            <a href="{% url 'dashboard:index' %}"
+                class="{% if request.resolver_match.url_name == 'index' and request.resolver_match.namespace == 'dashboard' %}active{% endif %}">
+                <i class="fas fa-home"></i> Portal
+            </a>
+            <a href="{% url 'dashboard:vpn_reports' %}"
+                class="{% if request.resolver_match.url_name == 'vpn_reports' %}active{% endif %}">
+                <i class="fas fa-network-wired"></i> Histórico VPN
+            </a>
+
+            <!-- Security Modules -->
+            <a href="{% url 'security_events:antivirus' %}"
+                class="{% if 'antivirus' in request.path %}active{% endif %}">
+                <i class="fas fa-bug"></i> Antivirus
+            </a>
+            <a href="{% url 'security_events:ips' %}" class="{% if 'ips' in request.path %}active{% endif %}">
+                <i class="fas fa-shield-alt"></i> IPS
+            </a>
+            <a href="{% url 'security_events:webfilter' %}"
+                class="{% if 'webfilter' in request.path %}active{% endif %}">
+                <i class="fas fa-globe"></i> Web Filter
+            </a>
+            <a href="{% url 'dashboard:bruteforce_dashboard' %}"
+                class="{% if 'bruteforce' in request.path %}active{% endif %}">
+                <i class="fas fa-user-lock"></i> Força Bruta
+            </a>
+
+            <a href="{% url 'admin:index' %}" class="{% if 'admin' in request.path %}active{% endif %}">
+                <i class="fas fa-cog"></i> Configurações
+            </a>
         </div>
     </nav>
 

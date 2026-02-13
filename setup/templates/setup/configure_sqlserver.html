@@ -1,0 +1,71 @@
+{% extends 'setup/base.html' %}
+
+{% block title %}Configurar SQL Server{% endblock %}
+{% block icon %}🔷{% endblock %}
+{% block heading %}Configurar SQL Server{% endblock %}
+{% block subheading %}Conecte-se à sua instância do SQL Server{% endblock %}
+
+{% block content %}
+<form method="post">
+    {% csrf_token %}
+
+    <div class="info-box">
+        <h3>Requisitos:</h3>
+        <ul style="margin: 0.5rem 0 0 1.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+            <li>SQL Server deve estar acessível a partir deste servidor</li>
+            <li>Usuário deve ter permissão CREATE DATABASE</li>
+            <li>ODBC Driver 17 for SQL Server deve estar instalado</li>
+        </ul>
+    </div>
+
+    <div class="form-group">
+        <label for="id_host">Host do SQL Server</label>
+        {{ form.host }}
+        <p class="help-text">Nome do host ou endereço IP do SQL Server</p>
+    </div>
+
+    <div class="form-group">
+        <label for="id_port">Porta</label>
+        {{ form.port }}
+        <p class="help-text">Porta do SQL Server (padrão: 1433)</p>
+    </div>
+
+    <div class="form-group">
+        <label for="id_database_name">Nome do Banco de Dados</label>
+        {{ form.database_name }}
+        <p class="help-text">O banco de dados será criado se não existir</p>
+    </div>
+
+    <div class="form-group checkbox-group">
+        {{ form.use_windows_auth }}
+        <label for="id_use_windows_auth">Usar Autenticação Windows</label>
+    </div>
+    <p class="help-text">Usar Autenticação Windows em vez de autenticação SQL Server</p>
+
+    <div class="form-group">
+        <label for="id_username">Usuário do SQL Server</label>
+        {{ form.username }}
+        <p class="help-text">Usuário deve ter permissão CREATE DATABASE</p>
+    </div>
+
+    <div class="form-group">
+        <label for="id_password">Senha</label>
+        {{ form.password }}
+    </div>
+
+    {% if form.errors %}
+    <div class="error-message">
+        {% for field, errors in form.errors.items %}
+        {% for error in errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="btn-group">
+        <a href="{% url 'setup:choose_database' %}" class="btn btn-secondary">← Voltar</a>
+        <button type="submit" class="btn btn-primary">Testar Conexão →</button>
+    </div>
+</form>
+{% endblock %}

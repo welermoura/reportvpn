@@ -27,8 +27,9 @@ class VPNLog(models.Model):
 
     # Campos Calculados (Armazenados para performance)
     is_suspicious = models.BooleanField(default=False, db_index=True, help_text="Indica se o acesso é suspeito (país não confiável)")
+    impossible_travel = models.BooleanField(default=False, db_index=True, help_text="Alerta de viagem impossível")
+    travel_speed = models.FloatField(null=True, blank=True, help_text="Velocidade estimada (km/h) entre conexões")
 
-    
     raw_data = models.JSONField(default=dict, help_text="Dados brutos do log")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -52,10 +53,47 @@ class VPNLog(models.Model):
                 else:
                     self.is_suspicious = False
             except Exception:
-                # Fallback em caso de erro no config (migrações inicializando, etc)
                 pass
+            
+            # Impossible Travel Check
+            self._check_impossible_travel()
 
         super().save(*args, **kwargs)
+
+    def _check_impossible_travel(self):
+        """
+        Verifica se a viagem desde o último login é factível.
+        Critério: Velocidade > 800 km/h (Avião comercial médio).
+        """
+        if not self.user or not self.start_time or not self.country_code:
+            return
+
+        # Buscar último login deste usuário (que tenha localização)
+        # Excluir o próprio ID se já salvo (update)
+        previous_log = VPNLog.objects.filter(
+            user=self.user,
+            start_time__lt=self.start_time,
+            country_code__isnull=False
+        ).exclude(id=self.id).order_by('-start_time').first()
+
+        if not previous_log:
+            return
+
+        # Se países são iguais, assumir possível (ignorar cidades por enquanto para evitar falsos positivos de ISP)
+        if previous_log.country_code == self.country_code:
+            return
+
+        # Calcular distância e tempo
+        # Precisamos das coordenadas. Se não temos lat/long no modelo, usamos uma aproximação ou lookup
+        # Como o GeoIPClient já retorna, o ideal seria salvar lat/long no model.
+        # Por hora, vamos marcar se houver mudança de PAÍS em < 1 hora como regra heurística simples
+        
+        time_diff = (self.start_time - previous_log.start_time).total_seconds() / 3600.0 # Horas
+        
+        if time_diff < 1.5: # Mudança de país em menos de 1.5h
+             # Permitir fronteiras ou casos específicos seria a evolução ideal
+            self.impossible_travel = True
+            self.travel_speed = 9999.0 # Placeholder para "Instantâneo"
 
     class Meta:
         verbose_name = "Log de VPN"
@@ -88,4 +126,30 @@ class VPNLog(models.Model):
     @property
     def display_name_or_user(self):
         return self.ad_display_name or self.user
+
+class VPNFailure(models.Model):
+    """Modelo para registrar tentativas de falha de login (Brute Force Analysis)"""
+    user = models.CharField(max_length=255, db_index=True, help_text="Usuário tentado")
+    source_ip = models.GenericIPAddressField(db_index=True, help_text="IP de origem")
+    timestamp = models.DateTimeField(db_index=True, help_text="Carimbo de data/hora da falha")
+    reason = models.CharField(max_length=255, null=True, blank=True, help_text="Motivo da falha (ex: bad-password)")
+    
+    # GeoIP (Opcional, mas útil para análise)
+    city = models.CharField(max_length=100, null=True, blank=True)
+    country_code = models.CharField(max_length=10, null=True, blank=True)
+    
+    raw_data = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Falha de Login VPN"
+        verbose_name_plural = "Falhas de Login VPN"
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['user', 'timestamp']),
+            models.Index(fields=['source_ip', 'timestamp']),
+        ]
+
+    def __str__(self):
+        return f"Falha: {self.user} em {self.timestamp}"
 

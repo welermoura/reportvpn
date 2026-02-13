@@ -1,0 +1,277 @@
+import os
+import base64
+import subprocess
+
+# HTML Content:
+# FORCE LINE BREAKS using display: block and inline styles
+html_content = """{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Web Filter Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Filtro de Conteudo Web</h1>
+        <div>
+            <a href="{% url 'security_events:export_pdf' %}?{{ request.GET.urlencode }}&event_type=webfilter" class="btn btn-danger shadow-sm me-2 fw-bold" target="_blank">
+                <i class="fas fa-file-pdf me-1"></i> PDF
+            </a>
+            <a href="{% url 'security_events:export_csv' %}?{{ request.GET.urlencode }}&event_type=webfilter" class="btn btn-success shadow-sm me-2 fw-bold">
+                <i class="fas fa-file-csv me-1"></i> CSV
+            </a>
+            <a href="{% url 'security_events:index' %}" class="btn btn-outline-secondary fw-bold">Voltar ao Geral</a>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4 g-4">
+        <div class="col-md-6">
+            <div class="card bg-dark text-white shadow">
+                <div class="card-body">
+                    <h5 class="card-title text-danger">Acessos Bloqueados</h5>
+                    <h2 class="mb-0">{{ total_blocks|default:0 }}</h2>
+                    <small class="text-muted">Ultimos {{ days }} dias</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-dark text-white shadow">
+                <div class="card-body">
+                    <h5 class="card-title text-info">Total de Eventos Web</h5>
+                    <h2 class="mb-0">{{ total_events|default:0 }}</h2>
+                    <small>Monitoramento de trafego HTTP/HTTPS</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card bg-dark text-white shadow mb-4">
+        <div class="card-header border-bottom-secondary" data-bs-toggle="collapse" data-bs-target="#filterCollapse" style="cursor: pointer;">
+            <i class="fas fa-filter me-2"></i> Filtros Avançados
+        </div>
+        <div class="collapse show" id="filterCollapse">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <input type="hidden" name="days" value="{{ days }}">
+                    <input type="hidden" name="ordering" value="{{ ordering }}">
+                    
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small text-uppercase fw-bold">Usuário</label>
+                        <input type="text" name="username" class="form-control bg-dark border-secondary text-white" value="{{ username_q }}" placeholder="Nome ou Display Name...">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small text-uppercase fw-bold">URL / Site</label>
+                        <input type="text" name="url" class="form-control bg-dark border-secondary text-white" value="{{ url_q }}" placeholder="Ex: google.com">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small text-uppercase fw-bold">Departamento</label>
+                        <input type="text" name="department" class="form-control bg-dark border-secondary text-white" value="{{ department_q }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small text-uppercase fw-bold">Categoria</label>
+                        <select name="category" class="form-select bg-dark border-secondary text-white">
+                            <option value="">Todas</option>
+                            {% for cat in all_categories %}
+                            <option value="{{ cat }}" {% if category == cat %}selected{% endif %}>{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label text-muted small text-uppercase fw-bold">Ação</label>
+                        <select name="action" class="form-select bg-dark border-secondary text-white">
+                            <option value="">Todas</option>
+                            <option value="blocked" {% if action == 'blocked' %}selected{% endif %}>Bloqueado</option>
+                            <option value="passthrough" {% if action == 'passthrough' %}selected{% endif %}>Permitido</option>
+                        </select>
+                    </div>
+                    <div class="col-12 text-end">
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-search me-1"></i> Filtrar</button>
+                        <a href="{% url 'security_events:webfilter' %}" class="btn btn-outline-secondary">Limpar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card bg-dark text-white">
+                <div class="card-header border-bottom-secondary">Top 5 Categorias Bloqueadas</div>
+                <div class="card-body" style="height: 300px;">
+                    <canvas id="webCategoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-dark text-white">
+                <div class="card-header border-bottom-secondary">Top 5 URLs Bloqueadas</div>
+                <div class="card-body" style="height: 300px;">
+                    <canvas id="webUrlChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card bg-dark text-white shadow">
+        <div class="card-header border-bottom-secondary d-flex justify-content-between align-items-center">
+            <span>Logs de Filtro Web</span>
+            <small class="text-muted">Ordenando por: {{ ordering }}</small>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th><a href="?{{ request.GET.urlencode }}&ordering={% if ordering == 'timestamp' %}-timestamp{% else %}timestamp{% endif %}" class="text-white text-decoration-none">Data/Hora <i class="fas fa-sort"></i></a></th>
+                            <th>Usuário</th>
+                            <th>Cargo</th>
+                            <th>Departamento</th>
+                            <th>Categoria</th>
+                            <th>Ação</th>
+                            <th>URL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in events %}
+                        <tr>
+                            <td class="text-nowrap">{{ event.timestamp|date:"d/m/Y H:i:s" }}</td>
+                            <td>
+                                <!-- USER COLUMN: FORCE BLOCK DISPLAY -->
+                                <div>
+                                    {% if event.ad_display_name %}
+                                        <div style="display: block; font-weight: bold; font-size: 1.1em; color: white; margin-bottom: 2px;">
+                                            {{ event.ad_display_name }}
+                                        </div>
+                                        <div style="display: block; font-size: 0.85em; color: #adb5bd;">
+                                            {{ event.username }}
+                                        </div>
+                                    {% else %}
+                                        <div style="display: block; font-weight: bold; font-size: 1.1em; color: white;">
+                                            {{ event.username|default:"-" }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <!-- CARGO COLUMN -->
+                                {% if event.ad_title %}
+                                    <span class="text-light">{{ event.ad_title }}</span>
+                                {% else %}
+                                    <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if event.user_department %}
+                                <span class="text-info">{{ event.user_department }}</span>
+                                {% else %}
+                                <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge bg-info">{{ event.category }}</span></td>
+                            <td>
+                                {% if event.action == 'block' or event.action == 'blocked' %}
+                                <span class="badge bg-danger">Bloqueado</span>
+                                {% else %}
+                                <span class="badge bg-success">{{ event.action }}</span>
+                                {% endif %}
+                            </td>
+                            <td title="{{ event.url }}">
+                                <div style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    {{ event.url }}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4">
+                                <div class="text-muted">Nenhum evento encontrado.</div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{{ top_categories|json_script:"category-data" }}
+{{ top_urls|json_script:"url-data" }}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 1. Categories Chart
+        const catData = JSON.parse(document.getElementById('category-data').textContent);
+        if (catData.length > 0) {
+            new Chart(document.getElementById('webCategoryChart'), {
+                type: 'polarArea',
+                data: {
+                    labels: catData.map(d => d.category),
+                    datasets: [{
+                        data: catData.map(d => d.count),
+                        backgroundColor: ['rgba(54, 185, 204, 0.7)', 'rgba(78, 115, 223, 0.7)', 'rgba(28, 200, 138, 0.7)', 'rgba(246, 194, 62, 0.7)', 'rgba(231, 74, 59, 0.7)'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { display: false }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#fff' } }
+                    }
+                }
+            });
+        }
+
+        // 2. URLs Chart
+        const urlData = JSON.parse(document.getElementById('url-data').textContent);
+        if (urlData.length > 0) {
+            new Chart(document.getElementById('webUrlChart'), {
+                type: 'bar',
+                data: {
+                    labels: urlData.map(d => {
+                        let u = d.url;
+                        try {
+                            let parts = u.split('/');
+                            return parts[2] || parts[0] || u.substring(0, 15);
+                        } catch (e) { return u.substring(0, 15); }
+                    }),
+                    datasets: [{
+                        label: 'Bloqueios',
+                        data: urlData.map(d => d.count),
+                        backgroundColor: '#e74a3b'
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: { ticks: { color: '#fff' } },
+                        y: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
+"""
+
+# 2. WRITE LOCAL FILE
+local_path = r"C:\Users\welerms\Projeto-teste\security_events\templates\security_events\webfilter_v2.html"
+with open(local_path, 'w', encoding='utf-8') as f:
+    f.write(html_content)
+print(f"File updated locally: {local_path}")

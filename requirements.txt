@@ -1,4 +1,4 @@
-Django==6.0.2
+Django==5.1.5
 django-filter==25.1
 djangorestframework==3.15.2
 ldap3==2.9.1
@@ -12,7 +12,15 @@ geoip2==4.8.0
 xhtml2pdf
 gunicorn
 whitenoise
-celery
+celery>=5.3.0
 redis
-django-celery-beat
+django-celery-beat==2.7.0
+django-extensions
 django-redis
+# Database drivers
+psycopg2-binary>=2.9.9
+mssql-django>=1.5
+pyodbc>=5.0
+# Security
+cryptography>=41.0
+openpyxl

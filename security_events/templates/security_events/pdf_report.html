@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 1cm;
+        }
+
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 10px;
+            color: #333;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e74a3b;
+            /* Red for Security */
+            padding-bottom: 10px;
+        }
+
+        .header h1 {
+            color: #e74a3b;
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .meta-info {
+            text-align: right;
+            font-size: 8px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 5px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f4f4f4;
+            font-weight: bold;
+            color: #000;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .badge {
+            padding: 2px 4px;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 9px;
+            text-transform: uppercase;
+        }
+
+        .bg-critical {
+            background-color: #e74a3b;
+        }
+
+        .bg-high {
+            background-color: #fd7e14;
+        }
+
+        .bg-medium {
+            background-color: #f6c23e;
+            color: #000;
+        }
+
+        .bg-low {
+            background-color: #858796;
+        }
+
+        .bg-info {
+            background-color: #36b9cc;
+        }
+
+        .text-wrap {
+            word-wrap: break-word;
+            word-break: break-all;
+            white-space: normal;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>Relatório de Eventos de Segurança</h1>
+    </div>
+
+    <div class="meta-info">
+        Gerado em: {% now "d/m/Y H:i" %}<br>
+        Filtros: {{ filter_desc|default:"Todos os registros" }}<br>
+        Total de Eventos: {{ events|length }}
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th width="12%">Data/Hora</th>
+                <th width="8%">Tipo</th>
+                <th width="8%">Severidade</th>
+                <th width="12%">Origem</th>
+                <th width="12%">Destino</th>
+                <th width="15%">Usuário</th>
+                <th width="33%">Detalhes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in events %}
+            <tr>
+                <td>{{ event.timestamp|date:"d/m/Y H:i:s" }}</td>
+                <td>{{ event.get_event_type_display }}</td>
+                <td>
+                    {% if event.severity == 'critical' %}
+                    <span class="badge bg-critical">Crítico</span>
+                    {% elif event.severity == 'high' %}
+                    <span class="badge bg-high">Alto</span>
+                    {% elif event.severity == 'medium' %}
+                    <span class="badge bg-medium">Médio</span>
+                    {% elif event.severity == 'low' %}
+                    <span class="badge bg-low">Baixo</span>
+                    {% else %}
+                    <span class="badge bg-low">Info</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {{ event.src_ip }}<br>
+                    {% if event.src_country %}<small>({{ event.src_country }})</small>{% endif %}
+                </td>
+                <td>
+                    {{ event.dst_ip }}<br>
+                    {% if event.dst_country %}<small>({{ event.dst_country }})</small>{% endif %}
+                </td>
+                <td>
+                    {{ event.username|default:"-" }}
+                </td>
+                <td class="text-wrap">
+                    {% if event.event_type == 'ips' %}
+                    <b>Ataque:</b> {{ event.attack_name }}<br>
+                    <small>CVE: {{ event.cve }}</small>
+                    {% elif event.event_type == 'antivirus' %}
+                    <b>Vírus:</b> {{ event.virus_name }}<br>
+                    <small>Arquivo: {{ event.file_name }}</small>
+                    {% elif event.event_type == 'webfilter' %}
+                    <b>URL:</b> {{ event.url|truncatechars:100 }}<br>
+                    <small>Cat: {{ event.category }} | Ação: {{ event.action }}</small>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" align="center">Nenhum evento encontrado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+
+</html>

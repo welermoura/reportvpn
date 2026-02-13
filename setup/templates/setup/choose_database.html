@@ -1,0 +1,45 @@
+{% extends 'setup/base.html' %}
+
+{% block title %}Escolher Banco de Dados{% endblock %}
+{% block icon %}🗄️{% endblock %}
+{% block heading %}Escolha o Tipo de Banco de Dados{% endblock %}
+{% block subheading %}Selecione o banco de dados que deseja usar para seu SIEM{% endblock %}
+
+{% block content %}
+<form method="post">
+    {% csrf_token %}
+
+    <div class="radio-group">
+        <label class="radio-option">
+            <input type="radio" name="db_type" value="postgresql" checked>
+            <div>
+                <strong style="color: var(--text-primary); font-size: 1.1rem;">PostgreSQL</strong>
+                <p style="margin: 0.25rem 0 0 0; color: var(--text-secondary); font-size: 0.875rem;">
+                    Banco de dados open-source com container Docker (recomendado para configuração rápida)
+                </p>
+            </div>
+        </label>
+
+        <label class="radio-option">
+            <input type="radio" name="db_type" value="sqlserver">
+            <div>
+                <strong style="color: var(--text-primary); font-size: 1.1rem;">SQL Server</strong>
+                <p style="margin: 0.25rem 0 0 0; color: var(--text-secondary); font-size: 0.875rem;">
+                    Microsoft SQL Server (use servidor existente em sua infraestrutura)
+                </p>
+            </div>
+        </label>
+    </div>
+
+    {% if form.errors %}
+    <div class="error-message">
+        {{ form.errors }}
+    </div>
+    {% endif %}
+
+    <div class="btn-group">
+        <a href="{% url 'setup:welcome' %}" class="btn btn-secondary">← Voltar</a>
+        <button type="submit" class="btn btn-primary">Continuar →</button>
+    </div>
+</form>
+{% endblock %}

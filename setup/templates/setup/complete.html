@@ -1,0 +1,33 @@
+{% extends 'setup/base.html' %}
+
+{% block title %}Configuração Concluída{% endblock %}
+{% block icon %}✅{% endblock %}
+{% block heading %}Configuração Concluída!{% endblock %}
+{% block subheading %}Seu VPN SIEM está pronto para uso{% endblock %}
+
+{% block content %}
+<div class="success-message">
+    <strong>Parabéns!</strong><br>
+    Sua plataforma VPN SIEM foi configurada com sucesso.
+</div>
+
+<div class="info-box">
+    <h3>Próximos Passos:</h3>
+    <ol style="margin: 0.5rem 0 0 1.5rem; color: var(--text-secondary);">
+        <li>Configurar conexão com FortiAnalyzer</li>
+        <li>Configurar integração com Active Directory</li>
+        <li>Iniciar coleta de eventos de segurança</li>
+        <li>Explorar os dashboards</li>
+    </ol>
+</div>
+
+<div class="btn-group">
+    <a href="/admin/login/" class="btn btn-primary" style="width: 100%;">
+        Ir para Login →
+    </a>
+</div>
+
+<p style="text-align: center; color: var(--text-secondary); font-size: 0.875rem; margin-top: 2rem;">
+    Você pode agora fazer login com a conta de administrador que acabou de criar.
+</p>
+{% endblock %}

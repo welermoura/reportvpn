@@ -1,0 +1,160 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Antivírus Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Segurança de Endpoint (Antivírus)</h1>
+        <div>
+            <a href="{% url 'security_events:export_pdf' %}?{{ request.GET.urlencode }}&event_type=antivirus"
+                class="btn btn-sm btn-danger shadow-sm me-2" target="_blank">
+                <i class="fas fa-file-pdf fa-sm text-white-50"></i> PDF
+            </a>
+            <a href="{% url 'security_events:export_csv' %}?{{ request.GET.urlencode }}&event_type=antivirus"
+                class="btn btn-sm btn-success shadow-sm me-2">
+                <i class="fas fa-file-csv fa-sm text-white-50"></i> CSV
+            </a>
+            <a href="{% url 'security_events:index' %}" class="btn btn-outline-secondary">Voltar ao Geral</a>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-dark text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Deteções Totais</h5>
+                    <h2 class="mb-0">{{ total_detections|default:0 }}</h2>
+                    <small class="text-muted">Últimos {{ days }} dias</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <h5 class="card-title">Vírus Únicos</h5>
+                    <h2 class="mb-0">{{ unique_viruses|default:0 }}</h2>
+                    <small>Diferentes tipos de malware</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Ações Bloqueadas</h5>
+                    <h2 class="mb-0">100%</h2>
+                    <small>Todas as ameaças neutralizadas</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card bg-dark">
+                <div class="card-header">Top 5 Malwares Detectados</div>
+                <div class="card-body" style="height: 300px;">
+                    <canvas id="avPieChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-dark">
+                <div class="card-header">Deteções por Usuário</div>
+                <div class="card-body" style="height: 300px;">
+                    <canvas id="avUserChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card bg-dark text-white">
+        <div class="card-header">Logs de Antivírus e Malware</div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Vírus/Malware</th>
+                            <th>Usuário</th>
+                            <th>Arquivo</th>
+                            <th>IP Origem</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in events %}
+                        <tr>
+                            <td>{{ event.timestamp|date:"d/m H:i:s" }}</td>
+                            <td><span class="text-danger font-weight-bold">{{ event.virus_name }}</span></td>
+                            <td>{{ event.username|default:"N/A" }}</td>
+                            <td>{{ event.file_name|default:"-"|truncatechars:30 }}</td>
+                            <td>{{ event.src_ip }}</td>
+                            <td><span class="badge bg-success">{{ event.action }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">Nenhuma detecção encontrada</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{{ top_malwares_pie|json_script:"virus-data" }}
+{{ top_users|json_script:"user-data" }}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // 1. Virus Pie Chart
+        const virusData = JSON.parse(document.getElementById('virus-data').textContent);
+        new Chart(document.getElementById('avPieChart'), {
+            type: 'pie',
+            data: {
+                labels: virusData.map(d => d.virus_name),
+                datasets: [{
+                    data: virusData.map(d => d.count),
+                    backgroundColor: ['#e74a3b', '#f6c23e', '#4e73df', '#1cc88a', '#36b9cc'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#fff' } }
+                }
+            }
+        });
+
+        // 2. User Bar Chart
+        const userData = JSON.parse(document.getElementById('user-data').textContent);
+        new Chart(document.getElementById('avUserChart'), {
+            type: 'bar',
+            data: {
+                labels: userData.map(d => d.username || 'Desconhecido'),
+                datasets: [{
+                    label: 'Deteções',
+                    data: userData.map(d => d.count),
+                    backgroundColor: '#f6c23e'
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: '#fff' } },
+                    y: { ticks: { color: '#fff' }, beginAtZero: true }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

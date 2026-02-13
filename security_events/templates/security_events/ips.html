@@ -1,0 +1,171 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}IPS Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Intrusion Prevention System (IPS)</h1>
+        <div>
+            <a href="{% url 'security_events:export_pdf' %}?{{ request.GET.urlencode }}&event_type=ips"
+                class="btn btn-sm btn-danger shadow-sm me-2" target="_blank">
+                <i class="fas fa-file-pdf fa-sm text-white-50"></i> PDF
+            </a>
+            <a href="{% url 'security_events:export_csv' %}?{{ request.GET.urlencode }}&event_type=ips"
+                class="btn btn-sm btn-success shadow-sm me-2">
+                <i class="fas fa-file-csv fa-sm text-white-50"></i> CSV
+            </a>
+            <a href="{% url 'security_events:index' %}" class="btn btn-outline-secondary">Voltar ao Geral</a>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-dark text-white shadow h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-info">Total de Ataques</h5>
+                    <h2 class="mb-0">{{ total_attacks|default:0 }}</h2>
+                    <small class="text-muted">Ultimos {{ days }} dias</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-dark text-white shadow h-100 border-left-danger">
+                <div class="card-body">
+                    <h5 class="card-title text-danger">Ataques Criticos</h5>
+                    <h2 class="mb-0">{{ critical_attacks|default:0 }}</h2>
+                    <small>Acoes bloqueadas ou alertas criticos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-dark text-white shadow h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-success">Sensores Ativos</h5>
+                    <h2 class="mb-0">{{ top_attacks|length }}</h2>
+                    <small>Assinaturas detectadas</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card bg-dark text-white">
+                <div class="card-header border-bottom-secondary">Ataques ao Longo do Tempo (Diario)</div>
+                <div class="card-body" style="height: 300px;">
+                    <canvas id="ipsTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-dark text-white">
+                <div class="card-header border-bottom-secondary">Top 10 Assinaturas de Ataque</div>
+                <div class="card-body" style="height: 300px;">
+                    <canvas id="ipsSignatureChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card bg-dark text-white">
+        <div class="card-header border-bottom-secondary">Logs Detalhados de IPS</div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Severidade</th>
+                            <th>Ataque</th>
+                            <th>Origem</th>
+                            <th>Destino</th>
+                            <th>Pais</th>
+                            <th>Acao</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in events %}
+                        <tr>
+                            <td>{{ event.timestamp|date:"d/m/Y H:i:s" }}</td>
+                            <td><span class="badge bg-{{ event.get_severity_color }}">{{ event.get_severity_display
+                                    }}</span></td>
+                            <td title="{{ event.attack_name }}">{{ event.attack_name|truncatechars:30 }}</td>
+                            <td><span class="text-info">{{ event.src_ip }}</span></td>
+                            <td>{{ event.dst_ip }}</td>
+                            <td>{{ event.src_country|default:"-" }}</td>
+                            <td><span class="badge bg-secondary">{{ event.action }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center">Nenhum evento detectado.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{{ attacks_over_time|json_script:"trend-data" }}
+{{ top_attacks|json_script:"signature-data" }}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // 1. Trend Chart
+        const trendData = JSON.parse(document.getElementById('trend-data').textContent);
+        new Chart(document.getElementById('ipsTrendChart'), {
+            type: 'line',
+            data: {
+                labels: trendData.map(d => d.date),
+                datasets: [{
+                    label: 'Ataques',
+                    data: trendData.map(d => d.count),
+                    borderColor: '#e74a3b',
+                    backgroundColor: 'rgba(231, 74, 59, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: '#fff' } },
+                    y: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // 2. Signature Chart
+        const sigData = JSON.parse(document.getElementById('signature-data').textContent);
+        new Chart(document.getElementById('ipsSignatureChart'), {
+            type: 'bar',
+            data: {
+                labels: sigData.map(d => d.attack_name.substring(0, 20) + (d.attack_name.length > 20 ? '...' : '')),
+                datasets: [{
+                    label: 'Ocorrencias',
+                    data: sigData.map(d => d.count),
+                    backgroundColor: '#4e73df'
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                scales: {
+                    x: { ticks: { color: '#fff' } },
+                    y: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
