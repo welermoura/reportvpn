@@ -1,0 +1,30 @@
+﻿{% extends 'setup/base.html' %}
+
+{% block title %}Bem-vindo{% endblock %}
+{% block icon %}{% endblock %}
+{% block heading %}Bem-vindo ao VPN SIEM{% endblock %}
+{% block subheading %}Vamos configurar sua plataforma SIEM{% endblock %}
+
+{% block content %}
+<div class="info-box">
+    <h3>O que vamos configurar:</h3>
+    <ul style="margin: 0.5rem 0 0 1.5rem; color: var(--text-secondary);">
+        <li>Banco de dados (PostgreSQL ou SQL Server)</li>
+        <li>Conta de administrador</li>
+        <li>Configuração inicial</li>
+    </ul>
+</div>
+
+<p style="color: var(--text-secondary); margin-bottom: 2rem;">
+    Este assistente irá guiá-lo através do processo de configuração inicial.
+</p>
+
+<form method="post">
+    {% csrf_token %}
+    <div class="btn-group">
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+            Começar 
+        </button>
+    </div>
+</form>
+{% endblock %}

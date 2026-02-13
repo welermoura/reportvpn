@@ -1,0 +1,66 @@
+{% extends 'setup/base.html' %}
+
+{% block title %}Testar Conexão{% endblock %}
+{% block icon %}🔌{% endblock %}
+{% block heading %}Testar Conexão com Banco de Dados{% endblock %}
+{% block subheading %}Verificando conexão com seu banco de dados{% endblock %}
+
+{% block content %}
+<div class="config-summary">
+    <h3 style="margin: 0 0 1rem 0; color: var(--accent-color);">Resumo da Configuração</h3>
+    <div class="config-item">
+        <span class="config-label">Tipo de Banco:</span>
+        <span class="config-value">{{ db_config.type|title }}</span>
+    </div>
+    <div class="config-item">
+        <span class="config-label">Host:</span>
+        <span class="config-value">{{ db_config.host }}</span>
+    </div>
+    <div class="config-item">
+        <span class="config-label">Porta:</span>
+        <span class="config-value">{{ db_config.port }}</span>
+    </div>
+    <div class="config-item">
+        <span class="config-label">Banco de Dados:</span>
+        <span class="config-value">{{ db_config.database }}</span>
+    </div>
+    <div class="config-item">
+        <span class="config-label">Usuário:</span>
+        <span class="config-value">{{ db_config.user }}</span>
+    </div>
+</div>
+
+{% if error %}
+<div class="error-message">
+    <strong>Falha na Conexão:</strong><br>
+    {{ error }}
+</div>
+<div class="btn-group">
+    {% if db_config.type == 'postgresql' %}
+    <a href="{% url 'setup:configure_postgresql' %}" class="btn btn-secondary">← Voltar</a>
+    {% else %}
+    <a href="{% url 'setup:configure_sqlserver' %}" class="btn btn-secondary">← Voltar</a>
+    {% endif %}
+    <button type="button" class="btn btn-primary" onclick="location.reload()">Tentar Novamente</button>
+</div>
+{% else %}
+<form method="post">
+    {% csrf_token %}
+    <div class="info-box">
+        <h3>Pronto para testar conexão</h3>
+        <p style="margin: 0.5rem 0 0 0; color: var(--text-secondary);">
+            Clique no botão abaixo para testar a conexão e criar o banco de dados se necessário.
+        </p>
+    </div>
+
+    <div class="btn-group">
+        {% if db_config.type == 'postgresql' %}
+        <a href="{% url 'setup:configure_postgresql' %}" class="btn btn-secondary">← Voltar</a>
+        {% else %}
+        <a href="{% url 'setup:configure_sqlserver' %}" class="btn btn-secondary">← Voltar</a>
+        {% endif %}
+        <button type="submit" class="btn btn-primary">Testar Conexão →</button>
+    </div>
+</form>
+{% endif %}
+{% endblock %}

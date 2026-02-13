@@ -1,0 +1,140 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Report VPN - Portal{% endblock %}
+
+{% block content %}
+<style>
+    .portal-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 30px;
+        margin-top: 50px;
+    }
+
+    .portal-card {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 40px 30px;
+        text-align: center;
+        text-decoration: none;
+        color: var(--text-primary);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        backdrop-filter: blur(10px);
+    }
+
+    .portal-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+        transform: translateX(-100%);
+        transition: 0.6s;
+    }
+
+    .portal-card:hover {
+        transform: translateY(-10px);
+        background: rgba(255, 255, 255, 0.08);
+        border-color: var(--accent-color);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .portal-card:hover::before {
+        transform: translateX(100%);
+    }
+
+    .portal-icon {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.2));
+    }
+
+    .portal-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 15px;
+        background: linear-gradient(to right, #fff, #ccc);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .portal-desc {
+        font-size: 1rem;
+        color: var(--text-secondary);
+        line-height: 1.6;
+    }
+
+    .welcome-section {
+        text-align: center;
+        margin-bottom: 40px;
+        animation: fadeInDown 0.8s ease-out;
+    }
+
+    @keyframes fadeInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .badge-fase {
+        background: var(--accent-color);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        position: absolute;
+        top: 20px;
+        right: 20px;
+    }
+</style>
+
+<div class="welcome-section">
+    <h1 style="font-size: 2.5rem; margin-bottom: 10px;">Bem-vindo ao <span style="color: var(--accent-color);">Report
+            VPN</span></h1>
+    <p class="text-secondary">Selecione o módulo de análise que deseja acessar</p>
+</div>
+
+<div class="portal-grid">
+    {% for module in modules %}
+    <a href="{% url module.url_name %}" class="portal-card">
+        {% if module.slug == 'report-vpn' %}
+        <!-- Special badge for legacy support or specific logic if needed, currently based on loop -->
+        {% endif %}
+
+        <!-- Icon rendering: Check if it's an emoji or a class -->
+        <div class="portal-icon">
+            {% if "fa-" in module.icon %}
+            <i class="{{ module.icon }}"></i>
+            {% else %}
+            {{ module.icon }}
+            {% endif %}
+        </div>
+
+        <div class="portal-title">{{ module.title }}</div>
+        <p class="portal-desc">{{ module.description }}</p>
+    </a>
+    {% empty %}
+    <div class="col-12 text-center text-white">
+        <p>Nenhum módulo configurado. Acesse o admin para adicionar.</p>
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}

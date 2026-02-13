@@ -2,7 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+*.ctl
 # Django
 *.log
 local_settings.py
@@ -28,3 +28,4 @@ verification*.log
 *.example
 !vpn-scheduler.service.example
 !.env.example
+

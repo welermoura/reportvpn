@@ -1,0 +1,61 @@
+{% extends 'setup/base.html' %}
+
+{% block title %}Criar Usuário Admin{% endblock %}
+{% block icon %}👤{% endblock %}
+{% block heading %}Criar Administrador{% endblock %}
+{% block subheading %}Configure sua conta de administrador{% endblock %}
+
+{% block content %}
+<div class="success-message">
+    ✓ Conexão com banco de dados bem-sucedida!
+</div>
+
+<form method="post">
+    {% csrf_token %}
+
+    <div class="form-group">
+        <label for="id_username">Nome de Usuário</label>
+        {{ form.username }}
+        <p class="help-text">Nome de usuário para a conta de administrador</p>
+    </div>
+
+    <div class="form-group">
+        <label for="id_email">Endereço de Email</label>
+        {{ form.email }}
+        <p class="help-text">Email do administrador</p>
+    </div>
+
+    <div class="form-group">
+        <label for="id_password">Senha</label>
+        {{ form.password }}
+        <p class="help-text">Mínimo de 8 caracteres</p>
+    </div>
+
+    <div class="form-group">
+        <label for="id_password_confirm">Confirmar Senha</label>
+        {{ form.password_confirm }}
+    </div>
+
+    {% if error %}
+    <div class="error-message">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    {% if form.errors %}
+    <div class="error-message">
+        {% for field, errors in form.errors.items %}
+        {% for error in errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="btn-group">
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+            Criar Admin e Concluir Configuração →
+        </button>
+    </div>
+</form>
+{% endblock %}

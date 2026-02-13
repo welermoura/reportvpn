@@ -1,0 +1,402 @@
+{% extends 'dashboard/base.html' %}
+
+{% block content %}
+<div id="bruteforce-dashboard-root"></div>
+
+<!-- React & Dependencies -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Custom Styles for Premium Look -->
+<style>
+    :root {
+        --glass-bg: rgba(25, 28, 41, 0.6);
+        --glass-border: rgba(255, 255, 255, 0.08);
+        --accent-blue: #4e73df;
+        --accent-green: #1cc88a;
+        --accent-red: #e74a3b;
+        --text-secondary: #858796;
+    }
+
+    .premium-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(15px);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.4);
+        transition: all 0.3s ease;
+    }
+
+    .stat-value-premium {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: white;
+    }
+
+    .stat-label {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        font-weight: 500;
+        margin-bottom: 8px;
+    }
+
+    .chart-box {
+        background: var(--glass-bg);
+        border-radius: 12px;
+        border: 1px solid var(--glass-border);
+        padding: 20px;
+        height: 300px;
+    }
+
+    .chart-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: white;
+        margin-bottom: 20px;
+    }
+
+    .table-premium {
+        width: 100%;
+        font-family: 'Inter', sans-serif;
+        font-size: 16px;
+        font-weight: 400;
+        color: rgb(248, 250, 252);
+        border-collapse: collapse;
+    }
+
+    .table-premium th {
+        color: var(--text-secondary);
+        font-weight: 600;
+        padding: 12px 8px;
+        border-bottom: 1px solid var(--glass-border);
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .table-premium td {
+        padding: 12px 8px;
+        color: #d1d3e2;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .table-premium tr:hover {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .user-avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 6px;
+        background: var(--accent-red);
+        /* Red for failures */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: white;
+        margin-right: 8px;
+        font-size: 0.7rem;
+    }
+
+    .filters-bar {
+        background: transparent;
+        padding: 10px 0;
+        margin-bottom: 15px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    .filters-label {
+        font-weight: bold;
+        color: #fff;
+        margin-right: 10px;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+    }
+
+    .filter-input {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #fff;
+        padding: 6px 12px;
+        border-radius: 4px;
+        min-width: 150px;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .filter-input::placeholder {
+        color: #858796;
+    }
+
+    .filter-input:focus {
+        border-color: #4e73df;
+        outline: none;
+    }
+
+    .filter-input::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+        cursor: pointer;
+        opacity: 0.6;
+    }
+
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+        border-radius: 4px;
+        cursor: pointer;
+        border: 1px solid transparent;
+        color: white;
+    }
+
+    .btn-primary {
+        background-color: #4e73df;
+    }
+
+    .btn-secondary {
+        background-color: #858796;
+    }
+
+    .pulse-live {
+        width: 8px;
+        height: 8px;
+        background: var(--accent-red);
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+        box-shadow: 0 0 0 rgba(231, 74, 59, 0.4);
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(231, 74, 59, 0.7);
+        }
+
+        70% {
+            transform: scale(1.1);
+            box-shadow: 0 0 0 10px rgba(231, 74, 59, 0);
+        }
+
+        100% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(231, 74, 59, 0);
+        }
+    }
+</style>
+
+<script type="text/babel">
+    {% verbatim %}
+    const { useState, useEffect, useCallback, useRef } = React;
+
+    const StatsCharts = ({ data }) => {
+        const trendRef = useRef(null);
+        const ipRef = useRef(null);
+        const userRef = useRef(null);
+        const charInstances = useRef({});
+
+        useEffect(() => {
+            if (!data) return;
+            Object.values(charInstances.current).forEach(c => c.destroy());
+
+            const chartOptions = {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#858796', font: { size: 10 } } } }
+            };
+
+            // Trend: Failures per Hour
+            charInstances.current.trend = new Chart(trendRef.current, {
+                type: 'line',
+                data: {
+                    labels: data.trend.labels,
+                    datasets: [{ label: 'Falhas/Hora', data: data.trend.data, borderColor: '#e74a3b', backgroundColor: 'rgba(231, 74, 59, 0.1)', fill: true, tension: 0.3 }]
+                },
+                options: {
+                    ...chartOptions,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { ticks: { color: '#858796' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#858796' }, grid: { display: false } } }
+                }
+            });
+
+            // Top IPs
+            charInstances.current.ip = new Chart(ipRef.current, {
+                type: 'bar',
+                data: { labels: data.ips.labels, datasets: [{ label: 'Tentativas', data: data.ips.data, backgroundColor: '#f6c23e' }] },
+                options: { ...chartOptions, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#858796' }, grid: { display: false } }, x: { ticks: { color: '#858796' }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+            });
+
+            // Top Users
+            charInstances.current.user = new Chart(userRef.current, {
+                type: 'bar',
+                data: { labels: data.users.labels, datasets: [{ label: 'Falhas', data: data.users.data, backgroundColor: '#e74a3b' }] },
+                options: { ...chartOptions, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#858796' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#858796' }, grid: { display: false } } } }
+            });
+
+            return () => Object.values(charInstances.current).forEach(c => c.destroy());
+        }, [data]);
+
+        return (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+                <div className="chart-box">
+                    <div className="chart-title">Tentativas (Últimas 24h)</div>
+                    <div style={{ height: '220px' }}><canvas ref={trendRef}></canvas></div>
+                </div>
+                <div className="chart-box">
+                    <div className="chart-title">Top Origens (IPs)</div>
+                    <div style={{ height: '220px' }}><canvas ref={ipRef}></canvas></div>
+                </div>
+                <div className="chart-box">
+                    <div className="chart-title">Top Alvos (Usuários)</div>
+                    <div style={{ height: '220px' }}><canvas ref={userRef}></canvas></div>
+                </div>
+            </div>
+        );
+    };
+
+    const BruteForceDashboard = () => {
+        const [logs, setLogs] = useState([]);
+        const [stats, setStats] = useState(null);
+        const [loading, setLoading] = useState(true);
+        const [showCharts, setShowCharts] = useState(true);
+
+        const [filters, setFilters] = useState({
+            user: '', ip: ''
+        });
+
+        const fetchData = useCallback(async () => {
+            try {
+                const search = new URLSearchParams(filters).toString();
+                // We fetch failures logs + stats
+                const [lRes, sRes] = await Promise.all([
+                    fetch(`/api/vpn-failures/?${search}`),
+                    fetch(`/api/bruteforce-stats/`)
+                ]);
+
+                const logsData = await lRes.json();
+                setLogs(logsData);
+                setStats(await sRes.json());
+                setLoading(false);
+            } catch (err) { console.error(err); }
+        }, [filters]);
+
+        useEffect(() => {
+            fetchData();
+            const interval = setInterval(fetchData, 10000); // 10s refresh for security monitoring
+            return () => clearInterval(interval);
+        }, [fetchData]);
+
+        const clearFilters = () => {
+            setFilters({ user: '', ip: '' });
+        };
+
+        return (
+            <div style={{ padding: '0px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h2 style={{ fontSize: '1.4rem', color: 'white', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '1.2rem' }}>🚨</span> Monitoramento de Força Bruta
+                    </h2>
+                    <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(231, 74, 59, 0.2)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--accent-red)' }}>
+                        <span className="pulse-live"></span>
+                        <span style={{ fontSize: '0.7rem', color: '#e74a3b', fontWeight: 600 }}>LIVE MONITORING</span>
+                    </div>
+                </div>
+
+                <div className="premium-card" style={{ marginBottom: '20px', padding: '10px 20px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }} onClick={() => setShowCharts(!showCharts)}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>📊 Visualizar Métricas de Ataque</span>
+                    <span>{showCharts ? '▲' : '▼'}</span>
+                </div>
+
+                {showCharts && stats && (
+                    <StatsCharts data={stats} />
+                )}
+
+                <div className="premium-card" style={{ padding: '0', overflow: 'hidden', marginBottom: '20px' }}>
+                    <div className="filters-bar" style={{ margin: 0, padding: '15px 20px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                        <span className="filters-label">FILTROS:</span>
+
+                        <input
+                            type="text"
+                            className="filter-input"
+                            placeholder="Usuário..."
+                            value={filters.user}
+                            onChange={e => setFilters({ ...filters, user: e.target.value })}
+                        />
+
+                        <input
+                            type="text"
+                            className="filter-input"
+                            placeholder="IP de Origem..."
+                            value={filters.ip}
+                            onChange={e => setFilters({ ...filters, ip: e.target.value })}
+                        />
+
+                        <div style={{ flexGrow: 1 }}></div>
+
+                        <button className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={clearFilters}>
+                            🧹 Limpar
+                        </button>
+                    </div>
+
+                    <div style={{ padding: '0 15px 15px 15px', overflowX: 'auto' }}>
+                        <table className="table-premium">
+                            <thead>
+                                <tr>
+                                    <th>Data/Hora</th>
+                                    <th>Usuário Alvo</th>
+                                    <th>IP Origem</th>
+                                    <th>Localização</th>
+                                    <th>Motivo</th>
+                                    <th>Detalhes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {loading ? (
+                                    <tr><td colSpan="6" style={{ textAlign: 'center', padding: '40px' }}>Carregando dados...</td></tr>
+                                ) : logs.length > 0 ? logs.map(l => (
+                                    <tr key={l.id}>
+                                        <td style={{ color: '#e74a3b', fontWeight: 600 }}>
+                                            {new Date(l.timestamp).toLocaleString('pt-BR')}
+                                        </td>
+                                        <td>
+                                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                <div className="user-avatar" style={{ background: '#e74a3b' }}>
+                                                    {l.user ? l.user.substring(0, 2).toUpperCase() : '??'}
+                                                </div>
+                                                <span style={{ color: 'white' }}>{l.user || 'Desconhecido'}</span>
+                                            </div>
+                                        </td>
+                                        <td style={{ fontFamily: 'monospace', color: '#f6c23e' }}>{l.source_ip}</td>
+                                        <td>
+                                            {l.city ? `${l.city}, ${l.country_code}` : (l.country_code || '-')}
+                                        </td>
+                                        <td>
+                                            <span style={{ background: 'rgba(231, 74, 59, 0.2)', color: '#e74a3b', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem' }}>
+                                                {l.reason || 'Falha de Autenticação'}
+                                            </span>
+                                        </td>
+                                        <td style={{ fontSize: '0.8rem', color: '#858796', maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {JSON.stringify(l)}
+                                        </td>
+                                    </tr>
+                                )) : (
+                                    <tr><td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#1cc88a' }}>✨ Nenhuma falha detectada recentemente.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('bruteforce-dashboard-root'));
+    root.render(<BruteForceDashboard />);
+    {% endverbatim %}
+</script>
+{% endblock %}

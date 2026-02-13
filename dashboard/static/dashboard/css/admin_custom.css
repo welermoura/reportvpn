@@ -1,4 +1,4 @@
-/* Admin Interface Custom Styling - VPN Analytics */
+/* Admin Interface Custom Styling - VPN Analytics (Premium Glassmorphism) */
 
 :root {
     --bg-color: #0f172a;
@@ -8,37 +8,72 @@
     --accent-color: #3b82f6;
     --accent-glow: rgba(59, 130, 246, 0.5);
     --success-color: #10b981;
+    --danger-color: #ef4444;
+    --warning-color: #f59e0b;
     --border-color: rgba(255, 255, 255, 0.1);
-    --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+    --glass-bg: rgba(25, 28, 41, 0.8);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+    --font-main: 'Inter', sans-serif;
 }
 
-/* Override Django Admin Background */
+/* Global Standard */
 body {
     background-color: var(--bg-color) !important;
     color: var(--text-primary) !important;
+    font-family: var(--font-main) !important;
     background-image:
         radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 40%),
         radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 40%) !important;
 }
 
+/* Typography */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--font-main) !important;
+}
+
 /* Header */
 #header {
-    background: rgba(15, 23, 42, 0.8) !important;
+    background: rgba(15, 23, 42, 0.7) !important;
     backdrop-filter: blur(12px);
     border-bottom: var(--glass-border) !important;
     color: var(--text-primary) !important;
+    padding: 15px 40px !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
-#branding h1, #branding h1 a:link, #branding h1 a:visited {
-    color: var(--text-primary) !important;
+#branding h1 {
+    font-weight: 700 !important;
+    font-size: 1.4rem !important;
     background: linear-gradient(to right, #3b82f6, #8b5cf6);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
+    margin: 0 !important;
+}
+
+/* Hide Theme Toggle (Moon/Sun) */
+button.theme-toggle {
+    display: none !important;
+}
+
+#user-tools {
+    font-weight: 500 !important;
+    font-size: 0.9rem !important;
+    display: flex;
+    align-items: center;
+    gap: 15px;
 }
 
 #user-tools a {
     color: var(--text-secondary) !important;
+    transition: color 0.3s;
 }
 
 #user-tools a:hover {
@@ -47,229 +82,291 @@ body {
 
 /* Breadcrumbs */
 div.breadcrumbs {
-    background: rgba(30, 41, 59, 0.5) !important;
-    border-bottom: var(--glass-border) !important;
+    background: transparent !important;
     color: var(--text-secondary) !important;
+    padding: 15px 40px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    font-size: 0.85rem !important;
 }
 
 div.breadcrumbs a {
     color: var(--accent-color) !important;
+    text-decoration: none;
 }
 
-/* Content Area */
+div.breadcrumbs a:hover {
+    color: #fff !important;
+}
+
+/* Content Container */
 #content {
     background: transparent !important;
+    padding: 30px 40px !important;
+    max-width: 1600px !important;
+    margin: 0 auto !important;
 }
 
-/* Modules */
-.module {
+/* Modules & Cards */
+.module,
+.card {
     background: var(--card-bg) !important;
     backdrop-filter: blur(16px);
     border: var(--glass-border) !important;
-    border-radius: 16px !important;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+    margin-bottom: 25px !important;
+    overflow: hidden !important;
 }
 
-.module h2, .module caption, .inline-group h2 {
-    background: rgba(15, 23, 42, 0.6) !important;
+.module h2,
+.module caption,
+.inline-group h2 {
+    background: rgba(15, 23, 42, 0.4) !important;
     color: var(--text-primary) !important;
     border-bottom: var(--glass-border) !important;
+    font-size: 1rem !important;
+    padding: 12px 20px !important;
+    font-weight: 600 !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
 }
 
 /* Tables */
 table {
+    width: 100% !important;
     background: transparent !important;
+    border-collapse: collapse !important;
 }
 
-thead th, thead td {
-    background: rgba(15, 23, 42, 0.6) !important;
+thead th {
+    background: rgba(0, 0, 0, 0.2) !important;
     color: var(--text-secondary) !important;
     border-bottom: var(--glass-border) !important;
+    text-transform: uppercase !important;
+    font-size: 0.75rem !important;
+    padding: 12px 15px !important;
+    font-weight: 600 !important;
 }
 
-tbody th, tbody td {
+tbody td,
+tbody th {
     background: transparent !important;
-    color: var(--text-primary) !important;
-    border-bottom: var(--glass-border) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
+    padding: 12px 15px !important;
+    color: #d1d3e2 !important;
+    font-size: 0.9rem !important;
+    vertical-align: middle !important;
 }
 
 tbody tr:hover {
-    background-color: rgba(255, 255, 255, 0.05) !important;
+    background-color: rgba(255, 255, 255, 0.03) !important;
 }
 
-tbody tr.selected {
-    background-color: rgba(59, 130, 246, 0.2) !important;
-}
-
-/* Forms */
-.form-row {
-    background: transparent !important;
-    border-bottom: var(--glass-border) !important;
-}
-
-input[type="text"], input[type="password"], input[type="email"], 
-input[type="url"], input[type="number"], input[type="date"],
-input[type="time"], input[type="datetime-local"], textarea, select {
-    background: rgba(15, 23, 42, 0.6) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: var(--text-primary) !important;
-    border-radius: 8px !important;
-}
-
-input[type="text"]:focus, input[type="password"]:focus, 
-input[type="email"]:focus, textarea:focus, select:focus {
-    border-color: var(--accent-color) !important;
-    box-shadow: 0 0 0 2px var(--accent-glow) !important;
-    outline: none !important;
+/* Links inside tables */
+tbody td a,
+tbody th a {
+    color: var(--accent-color) !important;
+    font-weight: 500 !important;
 }
 
 /* Buttons */
-.button, input[type="submit"], input[type="button"], .submit-row input, button {
+.button,
+input[type="submit"],
+input[type="button"],
+.submit-row input,
+button {
     background: var(--accent-color) !important;
     color: white !important;
     border: none !important;
-    border-radius: 8px !important;
-    padding: 0.5rem 1rem !important;
+    border-radius: 6px !important;
+    padding: 8px 16px !important;
+    font-size: 0.85rem !important;
     font-weight: 600 !important;
+    text-transform: uppercase !important;
     cursor: pointer !important;
     transition: all 0.3s !important;
-    box-shadow: 0 0 15px var(--accent-glow) !important;
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3) !important;
 }
 
-.button:hover, input[type="submit"]:hover, input[type="button"]:hover, 
-.submit-row input:hover, button:hover {
+.button:hover,
+input[type="submit"]:hover {
     transform: translateY(-2px) !important;
-    box-shadow: 0 0 25px var(--accent-glow) !important;
+    box-shadow: 0 6px 15px rgba(59, 130, 246, 0.4) !important;
 }
 
-.button.default, input[type="submit"].default, .submit-row input.default {
-    background: var(--accent-color) !important;
+.deletelink {
+    background: transparent !important;
+    color: var(--danger-color) !important;
+    box-shadow: none !important;
+    padding: 8px 16px !important;
 }
 
-a.button.default:hover, input[type="submit"].default:hover {
-    background: #2563eb !important;
+.deletelink:hover {
+    background: rgba(239, 68, 68, 0.1) !important;
+    transform: none !important;
+    color: #ff6b6b !important;
 }
 
-/* Delete button */
-.deletelink, .deletelink-box a {
-    background: rgba(239, 68, 68, 0.8) !important;
-    color: white !important;
+/* Form Inputs */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+textarea,
+.vTextField {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: var(--text-primary) !important;
+    padding: 8px 12px !important;
+    border-radius: 6px !important;
+    font-family: var(--font-main) !important;
+    font-size: 0.9rem !important;
 }
 
-.deletelink:hover, .deletelink-box a:hover {
-    background: rgba(239, 68, 68, 1) !important;
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+    outline: none !important;
 }
 
-/* Links */
-a, a:link, a:visited {
-    color: var(--accent-color) !important;
+select {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    background-color: rgba(0, 0, 0, 0.2) !important;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 12px center !important;
+    background-size: 10px auto !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: var(--text-primary) !important;
+    padding: 10px 30px 10px 12px !important;
+    border-radius: 6px !important;
+    font-family: var(--font-main) !important;
+    font-size: 0.9rem !important;
+    line-height: 1.5 !important;
+    cursor: pointer !important;
+    min-height: 44px !important;
+    height: 44px !important;
 }
 
-a:hover {
-    color: #60a5fa !important;
+select::-ms-expand {
+    display: none !important;
+}
+
+select option {
+    background-color: #1e293b !important;
+    color: var(--text-primary) !important;
+}
+
+/* Dashboard Actions List (Recent/My Actions) */
+#content-related {
+    background: transparent !important;
+}
+
+.module ul.actionlist {
+    margin-left: 0 !important;
+    color: var(--text-primary) !important;
+}
+
+.module ul.actionlist li {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    padding: 8px 0 !important;
 }
 
 /* Messages */
 .messagelist li {
-    background: var(--card-bg) !important;
-    border: var(--glass-border) !important;
-    color: var(--text-primary) !important;
-    border-radius: 8px !important;
+    border-radius: 6px !important;
+    margin-bottom: 10px !important;
+    background: rgba(30, 41, 59, 0.9) !important;
+    border-left: 4px solid !important;
 }
 
 .messagelist li.success {
-    background: rgba(16, 185, 129, 0.2) !important;
-    border: 1px solid rgba(16, 185, 129, 0.3) !important;
+    border-color: var(--success-color) !important;
+    color: var(--success-color) !important;
 }
 
 .messagelist li.warning {
-    background: rgba(245, 158, 11, 0.2) !important;
-    border: 1px solid rgba(245, 158, 11, 0.3) !important;
+    border-color: var(--warning-color) !important;
+    color: var(--warning-color) !important;
 }
 
 .messagelist li.error {
-    background: rgba(239, 68, 68, 0.2) !important;
-    border: 1px solid rgba(239, 68, 68, 0.3) !important;
+    border-color: var(--danger-color) !important;
+    color: var(--danger-color) !important;
 }
 
-/* Dashboard */
-#content-main {
-    background: transparent !important;
-}
-
-.dashboard .module table th {
-    width: 100%;
-}
-
-.dashboard .module table td {
-    white-space: nowrap;
-}
-
-/* Changelist */
-#changelist {
-    background: transparent !important;
-}
-
+/* Filter Sidebar */
 #changelist-filter {
     background: var(--card-bg) !important;
-    backdrop-filter: blur(16px);
-    border: var(--glass-border) !important;
-    border-radius: 16px !important;
+    border-left: none !important;
+    border-radius: 12px !important;
+    margin-left: 20px !important;
 }
 
 #changelist-filter h2 {
-    background: rgba(15, 23, 42, 0.6) !important;
-    color: var(--text-primary) !important;
-}
-
-#changelist-filter h3 {
-    color: var(--text-secondary) !important;
-}
-
-#changelist-filter li {
-    background: transparent !important;
+    background: rgba(59, 130, 246, 0.1) !important;
+    color: var(--accent-color) !important;
+    border-radius: 12px 12px 0 0 !important;
 }
 
 #changelist-filter li.selected a {
     color: var(--accent-color) !important;
-    font-weight: 600 !important;
+    border-left: 3px solid var(--accent-color) !important;
+    padding-left: 10px !important;
 }
 
 /* Pagination */
 .paginator {
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    background: transparent !important;
     color: var(--text-secondary) !important;
 }
 
-.paginator a, .paginator a:link, .paginator a:visited {
-    background: rgba(255, 255, 255, 0.15) !important;
-    border: 1px solid rgba(255, 255, 255, 0.3) !important;
-    color: var(--text-primary) !important;
+/* Calendar & Clock Widgets (Dark Mode Fixes) */
+.calendarbox,
+.clockbox {
+    background: #1e293b !important;
+    border: 1: 1px solid rgba(255, 255, 255, 0.1) !important;
     border-radius: 8px !important;
-}
-
-.paginator a:hover {
-    background: rgba(255, 255, 255, 0.25) !important;
-}
-
-/* Calendar Widget */
-.calendarbox, .clockbox {
-    background: var(--card-bg) !important;
-    border: var(--glass-border) !important;
-    border-radius: 8px !important;
-}
-
-.calendar caption, .calendarbox h2 {
-    background: rgba(15, 23, 42, 0.6) !important;
     color: var(--text-primary) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
+    padding: 10px !important;
+    min-width: 250px !important;
+    /* Ensure enough width */
+    width: auto !important;
+    z-index: 9999 !important;
 }
 
-.calendar td, .calendar th {
+.calendar table {
+    background: transparent !important;
+    width: 100% !important;
+    /* Fill container */
+}
+
+.calendar caption,
+.calendarbox h2 {
+    background: transparent !important;
+    color: var(--text-primary) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.calendar th {
+    background: transparent !important;
+    color: var(--text-secondary) !important;
+}
+
+.calendar td {
     background: transparent !important;
     color: var(--text-primary) !important;
 }
 
 .calendar td a {
-    color: var(--accent-color) !important;
+    color: var(--text-primary) !important;
+    font-weight: normal !important;
 }
 
 .calendar td.selected a {
@@ -277,61 +374,37 @@ a:hover {
     color: white !important;
 }
 
-/* Help Text */
-.help, p.help, form .help {
-    color: var(--text-secondary) !important;
-}
-
-/* Errors */
-.errorlist {
-    background: rgba(239, 68, 68, 0.2) !important;
-    border: 1px solid rgba(239, 68, 68, 0.3) !important;
-    color: #fca5a5 !important;
-    border-radius: 8px !important;
-}
-
-/* Fieldsets */
-.aligned label {
-    color: var(--text-secondary) !important;
-}
-
-fieldset.module {
-    background: var(--card-bg) !important;
-    border: var(--glass-border) !important;
-    border-radius: 16px !important;
-}
-
-/* Selector */
-.selector {
+.calendar td.noday {
     background: transparent !important;
 }
 
-.selector-available, .selector-chosen {
-    background: var(--card-bg) !important;
-    border: var(--glass-border) !important;
-    border-radius: 8px !important;
-}
-
-.selector-available h2, .selector-chosen h2 {
-    background: rgba(15, 23, 42, 0.6) !important;
-    color: var(--text-primary) !important;
-}
-
-.selector select {
-    background: rgba(15, 23, 42, 0.6) !important;
-    color: var(--text-primary) !important;
-    border: var(--glass-border) !important;
-}
-
-.selector-chooser {
+.calendar-shortcuts {
     background: transparent !important;
+    color: var(--text-secondary) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
-/* Related Widget Wrapper */
-.related-widget-wrapper-link {
-    opacity: 0.8;
+.calendar-shortcuts a {
+    color: var(--accent-color) !important;
 }
 
-.related-widget-wrapper-link:hover {
-    opacity: 1;
+.clockbox h2 {
+    background: transparent !important;
+    color: var(--text-primary) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.clockbox a {
+    color: var(--accent-color) !important;
+}
+
+/* Help text */
+.help {
+    color: #64748b !important;
+    font-size: 0.8rem !important;
+}
+
+/* Footer (if exists) */
+#footer {
+    display: none !important;
 }

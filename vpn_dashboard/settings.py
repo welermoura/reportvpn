@@ -41,11 +41,15 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # Third-party
     'rest_framework',
-    'django_celery_beat',
+    'django_filters',  # Added for API filtering
+    'dashboard.celery_beat_config.CustomBeatConfig',
+    'django_extensions',
     # Local apps
-    'integrations',
-    'vpn_logs',
-    'dashboard',
+    'setup',  # Database setup wizard
+    'security_events.apps.SecurityEventsConfig',  # Security events dashboard
+    'integrations.apps.IntegrationsConfig',
+    'vpn_logs.apps.VpnLogsConfig',
+    'dashboard.apps.DashboardConfig',
 ]
 
 MIDDLEWARE = [
@@ -55,8 +59,10 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'dashboard.middleware.AccessLogMiddleware', # Access Logging
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'setup.middleware.SetupRequiredMiddleware',  # Setup wizard redirect
     'dashboard.middleware.ForcePasswordChangeMiddleware',
 ]
 
@@ -89,12 +95,60 @@ WSGI_APPLICATION = 'vpn_dashboard.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Dynamic database configuration
+import json
+from pathlib import Path
+
+def get_database_config():
+    """Load database configuration from .db_config.json"""
+    config_file = BASE_DIR / '.db_config.json'
+    if config_file.exists():
+        try:
+            with open(config_file, 'r') as f:
+                return json.load(f)
+        except:
+            return None
+    return None
+
+db_config = get_database_config()
+
+if db_config and db_config.get('setup_complete'):
+    # Use configured database
+    if db_config['type'] == 'postgresql':
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': db_config['database'],
+                'USER': db_config['user'],
+                'PASSWORD': db_config['password'],
+                'HOST': db_config['host'],
+                'PORT': db_config['port'],
+            }
+        }
+    elif db_config['type'] == 'sqlserver':
+        DATABASES = {
+            'default': {
+                'ENGINE': 'mssql',
+                'NAME': db_config['database'],
+                'USER': db_config['user'],
+                'PASSWORD': db_config['password'],
+                'HOST': db_config['host'],
+                'PORT': db_config['port'],
+                'OPTIONS': {
+                    'driver': 'ODBC Driver 18 for SQL Server',
+                    'extra_params': 'TrustServerCertificate=yes',
+                },
+            }
+        }
+else:
+    # Use SQLite for initial setup
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'setup.db',
+        }
     }
-}
+
 
 
 # Password validation
@@ -152,9 +206,21 @@ CELERY_TIMEZONE = TIME_ZONE
 
 # Celery Beat Schedule - Automatic Tasks
 CELERY_BEAT_SCHEDULE = {
-    'fetch-vpn-logs-every-10-minutes': {
-        'task': 'vpn_logs.tasks.fetch_vpn_logs_task',
-        'schedule': 600.0,  # 10 minutos em segundos
+    'Coleta de Logs VPN (10 min)': {
+        'task': 'Coleta de Logs VPN',
+        'schedule': 600.0,
+    },
+    'Coleta de Eventos IPS (10 min)': {
+        'task': 'Coleta de Eventos IPS',
+        'schedule': 600.0,
+    },
+    'Coleta de Eventos Antivirus (10 min)': {
+        'task': 'Coleta de Eventos Antivirus',
+        'schedule': 600.0,
+    },
+    'Coleta de Eventos Web Filter (10 min)': {
+        'task': 'Coleta de Eventos Web Filter',
+        'schedule': 600.0,
     },
 }
 

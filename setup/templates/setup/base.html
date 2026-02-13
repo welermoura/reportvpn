@@ -1,0 +1,31 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Assistente de Configuração{% endblock %} - VPN SIEM</title>
+    <link rel="stylesheet" href="{% static 'setup/css/wizard.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+    <div class="wizard-container">
+        <div class="wizard-card">
+            <div class="wizard-header">
+                <div class="wizard-icon">{% block icon %}🔧{% endblock %}</div>
+                <h1>{% block heading %}Configuração VPN SIEM{% endblock %}</h1>
+                <p>{% block subheading %}Configure sua plataforma SIEM{% endblock %}</p>
+            </div>
+
+            {% block progress %}{% endblock %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

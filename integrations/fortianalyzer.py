@@ -18,7 +18,7 @@ class FortiAnalyzerClient:
         })
         return session
 
-    def start_log_task(self, start_time=None, end_time=None, limit=100, log_filter=None):
+    def start_log_task(self, log_type="event", start_time=None, end_time=None, limit=100, log_filter=None):
         """
         Inicia uma tarefa de busca de logs no FortiAnalyzer (Log View API v3).
         Retorna o TID (Task ID) se bem sucedido.
@@ -42,6 +42,8 @@ class FortiAnalyzerClient:
 
         # Filtro padrão se não informado
         if not log_filter:
+            # Incluir falhas: action in ('tunnel-up', 'tunnel-down', 'negotiate-error', 'auth-failure', 'ssl-login-fail')
+            # Sintaxe do FortiAnalyzer: (action=="tunnel-up" or action=="negotiate-error" ...)
             log_filter = 'subtype=="vpn"'
 
         payload = {
@@ -52,7 +54,7 @@ class FortiAnalyzerClient:
                 {
                     "apiver": 3,
                     "url": f"/logview/adom/{self.config.adom}/logsearch",
-                    "logtype": "event",
+                    "logtype": log_type,
                     "time-order": "desc",
                     "time-range": time_range,
                     "filter": log_filter

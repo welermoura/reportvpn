@@ -1,29 +1,50 @@
+from .models import AccessLog
 from django.shortcuts import redirect
 from django.urls import reverse
+
+class AccessLogMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
+        # Log only authenticated users requesting admin pages or other sensitive areas
+        # Avoiding static files and automated requests if possible
+        if request.user.is_authenticated and request.path.startswith('/admin/'):
+            # Get IP Address
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                ip = x_forwarded_for.split(',')[0]
+            else:
+                ip = request.META.get('REMOTE_ADDR')
+
+            AccessLog.objects.create(
+                user=request.user,
+                path=request.path,
+                ip_address=ip,
+                method=request.method
+            )
+
+        return response
 
 class ForcePasswordChangeMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.user.is_authenticated and hasattr(request.user, 'profile'):
-            if request.user.profile.force_password_change:
-                # Define allowed paths (Password change page, logout, and static assets)
-                # We assume using the default admin password change view
-                try:
-                    path_change = reverse('admin:password_change')
-                    path_logout = reverse('admin:logout')
-                    path_done = reverse('admin:password_change_done')
-                except:
-                    # Fallback if admin urls are different
-                    path_change = '/admin/password_change/'
-                    path_logout = '/admin/logout/'
-                    path_done = '/admin/password_change/done/'
-
-                allowed = [path_change, path_logout, path_done]
-                
-                if request.path not in allowed and not request.path.startswith('/static/'):
-                    return redirect(path_change)
+        if request.user.is_authenticated:
+            try:
+                # Check if user has a profile and if force_password_change is True
+                if hasattr(request.user, 'profile') and request.user.profile.force_password_change:
+                    # Allow access to password change and logout views
+                    path = request.path
+                    if not path.endswith('password_change/') and not path.endswith('logout/'):
+                         # Redirect to admin password change if inside admin
+                        if path.startswith('/admin/'):
+                             return redirect('admin:password_change')
+            except Exception:
+                pass # Fail gracefully if profile issues
 
         response = self.get_response(request)
         return response
