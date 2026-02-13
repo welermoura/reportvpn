@@ -44,5 +44,8 @@ RUN python manage.py collectstatic --noinput
 # Expor a porta 8000
 EXPOSE 8000
 
+# Definir o entrypoint
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]
+
 # Comando padrão (pode ser sobrescrito pelo docker-compose)
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "vpn_dashboard.wsgi:application"]
