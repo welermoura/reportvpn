@@ -34,7 +34,11 @@ class VPNLogListView(LoginRequiredMixin, ListView):
     
     def get_queryset(self):
         # Start with base queryset
-        queryset = VPNLog.objects.all()
+        # Start with base queryset (SSL Only)
+        queryset = VPNLog.objects.filter(
+            Q(raw_data__tunneltype__icontains='ssl') | 
+            Q(raw_data__vpntunnel__icontains='ssl')
+        )
         
         # Load Trusted Countries (keeping logic if needed for future, but row coloring might need adjustment)
         config = FortiAnalyzerConfig.load()
@@ -178,7 +182,12 @@ class BruteForceListView(LoginRequiredMixin, ListView):
 @login_required
 def export_logs_pdf(request):
     # Reuse filtering logic manually since we are not in a ListView
-    queryset = VPNLog.objects.all()
+    # Reuse filtering logic manually since we are not in a ListView
+    # SSL Only
+    queryset = VPNLog.objects.filter(
+        Q(raw_data__tunneltype__icontains='ssl') | 
+        Q(raw_data__vpntunnel__icontains='ssl')
+    )
     
     # 1. Date Filter
     date_str = request.GET.get('date')
@@ -242,7 +251,11 @@ def export_logs_pdf(request):
 
 @login_required
 def export_logs_xlsx(request):
-    queryset = VPNLog.objects.all()
+    # SSL Only
+    queryset = VPNLog.objects.filter(
+        Q(raw_data__tunneltype__icontains='ssl') | 
+        Q(raw_data__vpntunnel__icontains='ssl')
+    )
     
     # Apply Filters (Same as PDF)
     date_str = request.GET.get('date')
@@ -285,9 +298,15 @@ def export_logs_xlsx(request):
 
 @login_required
 def dashboard_stats_api(request):
+    # Base QuerySet for Stats (SSL Only)
+    base_qs = VPNLog.objects.filter(
+        Q(raw_data__tunneltype__icontains='ssl') | 
+        Q(raw_data__vpntunnel__icontains='ssl')
+    )
+
     # 1. Daily Trend (Last 30 Days)
     last_30_days = timezone.now().date() - timedelta(days=30)
-    daily_trend = VPNLog.objects.filter(start_date__gte=last_30_days)\
+    daily_trend = base_qs.filter(start_date__gte=last_30_days)\
         .order_by()\
         .values('start_date')\
         .annotate(count=Count('id'))\
@@ -300,7 +319,7 @@ def dashboard_stats_api(request):
     }
     
     # 2. Top 5 Departments
-    top_depts = VPNLog.objects.exclude(ad_department__isnull=True).exclude(ad_department='')\
+    top_depts = base_qs.exclude(ad_department__isnull=True).exclude(ad_department='')\
         .order_by()\
         .values('ad_department')\
         .annotate(count=Count('id'))\
@@ -312,7 +331,7 @@ def dashboard_stats_api(request):
     }
 
     # 3. Top 5 Titles (Cargos) - [NEW]
-    top_titles = VPNLog.objects.exclude(ad_title__isnull=True).exclude(ad_title='')\
+    top_titles = base_qs.exclude(ad_title__isnull=True).exclude(ad_title='')\
         .order_by()\
         .values('ad_title')\
         .annotate(count=Count('id'))\
@@ -324,7 +343,7 @@ def dashboard_stats_api(request):
     }
     
     # 4. Top 5 Users by Volume
-    top_users = VPNLog.objects.order_by()\
+    top_users = base_qs.order_by()\
         .values('user')\
         .annotate(total_bytes=Sum('bandwidth_in') + Sum('bandwidth_out'))\
         .order_by('-total_bytes')[:5]
@@ -344,7 +363,7 @@ def dashboard_stats_api(request):
     else:
         target_date = timezone.localtime(timezone.now()).date()
 
-    period_logs = VPNLog.objects.filter(start_time__date=target_date)
+    period_logs = base_qs.filter(start_time__date=target_date)
     
     period_stats = {
         'total_connections': period_logs.count(), 

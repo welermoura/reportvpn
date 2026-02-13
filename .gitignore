@@ -29,3 +29,22 @@ verification*.log
 !vpn-scheduler.service.example
 !.env.example
 
+
+# Production & Cleanup
+debug_*.py
+deploy_*.py
+check_*.py
+sync_to_docker*.py
+temp_*.json
+*.bat
+setup.db
+scripts/
+fix_templates*.py
+restore_configs.py
+populate_*.py
+seed_*.py
+verify_*.py
+test_*.py
+gunicorn.ctl
+__pycache__/
+*.pyc

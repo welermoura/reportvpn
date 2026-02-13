@@ -189,11 +189,218 @@
             box-shadow: 0 0 0 0 rgba(231, 74, 59, 0);
         }
     }
+
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(8px);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        padding: 20px;
+    }
+
+    .modal-content-premium {
+        background: #1a1c29;
+        border: 1px solid var(--glass-border);
+        border-radius: 16px;
+        width: 100%;
+        max-width: 800px;
+        max-height: 90vh;
+        overflow-y: auto;
+        position: relative;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-header-premium {
+        padding: 20px;
+        border-bottom: 1px solid var(--glass-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-body-premium {
+        padding: 25px;
+    }
+
+    .close-button {
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+
+    .detail-row {
+        display: flex;
+        margin-bottom: 15px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding-bottom: 8px;
+    }
+
+    .detail-label {
+        width: 150px;
+        color: var(--text-secondary);
+        font-weight: 500;
+        font-size: 0.85rem;
+    }
+
+    .detail-value {
+        flex: 1;
+        color: white;
+        font-size: 0.9rem;
+    }
 </style>
 
 <script type="text/babel">
     {% verbatim %}
     const { useState, useEffect, useCallback, useRef } = React;
+
+    const DetailsModal = ({ log, onClose }) => {
+        if (!log) return null;
+
+        // Extrair informações do raw_data para o contexto de rede
+        const networkInfo = {
+            interface: log.raw_data?.interface || log.raw_data?.srcitf || log.raw_data?.remitf || 'N/A',
+            policy: log.raw_data?.policyid || 'N/A',
+            vd: log.raw_data?.vd || 'root',
+            event_type: log.raw_data?.subtype || 'vpn'
+        };
+
+        const city = log.city || log.raw_data?.srccity || 'Desconhecido';
+        const countryName = log.raw_data?.srccountry || '';
+        const countryCode = log.country_code || (countryName ? '??' : '');
+
+        const getFlagEmoji = (code) => {
+            if (!code || code === '??') return '🌐';
+            const codePoints = code
+                .toUpperCase()
+                .split('')
+                .map(char => 127397 + char.charCodeAt());
+            return String.fromCodePoint(...codePoints);
+        };
+
+        return (
+            <div className="modal-overlay" onClick={onClose}>
+                <div className="modal-content-premium" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px' }}>
+                    <div className="modal-header-premium">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{ width: '40px', height: '40px', background: 'rgba(231, 74, 59, 0.2)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#e74a3b', fontSize: '1.2rem' }}>
+                                🚨
+                            </div>
+                            <div>
+                                <h3 style={{ margin: 0, color: 'white', fontSize: '1.1rem' }}>Análise de Segurança: Força Bruta</h3>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Log ID: {log.id} • {new Date(log.timestamp).toLocaleString('pt-BR')}</div>
+                            </div>
+                        </div>
+                        <button className="close-button" onClick={onClose}>&times;</button>
+                    </div>
+
+                    <div className="modal-body-premium">
+                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 1fr) 2fr', gap: '20px' }}>
+                            {/* Coluna Esquerda: Identidade e Status */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '12px', border: '1px solid var(--glass-border)', textAlign: 'center' }}>
+                                    <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'linear-gradient(135deg, #e74a3b, #c0392b)', margin: '0 auto 15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 'bold', border: '3px solid rgba(255,255,255,0.1)' }}>
+                                        {log.user ? log.user.substring(0, 2).toUpperCase() : '??'}
+                                    </div>
+                                    <h4 style={{ margin: '0 0 5px', color: 'white' }}>{log.ad_display_name || log.user}</h4>
+                                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#e74a3b', fontWeight: 'bold' }}>{log.ad_title || 'Usuário Não Identificado'}</p>
+                                    <p style={{ margin: '5px 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{log.ad_department || 'Sem Departamento'}</p>
+                                </div>
+
+                                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '15px', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                                    <h5 style={{ margin: '0 0 12px', fontSize: '0.8rem', color: 'var(--accent-blue)', textTransform: 'uppercase' }}>Detalhes do Evento</h5>
+
+                                    <div style={{ marginBottom: '10px' }}>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>MENSAGEM</div>
+                                        <div style={{ color: 'white', fontSize: '0.9rem', fontStyle: 'italic', wordBreak: 'break-word' }}>
+                                            "{decodeURIComponent(log.raw_data?.msg || 'N/A')}"
+                                        </div>
+                                    </div>
+
+                                    <div style={{ marginBottom: '10px' }}>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>IP DE ORIGEM</div>
+                                        <div style={{ color: '#f6c23e', fontWeight: 'bold', fontFamily: 'monospace' }}>{log.source_ip}</div>
+                                    </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                        <div>
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>AÇÃO</div>
+                                            <div style={{ color: '#f6c23e', fontWeight: 'bold' }}>{log.raw_data?.action || 'N/A'}</div>
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>TIPO TÚNEL</div>
+                                            <div style={{ color: 'white' }}>{log.raw_data?.tunneltype || 'N/A'}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Coluna Direita: Detalhes Técnicos */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                    <div style={{ background: 'rgba(0,0,0,0.2)', padding: '15px', borderRadius: '10px', border: '1px solid var(--glass-border)' }}>
+                                        <div className="stat-label" style={{ fontSize: '0.7rem' }}>MOTIVO DA FALHA</div>
+                                        <div style={{ color: '#e74a3b', fontWeight: 'bold' }}>{log.reason || 'Sessão Negada'}</div>
+                                    </div>
+                                    <div style={{ background: 'rgba(0,0,0,0.2)', padding: '15px', borderRadius: '10px', border: '1px solid var(--glass-border)' }}>
+                                        <div className="stat-label" style={{ fontSize: '0.7rem' }}>ORIGEM GEOGRÁFICA</div>
+                                        <div style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            {getFlagEmoji(countryCode)} {city} {countryName ? `(${countryName})` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                                    <h5 style={{ margin: '0 0 15px', fontSize: '0.85rem', color: 'var(--accent-blue)' }}>Contexto de Rede (FortiGate)</h5>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                        <div className="detail-row" style={{ border: 'none', marginBottom: '5px' }}>
+                                            <div className="detail-label" style={{ width: '100px' }}>Firewall (Dev ID):</div>
+                                            <div className="detail-value" style={{ fontFamily: 'monospace' }}>{log.raw_data?.devid || 'N/A'}</div>
+                                        </div>
+                                        <div className="detail-row" style={{ border: 'none', marginBottom: '5px' }}>
+                                            <div className="detail-label" style={{ width: '100px' }}>ID Política:</div>
+                                            <div className="detail-value">{networkInfo.policy}</div>
+                                        </div>
+                                        <div className="detail-row" style={{ border: 'none', marginBottom: '5px' }}>
+                                            <div className="detail-label" style={{ width: '100px' }}>Vdom:</div>
+                                            <div className="detail-value">{networkInfo.vd}</div>
+                                        </div>
+                                        <div className="detail-row" style={{ border: 'none', marginBottom: '5px' }}>
+                                            <div className="detail-label" style={{ width: '100px' }}>Protocolo:</div>
+                                            <div className="detail-value" style={{ textTransform: 'uppercase' }}>{networkInfo.event_type}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{ background: 'black', padding: '15px', borderRadius: '8px', border: '1px solid #333' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                        <span style={{ fontSize: '0.75rem', color: '#1cc88a', fontWeight: 'bold' }}>RAW LOG DATA</span>
+                                        <span style={{ fontSize: '0.65rem', color: '#666' }}>application/json</span>
+                                    </div>
+                                    <pre style={{ margin: 0, color: '#1cc88a', fontSize: '0.7rem', overflow: 'auto', maxHeight: '150px', whiteSpace: 'pre-wrap' }}>
+                                        {JSON.stringify(log.raw_data || log, null, 2)}
+                                    </pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style={{ padding: '20px', textAlign: 'right', borderTop: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)' }}>
+                        <button className="btn btn-secondary btn-sm" onClick={onClose} style={{ minWidth: '100px' }}>Fechar</button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     const StatsCharts = ({ data }) => {
         const trendRef = useRef(null);
@@ -264,6 +471,7 @@
         const [stats, setStats] = useState(null);
         const [loading, setLoading] = useState(true);
         const [showCharts, setShowCharts] = useState(true);
+        const [selectedLog, setSelectedLog] = useState(null);
 
         const [filters, setFilters] = useState({
             user: '', ip: ''
@@ -272,7 +480,6 @@
         const fetchData = useCallback(async () => {
             try {
                 const search = new URLSearchParams(filters).toString();
-                // We fetch failures logs + stats
                 const [lRes, sRes] = await Promise.all([
                     fetch(`/api/vpn-failures/?${search}`),
                     fetch(`/api/bruteforce-stats/`)
@@ -287,7 +494,7 @@
 
         useEffect(() => {
             fetchData();
-            const interval = setInterval(fetchData, 10000); // 10s refresh for security monitoring
+            const interval = setInterval(fetchData, 10000);
             return () => clearInterval(interval);
         }, [fetchData]);
 
@@ -352,7 +559,7 @@
                                     <th>IP Origem</th>
                                     <th>Localização</th>
                                     <th>Motivo</th>
-                                    <th>Detalhes</th>
+                                    <th style={{ textAlign: 'center' }}>Detalhes</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -380,8 +587,14 @@
                                                 {l.reason || 'Falha de Autenticação'}
                                             </span>
                                         </td>
-                                        <td style={{ fontSize: '0.8rem', color: '#858796', maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {JSON.stringify(l)}
+                                        <td style={{ textAlign: 'center' }}>
+                                            <button
+                                                className="btn btn-primary btn-sm"
+                                                style={{ fontSize: '0.7rem' }}
+                                                onClick={() => setSelectedLog(l)}
+                                            >
+                                                🔍 Analisar
+                                            </button>
                                         </td>
                                     </tr>
                                 )) : (
@@ -391,6 +604,8 @@
                         </table>
                     </div>
                 </div>
+
+                {selectedLog && <DetailsModal log={selectedLog} onClose={() => setSelectedLog(null)} />}
             </div>
         );
     };

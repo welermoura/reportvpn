@@ -4,7 +4,7 @@ from django.core.management.base import BaseCommand
 from django.utils.timezone import make_aware
 from django.utils.dateparse import parse_datetime
 from integrations.fortianalyzer import FortiAnalyzerClient
-from integrations.ad import ADClient
+from integrations.ad import ActiveDirectoryClient
 from vpn_logs.models import VPNLog
 
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ class Command(BaseCommand):
         self.stdout.write("Iniciando sincronização de logs...")
         
         fa_client = FortiAnalyzerClient()
-        ad_client = ADClient()
+        ad_client = ActiveDirectoryClient()
         
         # Obter logs (exemplo: últimos 100)
         # Em produção, usaríamos timestamps para buscar delta

@@ -9,7 +9,11 @@ class VPNLogViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def list(self, request):
-        queryset = VPNLog.objects.all()
+        # Filter for SSL VPN only (exclude IPsec)
+        queryset = VPNLog.objects.filter(
+            Q(raw_data__tunneltype__icontains='ssl') | 
+            Q(raw_data__vpntunnel__icontains='ssl')
+        )
 
         # Filters
         user_q = request.query_params.get('user_q')
@@ -50,7 +54,8 @@ class VPNLogViewSet(viewsets.ViewSet):
             latest_source_ip=Subquery(latest_log_qs.values('source_ip')[:1]),
             latest_city=Subquery(latest_log_qs.values('city')[:1]),
             latest_country=Subquery(latest_log_qs.values('country_name')[:1]),
-            latest_country_code=Subquery(latest_log_qs.values('country_code')[:1])
+            latest_country_code=Subquery(latest_log_qs.values('country_code')[:1]),
+            latest_status=Subquery(latest_log_qs.values('status')[:1])
         )
 
         # Ordering
