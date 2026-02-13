@@ -42,7 +42,7 @@ def fetch_vpn_logs_task(self):
         days_ago = 365
         start_date = timezone.now() - datetime.timedelta(days=days_ago)
         fetch_limit = 10000 
-        filter_str = 'subtype=="vpn" and tunneltype=="ssl-tunnel"'
+        filter_str = 'subtype=="vpn"'
         
         tid = fa_client.start_log_task(log_type="event", start_time=start_date, limit=fetch_limit, log_filter=filter_str)
         

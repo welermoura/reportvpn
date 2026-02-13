@@ -348,6 +348,8 @@
 
     // ... StatsCharts Component (unchanged) ...
     const StatsCharts = ({ data }) => {
+        if (!data) return null;
+
         const trendRef = useRef(null);
         const deptRef = useRef(null);
         const titleRef = useRef(null);
@@ -357,7 +359,10 @@
 
         useEffect(() => {
             if (!data) return;
-            Object.values(charInstances.current).forEach(c => c.destroy());
+            // Ensure charInstances is initialized
+            if (!charInstances.current) charInstances.current = {};
+
+            Object.values(charInstances.current).forEach(c => c && c.destroy());
 
             const chartOptions = {
                 responsive: true, maintainAspectRatio: false,
@@ -435,12 +440,6 @@
                     <div className="chart-title">Top Usuários (Volume)</div>
                     <div style={{ height: '220px' }}><canvas ref={userRef}></canvas></div>
                 </div>
-                {data.failures && data.failures.labels.length > 0 && (
-                    <div className="chart-box">
-                        <div className="chart-title" style={{ color: '#e74a3b' }}>⚠️ Top Alvos de Brute Force</div>
-                        <div style={{ height: '220px' }}><canvas ref={failureRef}></canvas></div>
-                    </div>
-                )}
             </div>
         );
     };
@@ -747,7 +746,7 @@
                     <span>{showCharts ? '▲' : '▼'}</span>
                 </div>
 
-                {showCharts && (
+                {showCharts && stats && (
                     <React.Fragment>
                         <StatsCharts data={stats} />
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '30px' }}>
@@ -840,9 +839,36 @@
                                     <tr key={l.user}>
                                         <td>
                                             <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                <div className="user-avatar">{l.user.substring(0, 2).toUpperCase()}</div>
+                                                <div className="user-avatar" style={{ position: 'relative' }}>
+                                                    {l.user.substring(0, 2).toUpperCase()}
+                                                    {l.latest_status === 'active' && (
+                                                        <span style={{
+                                                            position: 'absolute',
+                                                            bottom: '0',
+                                                            right: '0',
+                                                            width: '10px',
+                                                            height: '10px',
+                                                            backgroundColor: '#1cc88a',
+                                                            borderRadius: '50%',
+                                                            border: '2px solid #1a1d2d',
+                                                            boxShadow: '0 0 5px rgba(28, 200, 138, 0.8)'
+                                                        }} title="Conectado Agora"></span>
+                                                    )}
+                                                </div>
                                                 <div>
-                                                    <div style={{ fontWeight: 600, color: 'white' }}>{l.ad_display_name || l.user}</div>
+                                                    <div style={{ fontWeight: 600, color: 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        {l.ad_display_name || l.user}
+                                                        {l.latest_status === 'active' && (
+                                                            <span style={{
+                                                                fontSize: '0.65rem',
+                                                                backgroundColor: 'rgba(28, 200, 138, 0.2)',
+                                                                color: '#1cc88a',
+                                                                padding: '1px 6px',
+                                                                borderRadius: '4px',
+                                                                border: '1px solid rgba(28, 200, 138, 0.3)'
+                                                            }}>ON</span>
+                                                        )}
+                                                    </div>
                                                     <div style={{ fontSize: '0.7rem', color: '#5a5c69' }}>{l.user}</div>
                                                 </div>
                                             </div>
