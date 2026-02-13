@@ -26,7 +26,7 @@ RUN apt-get update && apt-get install -y \
     && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
     && curl -fsSL https://packages.microsoft.com/config/debian/12/prod.list > /etc/apt/sources.list.d/mssql-release.list \
     && apt-get update \
-    && ACCEPT_EULA=Y apt-get install -y msodbcsql18 \
+    && ACCEPT_EULA=Y apt-get install -y msodbcsql18 dos2unix \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -36,7 +36,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar o projeto
 COPY . .
-RUN chmod +x /app/scripts/entrypoint.sh
+
+# Fix line endings and permissions for entrypoint (Critical for Windows users)
+RUN dos2unix /app/scripts/entrypoint.sh && chmod +x /app/scripts/entrypoint.sh
 
 # Collect static files
 RUN python manage.py collectstatic --noinput
@@ -45,7 +47,7 @@ RUN python manage.py collectstatic --noinput
 EXPOSE 8000
 
 # Definir o entrypoint
-ENTRYPOINT ["/app/scripts/entrypoint.sh"]
+ENTRYPOINT ["/bin/bash", "/app/scripts/entrypoint.sh"]
 
 # Comando padrão (pode ser sobrescrito pelo docker-compose)
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "vpn_dashboard.wsgi:application"]
