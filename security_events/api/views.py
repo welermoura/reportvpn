@@ -83,8 +83,8 @@ class WebFilterViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['get'])
     def stats(self, request):
         """Return statistics for dashboard charts"""
-        # Base webfilter queryset
-        queryset = self.get_queryset()
+        # Base webfilter queryset with all filters applied
+        queryset = self.filter_queryset(self.get_queryset())
         
         # Totals
         total_events = queryset.count()
@@ -161,7 +161,7 @@ class IPSViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['get'])
     def stats(self, request):
         """Return statistics for dashboard charts"""
-        queryset = self.get_queryset()
+        queryset = self.filter_queryset(self.get_queryset())
         
         # Totals
         total_events = queryset.count()

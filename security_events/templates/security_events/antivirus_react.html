@@ -191,7 +191,7 @@
     {% verbatim %}
     const { useState, useEffect, useCallback, useRef } = React;
 
-    const StatsCharts = ({ data }) => {
+    const StatsCharts = ({ data, onFilterChange }) => {
         const distRef = useRef(null);
         const virusRef = useRef(null);
         const userRef = useRef(null);
@@ -203,7 +203,10 @@
 
             const chartOptions = {
                 responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { labels: { color: '#858796', font: { size: 10 } } } }
+                plugins: { legend: { labels: { color: '#858796', font: { size: 10 } } } },
+                onHover: (e, elements) => {
+                    e.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                }
             };
 
             // Severity Distribution
@@ -219,7 +222,17 @@
             charInstances.current.dist = new Chart(distRef.current, {
                 type: 'doughnut',
                 data: { labels: severityLabels, datasets: [{ data: severityData, backgroundColor: severityColors }] },
-                options: { ...chartOptions, plugins: { legend: { position: 'right' } }, cutout: '70%' }
+                options: {
+                    ...chartOptions,
+                    plugins: { legend: { position: 'right' } },
+                    cutout: '70%',
+                    onClick: (e, elements) => {
+                        if (elements.length > 0 && onFilterChange) {
+                            const label = severityLabels[elements[0].index];
+                            onFilterChange({ severity: label.toLowerCase() });
+                        }
+                    }
+                }
             });
 
             // Top Viruses
@@ -233,7 +246,13 @@
                     ...chartOptions,
                     plugins: { legend: { display: false } },
                     indexAxis: 'y',
-                    scales: { x: { ticks: { color: '#858796' }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { ticks: { color: '#858796' }, grid: { display: false } } }
+                    scales: { x: { ticks: { color: '#858796' }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { ticks: { color: '#858796' }, grid: { display: false } } },
+                    onClick: (e, elements) => {
+                        if (elements.length > 0 && onFilterChange) {
+                            const virusName = data.top_viruses[elements[0].index].virus_name;
+                            onFilterChange({ search: virusName });
+                        }
+                    }
                 }
             });
 
@@ -247,7 +266,13 @@
                 options: {
                     ...chartOptions,
                     plugins: { legend: { display: false } },
-                    scales: { y: { ticks: { color: '#858796' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#858796' }, grid: { display: false } } }
+                    scales: { y: { ticks: { color: '#858796' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#858796' }, grid: { display: false } } },
+                    onClick: (e, elements) => {
+                        if (elements.length > 0 && onFilterChange) {
+                            const username = data.top_users[elements[0].index].username;
+                            onFilterChange({ search: username });
+                        }
+                    }
                 }
             });
 
@@ -454,7 +479,7 @@
 
                 {showCharts && (
                     <React.Fragment>
-                        <StatsCharts data={stats} />
+                        <StatsCharts data={stats} onFilterChange={(newFilters) => setFilters(f => ({ ...f, ...newFilters }))} />
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '30px' }}>
                             <div className="premium-card" style={{ padding: '24px' }}>
                                 <div className="stat-label">Total de Detecções</div>

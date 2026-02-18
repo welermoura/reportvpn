@@ -74,3 +74,20 @@ class VPNFailureSerializer(serializers.ModelSerializer):
     def get_ad_title(self, obj):
         info = self._get_ad_info(obj)
         return info['title'] if info else None
+
+class RiskEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        from dashboard.models import RiskEvent
+        model = RiskEvent
+        fields = '__all__'
+
+class UserRiskScoreSerializer(serializers.ModelSerializer):
+    events = RiskEventSerializer(many=True, read_only=True)
+    
+    class Meta:
+        from dashboard.models import UserRiskScore
+        model = UserRiskScore
+        fields = [
+            'id', 'username', 'current_score', 'risk_level', 
+            'last_calculated', 'trend', 'events'
+        ]

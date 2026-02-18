@@ -39,3 +39,37 @@ class AccessLog(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.path} - {self.timestamp}"
+
+class UserRiskScore(models.Model):
+    username = models.CharField(max_length=255, unique=True, db_index=True, verbose_name="Usuário")
+    current_score = models.IntegerField(default=0, verbose_name="Score Atual")
+    risk_level = models.CharField(max_length=20, default='Low', verbose_name="Nível de Risco")
+    last_calculated = models.DateTimeField(auto_now=True, verbose_name="Último Cálculo")
+    trend = models.CharField(max_length=10, default='Stable', verbose_name="Tendência") # Up, Down, Stable
+
+    class Meta:
+        verbose_name = "Score de Risco do Usuário"
+        verbose_name_plural = "Scores de Risco dos Usuários"
+        ordering = ['-current_score']
+
+    def __str__(self):
+        return f"{self.username} - {self.current_score} ({self.risk_level})"
+
+class RiskEvent(models.Model):
+    EVENT_SOURCES = [
+        ('ips', 'IPS'),
+        ('antivirus', 'Antivirus'),
+        ('webfilter', 'Web Filter'),
+        ('vpn', 'VPN'),
+    ]
+    user_risk_score = models.ForeignKey(UserRiskScore, on_delete=models.CASCADE, related_name='events')
+    event_source = models.CharField(max_length=20, choices=EVENT_SOURCES)
+    event_id = models.CharField(max_length=100, blank=True, help_text="ID do evento original se disponível")
+    weight_added = models.IntegerField()
+    description = models.TextField(blank=True)
+    timestamp = models.DateTimeField(db_index=True)
+
+    class Meta:
+        verbose_name = "Evento de Risco"
+        verbose_name_plural = "Eventos de Risco"
+        ordering = ['-timestamp']

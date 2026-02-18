@@ -222,6 +222,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'Coleta de Eventos Web Filter',
         'schedule': 600.0,
     },
+    'Atualização de Score de Risco (30 min)': {
+        'task': 'Atualizar Scores de Risco',
+        'schedule': 1800.0,
+    },
 }
 
 # Cache Configuration (Redis)

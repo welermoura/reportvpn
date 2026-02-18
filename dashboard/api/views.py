@@ -1,35 +1,33 @@
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
+from rest_framework.decorators import action
 from django.db.models import Sum, Count, Max, Q, Subquery, OuterRef
-from vpn_logs.models import VPNLog
-from .serializers import VPNLogAggregatedSerializer
+from django.http import JsonResponse
 import datetime
+
+# Explicit imports to avoid any shadowing or module resolution issues
+try:
+    from dashboard.models import UserRiskScore, RiskEvent
+except ImportError:
+    from ..models import UserRiskScore, RiskEvent
+
+from vpn_logs.models import VPNLog, VPNFailure
+from .serializers import (
+    VPNLogAggregatedSerializer, 
+    VPNFailureSerializer, 
+    UserRiskScoreSerializer, 
+    VPNLogSerializer, 
+    RiskEventSerializer
+)
 
 class VPNLogViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
+    
     def list(self, request):
-        # Filter for SSL VPN only (exclude IPsec)
-        queryset = VPNLog.objects.filter(
-            Q(raw_data__tunneltype__icontains='ssl') | 
-            Q(raw_data__vpntunnel__icontains='ssl')
-        )
-
-        # Filters
-        user_q = request.query_params.get('user_q')
-        if user_q:
-            queryset = queryset.filter(
-                Q(user__icontains=user_q) | Q(ad_display_name__icontains=user_q)
-            )
-
-        title_q = request.query_params.get('title_q')
-        if title_q:
-            queryset = queryset.filter(ad_title__icontains=title_q)
-
-        dept_q = request.query_params.get('dept_q')
-        if dept_q:
-            queryset = queryset.filter(ad_department__icontains=dept_q)
-
+        queryset = self.get_queryset()
+        queryset = self.filter_queryset(queryset)
+        
         date_str = request.query_params.get('date')
         if date_str:
             try:
@@ -41,7 +39,8 @@ class VPNLogViewSet(viewsets.ViewSet):
         # Aggregation Logic
         latest_log_qs = VPNLog.objects.filter(user=OuterRef('user')).order_by('-start_time')
         
-        qs = queryset.order_by().values(
+        # 1. Base Query with Aggregations and Subqueries
+        qs = VPNLog.objects.values(
             'user', 
             'ad_display_name', 
             'ad_department', 
@@ -49,7 +48,7 @@ class VPNLogViewSet(viewsets.ViewSet):
         ).annotate(
             total_connections=Count('id'),
             total_duration=Sum('duration'),
-            total_volume=Sum('bandwidth_in') + Sum('bandwidth_out'),
+            total_volume=Sum(models.F('bandwidth_in') + models.F('bandwidth_out')),
             last_connection=Max('start_time'),
             latest_source_ip=Subquery(latest_log_qs.values('source_ip')[:1]),
             latest_city=Subquery(latest_log_qs.values('city')[:1]),
@@ -58,47 +57,71 @@ class VPNLogViewSet(viewsets.ViewSet):
             latest_status=Subquery(latest_log_qs.values('status')[:1])
         )
 
-        # Ordering
-        ordering = request.query_params.get('ordering', '-last_connection')
-        # Map fields if necessary
-        if ordering in ['volume', '-volume']:
-            field = 'total_volume'
-            prefix = '-' if ordering == 'volume' else ''
-            qs = qs.order_by(f'{prefix}{field}')
-        elif ordering in ['duration', '-duration']:
-            field = 'total_duration'
-            prefix = '-' if ordering == 'duration' else ''
-            qs = qs.order_by(f'{prefix}{field}')
-        elif ordering in ['start_time', '-start_time']:
-            field = 'last_connection'
-            prefix = '-' if ordering == 'start_time' else ''
-            qs = qs.order_by(f'{prefix}{field}')
-        else:
-            qs = qs.order_by(ordering)
+        # 2. Priority Annotation (1 = Online, 0 = Offline)
+        from django.db.models import Case, When, Value, IntegerField, OuterRef, Subquery, Max, Sum, Count, F
+        
+        # This subquery finds the priority of the LATEST session for EACH user group
+        priority_sq = Subquery(
+            VPNLog.objects.filter(user=OuterRef('user'))
+            .order_by('-start_time')
+            .annotate(
+                p=Case(
+                    # Note: Using the exact logic for 'ON' (active status)
+                    When(status__in=['active', 'tunnel-up'], then=Value(1)),
+                    default=Value(0),
+                    output_field=IntegerField()
+                )
+            ).values('p')[:1]
+        )
+        
+        qs = qs.annotate(online_priority=priority_sq)
+
+        # 3. Ordering Mapping
+        ordering_param = request.query_params.get('ordering', '-last_connection')
+        
+        sort_map = {
+            'user': 'user',
+            '-user': '-user',
+            'volume': 'total_volume',
+            '-volume': '-total_volume',
+            'duration': 'total_duration',
+            '-duration': '-total_duration',
+            'connections': 'total_connections',
+            '-connections': '-total_connections',
+            'last_connection': 'last_connection',
+            '-last_connection': '-last_connection',
+            'title': 'ad_title',
+            '-title': '-ad_title',
+            'dept': 'ad_department',
+            '-dept': '-ad_department'
+        }
+        
+        secondary_sort = sort_map.get(ordering_param, '-last_connection')
+
+        # 4. Final Order: Priority First (Online first), then user field
+        # We MUST ensure online_priority is treated as a comparable integer
+        qs = qs.order_by('-online_priority', secondary_sort)
 
         serializer = VPNLogAggregatedSerializer(qs, many=True)
-        return Response(serializer.data)
+        return Response({
+            'logs': serializer.data,
+            'server_time': datetime.datetime.now().isoformat()
+        })
 
-    from rest_framework.decorators import action
+
     @action(detail=False, methods=['get'])
     def history(self, request):
         """Get connection history for a specific user"""
         user = request.query_params.get('user')
         if not user:
-            return Response({'error': 'User parameter required'}, status=400)
+            return Response({'error': 'User parameter required'}, status=status.HTTP_400_BAD_REQUEST)
             
-        # Buscar últimos 50 logs do usuário (Case insensitive)
         logs = VPNLog.objects.filter(user__iexact=user).order_by('-start_time')[:50]
-        
-        from .serializers import VPNLogSerializer
         serializer = VPNLogSerializer(logs, many=True)
         return Response(serializer.data)
 
 class VPNFailureViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for VPN Failures"""
-    from vpn_logs.models import VPNFailure
-    from .serializers import VPNFailureSerializer
-    
     queryset = VPNFailure.objects.all().order_by('-timestamp')
     serializer_class = VPNFailureSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -108,9 +131,26 @@ class VPNFailureViewSet(viewsets.ReadOnlyModelViewSet):
         user = self.request.query_params.get('user')
         if user:
             queryset = queryset.filter(user__icontains=user)
-            
-        ip = self.request.query_params.get('ip')
-        if ip:
-            queryset = queryset.filter(source_ip=ip)
+        return queryset
+
+class UserRiskScoreViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet for User Risk Scores"""
+    # Use explicit reference to the model to avoid any shadowing
+    queryset = UserRiskScore.objects.all().prefetch_related('events').order_by('-current_score')
+    serializer_class = UserRiskScoreSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # Local import as a last resort if global fails
+        from dashboard.models import UserRiskScore
+        queryset = UserRiskScore.objects.all().prefetch_related('events').order_by('-current_score')
+        
+        user = self.request.query_params.get('user')
+        if user:
+            queryset = queryset.filter(username__icontains=user)
+        
+        level = self.request.query_params.get('level')
+        if level:
+            queryset = queryset.filter(risk_level__iexact=level)
             
         return queryset

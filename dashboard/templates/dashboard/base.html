@@ -47,6 +47,9 @@
                 class="{% if 'bruteforce' in request.path %}active{% endif %}">
                 <i class="fas fa-user-lock"></i> Força Bruta
             </a>
+            <a href="{% url 'dashboard:risk_dashboard' %}" class="{% if 'risk' in request.path %}active{% endif %}">
+                <i class="fas fa-user-shield"></i> Risco de Usuário
+            </a>
 
             <a href="{% url 'admin:index' %}" class="{% if 'admin' in request.path %}active{% endif %}">
                 <i class="fas fa-cog"></i> Configurações

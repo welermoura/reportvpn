@@ -214,6 +214,9 @@
             const chartOptions = {
                 responsive: true, maintainAspectRatio: false,
                 indexAxis: 'y',
+                onHover: (e, elements) => {
+                    e.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -467,7 +470,7 @@
 
                 const [eventsRes, statsRes] = await Promise.all([
                     fetch(`/api/security-events/webfilter/?${params}`),
-                    fetch('/api/security-events/webfilter/stats/')
+                    fetch(`/api/security-events/webfilter/stats/?${params}`)
                 ]);
 
                 const eventsData = await eventsRes.json();

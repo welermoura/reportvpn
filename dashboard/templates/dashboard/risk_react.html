@@ -1,0 +1,585 @@
+{% extends 'dashboard/base.html' %}
+
+{% block title %}Risco de Usuário - Grupo Comolatti{% endblock %}
+
+{% block content %}
+<div id="risk-dashboard-root"></div>
+
+<!-- React & Dependencies -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Custom Styles (Identical to VPN Reports for Standard parity) -->
+<style>
+    :root {
+        --glass-bg: rgba(25, 28, 41, 0.6);
+        --glass-border: rgba(255, 255, 255, 0.08);
+        --accent-blue: #4e73df;
+        --accent-green: #1cc88a;
+        --text-secondary: #858796;
+        --accent-red: #e74a3b;
+        --accent-yellow: #f6c23e;
+        --accent-teal: #36b9cc;
+    }
+
+    body {
+        font-family: 'Inter', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    .premium-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(15px);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.4);
+        transition: all 0.3s ease;
+    }
+
+    .stat-value-premium {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: white;
+    }
+
+    .stat-label {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        font-weight: 500;
+        margin-bottom: 8px;
+    }
+
+    .chart-box {
+        background: var(--glass-bg);
+        border-radius: 12px;
+        border: 1px solid var(--glass-border);
+        padding: 20px;
+        height: 300px;
+    }
+
+    .chart-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: white;
+        margin-bottom: 20px;
+    }
+
+    .table-premium {
+        width: 100%;
+        font-family: 'Inter', sans-serif;
+        font-size: 16px;
+        font-weight: 400;
+        color: rgb(248, 250, 252);
+        border-collapse: collapse;
+    }
+
+    .table-premium th {
+        color: var(--text-secondary);
+        font-weight: 600;
+        padding: 12px 8px;
+        border-bottom: 1px solid var(--glass-border);
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .table-premium td {
+        padding: 12px 8px;
+        color: #d1d3e2;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .table-premium tr:hover {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .user-avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 6px;
+        background: var(--accent-blue);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: white;
+        margin-right: 8px;
+        font-size: 0.7rem;
+    }
+
+    .risk-badge {
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        display: inline-block;
+        min-width: 80px;
+        text-align: center;
+    }
+
+    .risk-Critical {
+        background: rgba(231, 74, 59, 0.2);
+        color: var(--accent-red);
+        border: 1px solid var(--accent-red);
+    }
+
+    .risk-High {
+        background: rgba(246, 194, 62, 0.2);
+        color: var(--accent-yellow);
+        border: 1px solid var(--accent-yellow);
+    }
+
+    .risk-Medium {
+        background: rgba(78, 115, 223, 0.2);
+        color: var(--accent-blue);
+        border: 1px solid var(--accent-blue);
+    }
+
+    .risk-Low {
+        background: rgba(28, 200, 138, 0.2);
+        color: var(--accent-green);
+        border: 1px solid var(--accent-green);
+    }
+
+    .filters-bar {
+        background: transparent;
+        padding: 10px 0;
+        margin-bottom: 15px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    .filters-label {
+        font-weight: bold;
+        color: #fff;
+        margin-right: 10px;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+    }
+
+    .filter-input {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #fff;
+        padding: 6px 12px;
+        border-radius: 4px;
+        min-width: 150px;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .filter-input::placeholder {
+        color: #858796;
+    }
+
+    .filter-input:focus {
+        border-color: var(--accent-blue);
+        outline: none;
+    }
+
+    .pulse-live {
+        width: 8px;
+        height: 8px;
+        background: var(--accent-green);
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+        box-shadow: 0 0 0 rgba(28, 200, 138, 0.4);
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(28, 200, 138, 0.7);
+        }
+
+        70% {
+            transform: scale(1.1);
+            box-shadow: 0 0 0 10px rgba(28, 200, 138, 0);
+        }
+
+        100% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(28, 200, 138, 0);
+        }
+    }
+
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 1px solid transparent;
+    }
+
+    .btn-primary {
+        background: var(--accent-blue);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2e59d9;
+        transform: translateY(-1px);
+    }
+</style>
+
+<script type="text/babel">
+    {% verbatim %}
+    window.RISK_DASHBOARD_VERSION = '1.0.1'; // Debug signal
+    const { useState, useEffect, useCallback, useRef } = React;
+
+    const RiskCharts = ({ data, onFilterChange }) => {
+        const distRef = useRef(null);
+        const topRef = useRef(null);
+        const charts = useRef({});
+
+        useEffect(() => {
+            if (!data) return;
+            console.log("RiskCharts: Initializing charts with version 1.0.1", data);
+
+            // Cleanup existing charts
+            Object.values(charts.current).forEach(c => c && c.destroy());
+
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#858796', font: { size: 10 } } } },
+                onHover: function (event, chartElement) {
+                    event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                }
+            };
+
+            // Doughnut Chart
+            const doughnutOptions = Object.assign({}, commonOptions, {
+                cutout: '70%',
+                plugins: Object.assign({}, commonOptions.plugins, { legend: { position: 'right' } }),
+                onClick: function (event, elements) {
+                    if (elements && elements.length > 0) {
+                        const index = elements[0].index;
+                        const label = data.distribution.labels[index];
+                        const level = label === 'Total' ? '' : label.toLowerCase();
+                        console.log("Doughnut Click level:", level);
+                        if (onFilterChange) onFilterChange({ level: level });
+                    }
+                }
+            });
+
+            charts.current.dist = new Chart(distRef.current, {
+                type: 'doughnut',
+                data: {
+                    labels: data.distribution.labels,
+                    datasets: [{
+                        data: data.distribution.data,
+                        backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b']
+                    }]
+                },
+                options: doughnutOptions
+            });
+
+            // Bar Chart
+            const barOptions = Object.assign({}, commonOptions, {
+                plugins: Object.assign({}, commonOptions.plugins, { legend: { display: false } }),
+                scales: {
+                    y: { ticks: { color: '#858796' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    x: { ticks: { color: '#858796' }, grid: { display: false } }
+                },
+                onClick: function (event, elements) {
+                    if (elements && elements.length > 0) {
+                        const index = elements[0].index;
+                        const username = data.top_risk.labels[index];
+                        console.log("Bar Click user:", username);
+                        if (onFilterChange) onFilterChange({ user: username });
+                    }
+                }
+            });
+
+            charts.current.top = new Chart(topRef.current, {
+                type: 'bar',
+                data: {
+                    labels: data.top_risk.labels,
+                    datasets: [{ label: 'Score', data: data.top_risk.data, backgroundColor: '#36b9cc' }]
+                },
+                options: barOptions
+            });
+
+            return () => Object.values(charts.current).forEach(c => c.destroy());
+        }, [data, onFilterChange]);
+
+        return (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+                <div className="chart-box">
+                    <div className="chart-title">Distribuição de Risco</div>
+                    <div style={{ height: '220px' }}><canvas ref={distRef}></canvas></div>
+                </div>
+                <div className="chart-box">
+                    <div className="chart-title">Top 10 Maiores Riscos</div>
+                    <div style={{ height: '220px' }}><canvas ref={topRef}></canvas></div>
+                </div>
+            </div>
+        );
+    };
+
+    const RiskModal = ({ user, onClose }) => {
+        if (!user) return null;
+
+        const sortedEvents = [...user.events].sort((a, b) => b.weight_added - a.weight_added);
+
+        const getSourceColor = (source) => {
+            const s = (source || '').toLowerCase();
+            if (s.includes('ips')) return '#e74a3b';
+            if (s.includes('antivirus')) return '#a865f8';
+            if (s.includes('vpn')) return '#4e73df';
+            if (s.includes('webfilter')) return '#858796';
+            return '#36b9cc';
+        };
+
+        const getSourceIcon = (source) => {
+            const s = (source || '').toLowerCase();
+            if (s.includes('ips')) return '🛡️';
+            if (s.includes('antivirus')) return '🦠';
+            if (s.includes('vpn')) return '🌐';
+            if (s.includes('webfilter')) return '🚫';
+            return '⚠️';
+        };
+
+        return (
+            <div style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+            }} onClick={onClose}>
+                <div style={{
+                    background: '#1a1d2d', border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '16px', padding: '28px', width: '750px', maxWidth: '95%',
+                    maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 25px 60px rgba(0,0,0,0.6)',
+                    position: 'relative', color: '#fff'
+                }} onClick={e => e.stopPropagation()}>
+                    <button onClick={onClose} style={{
+                        position: 'absolute', top: '20px', right: '20px',
+                        background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff',
+                        width: '32px', height: '32px', borderRadius: '50%',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', zIndex: 10, transition: 'background 0.2s'
+                    }}>✕</button>
+
+                    <h3 style={{ margin: '0 0 30px 0', fontSize: '1.4rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+                        Eventos de Risco: {user.username}
+                    </h3>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {sortedEvents.length > 0 ? sortedEvents.map((event, idx) => (
+                            <div key={idx} style={{
+                                display: 'flex',
+                                background: 'rgba(255,255,255,0.03)',
+                                borderRadius: '12px',
+                                borderLeft: `5px solid ${getSourceColor(event.event_source)}`,
+                                overflow: 'hidden'
+                            }}>
+                                <div style={{ flex: 1, padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{
+                                            fontSize: '0.75rem',
+                                            fontWeight: 700,
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.05em',
+                                            color: getSourceColor(event.event_source),
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px'
+                                        }}>
+                                            {getSourceIcon(event.event_source)} {event.event_source}
+                                        </span>
+                                        <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>
+                                            {new Date(event.timestamp).toLocaleString('pt-BR')}
+                                        </span>
+                                    </div>
+                                    <div style={{ fontSize: '0.92rem', color: '#d1d3e2', lineHeight: '1.6', fontWeight: 400 }}>
+                                        {event.description}
+                                    </div>
+                                </div>
+                                <div style={{
+                                    width: '100px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    background: 'rgba(255,255,255,0.02)',
+                                    borderLeft: '1px solid rgba(255,255,255,0.05)',
+                                    padding: '10px'
+                                }}>
+                                    <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Impacto</div>
+                                    <div style={{ fontWeight: 800, fontSize: '1.3rem', color: event.weight_added > 20 ? '#e74a3b' : '#fff' }}>
+                                        +{event.weight_added}
+                                    </div>
+                                </div>
+                            </div>
+                        )) : (
+                            <div style={{ color: '#858796', textAlign: 'center', padding: '40px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>
+                                Nenhum evento detalhado encontrado para este período.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const RiskDashboard = () => {
+        const [scores, setScores] = useState([]);
+        const [stats, setStats] = useState(null);
+        const [loading, setLoading] = useState(true);
+        const [showCharts, setShowCharts] = useState(true);
+        const [selectedUser, setSelectedUser] = useState(null);
+        const [filters, setFilters] = useState({ user: '', level: '' });
+
+        const fetchData = useCallback(async () => {
+            try {
+                const search = new URLSearchParams(filters).toString();
+                const [sRes, stRes] = await Promise.all([
+                    fetch(`/api/user-risk-scores/?${search}`),
+                    fetch(`/api/risk-stats/?${search}`)
+                ]);
+                setScores(await sRes.json());
+                setStats(await stRes.json());
+                setLoading(false);
+            } catch (err) { console.error(err); }
+        }, [filters]);
+
+        const handleExport = (format) => {
+            const search = new URLSearchParams(filters).toString();
+            window.location.href = `/api/user-risk-scores/export/?format=${format}&${search}`;
+        };
+
+        const clearFilters = () => {
+            setFilters({ user: '', level: '' });
+        };
+
+        useEffect(() => {
+            fetchData();
+            const interval = setInterval(fetchData, 30000);
+            return () => clearInterval(interval);
+        }, [fetchData]);
+
+        return (
+            <div style={{ padding: '0px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h2 style={{ fontSize: '1.4rem', color: 'white', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '1.2rem' }}>🛡️</span> Risco de Usuário
+                    </h2>
+                    <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.3)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--glass-border)' }}>
+                        <span className="pulse-live"></span>
+                        <span style={{ fontSize: '0.7rem', color: '#858796', fontWeight: 600 }}>LIVE SCORING</span>
+                    </div>
+                </div>
+
+                <div className="premium-card" style={{ marginBottom: '20px', padding: '10px 20px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }} onClick={() => setShowCharts(!showCharts)}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>📊 Visualizar Gráficos e Estatísticas</span>
+                    <span>{showCharts ? '▲' : '▼'}</span>
+                </div>
+
+                {showCharts && stats && <RiskCharts data={stats} onFilterChange={(newFilters) => setFilters(prev => ({ ...prev, ...newFilters }))} />}
+
+                <div className="premium-card" style={{ padding: '0', overflow: 'hidden' }}>
+                    <div className="filters-bar" style={{ margin: 0, padding: '15px 20px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                        <span className="filters-label">FILTROS:</span>
+                        <input
+                            type="text"
+                            className="filter-input"
+                            placeholder="Usuário..."
+                            value={filters.user}
+                            onChange={e => setFilters({ ...filters, user: e.target.value })}
+                        />
+                        <select
+                            className="filter-input"
+                            value={filters.level}
+                            onChange={e => setFilters({ ...filters, level: e.target.value })}
+                            style={{ cursor: 'pointer' }}
+                        >
+                            <option value="">Todos os Níveis</option>
+                            <option value="CRITICAL">Crítico</option>
+                            <option value="HIGH">Alto</option>
+                            <option value="MEDIUM">Médio</option>
+                            <option value="LOW">Baixo</option>
+                        </select>
+                        <div style={{ flexGrow: 1 }}></div>
+
+                        <button className="btn btn-primary btn-sm" style={{ marginRight: '8px', display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => handleExport('pdf')}>
+                            📄 PDF
+                        </button>
+                        <button className="btn btn-success btn-sm" style={{ marginRight: '8px', display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => handleExport('xlsx')}>
+                            📊 Excel
+                        </button>
+                        <button className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={clearFilters}>
+                            🧹 Limpar
+                        </button>
+                    </div>
+
+                    <div style={{ padding: '0 15px 15px 15px', overflowX: 'auto' }}>
+                        <table className="table-premium">
+                            <thead>
+                                <tr>
+                                    <th style={{ width: '250px' }}>Usuário</th>
+                                    <th>Nível de Risco</th>
+                                    <th>Pontuação</th>
+                                    <th>Tendência</th>
+                                    <th>Última Atualização</th>
+                                    <th style={{ textAlign: 'center' }}>Detalhes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {loading ? (
+                                    <tr><td colSpan="6" style={{ textAlign: 'center', padding: '40px' }}>Carregando dados...</td></tr>
+                                ) : scores.map(s => (
+                                    <tr key={s.id}>
+                                        <td>
+                                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                <div className="user-avatar">{s.username.substring(0, 2).toUpperCase()}</div>
+                                                <div>
+                                                    <div style={{ fontWeight: 600, color: 'white' }}>{s.username}</div>
+                                                    <div style={{ fontSize: '0.7rem', color: '#5a5c69' }}>Corporativo</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td><span className={`risk-badge risk-${s.risk_level}`}>{s.risk_level}</span></td>
+                                        <td style={{ fontWeight: 700, fontSize: '1.1rem', color: s.current_score > 1000 ? 'var(--accent-red)' : 'white' }}>
+                                            {s.current_score}
+                                        </td>
+                                        <td style={{ color: s.trend === 'UP' ? 'var(--accent-red)' : 'var(--accent-green)' }}>
+                                            {s.trend === 'UP' ? '▲ Aumentando' : '▼ Diminuindo'}
+                                        </td>
+                                        <td>{new Date(s.last_calculated).toLocaleString('pt-BR')}</td>
+                                        <td style={{ textAlign: 'center' }}>
+                                            <button
+                                                className="btn-sm"
+                                                style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white' }}
+                                                onClick={() => setSelectedUser(s)}
+                                                title="Ver Detalhes do Risco"
+                                            >
+                                                👁️
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {selectedUser && <RiskModal user={selectedUser} onClose={() => setSelectedUser(null)} />}
+            </div>
+        );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('risk-dashboard-root'));
+    root.render(<RiskDashboard />);
+    {% endverbatim %}
+</script>
+{% endblock %}

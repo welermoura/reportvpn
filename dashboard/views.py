@@ -304,7 +304,32 @@ def dashboard_stats_api(request):
         Q(raw_data__vpntunnel__icontains='ssl')
     )
 
+    # --- Apply Filters ---
+    user_q = request.GET.get('user_q')
+    if user_q:
+        base_qs = base_qs.filter(
+            Q(user__icontains=user_q) | Q(ad_display_name__icontains=user_q)
+        )
+
+    title_q = request.GET.get('title_q')
+    if title_q:
+        base_qs = base_qs.filter(ad_title__icontains=title_q)
+
+    dept_q = request.GET.get('dept_q')
+    if dept_q:
+        base_qs = base_qs.filter(ad_department__icontains=dept_q)
+
+    # Search Query (q)
+    query = request.GET.get('q')
+    if query:
+        base_qs = base_qs.filter(
+            Q(user__icontains=query) | 
+            Q(ad_department__icontains=query) |
+            Q(ad_display_name__icontains=query)
+        )
+
     # 1. Daily Trend (Last 30 Days)
+    # Trend always shows context, so we don't apply the 'date' filter here.
     last_30_days = timezone.now().date() - timedelta(days=30)
     daily_trend = base_qs.filter(start_date__gte=last_30_days)\
         .order_by()\
@@ -318,8 +343,21 @@ def dashboard_stats_api(request):
         'data': [entry['count'] for entry in daily_trend]
     }
     
+    # --- Prepare Filtered QS for other charts ---
+    date_str = request.GET.get('date')
+    if date_str:
+        try:
+            target_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+            chart_qs = base_qs.filter(start_date=target_date)
+        except ValueError:
+            target_date = timezone.localtime(timezone.now()).date()
+            chart_qs = base_qs.filter(start_date=target_date)
+    else:
+        target_date = timezone.localtime(timezone.now()).date()
+        chart_qs = base_qs.filter(start_date=target_date)
+
     # 2. Top 5 Departments
-    top_depts = base_qs.exclude(ad_department__isnull=True).exclude(ad_department='')\
+    top_depts = chart_qs.exclude(ad_department__isnull=True).exclude(ad_department='')\
         .order_by()\
         .values('ad_department')\
         .annotate(count=Count('id'))\
@@ -330,8 +368,8 @@ def dashboard_stats_api(request):
         'data': [entry['count'] for entry in top_depts]
     }
 
-    # 3. Top 5 Titles (Cargos) - [NEW]
-    top_titles = base_qs.exclude(ad_title__isnull=True).exclude(ad_title='')\
+    # 3. Top 5 Titles (Cargos)
+    top_titles = chart_qs.exclude(ad_title__isnull=True).exclude(ad_title='')\
         .order_by()\
         .values('ad_title')\
         .annotate(count=Count('id'))\
@@ -343,7 +381,7 @@ def dashboard_stats_api(request):
     }
     
     # 4. Top 5 Users by Volume
-    top_users = base_qs.order_by()\
+    top_users = chart_qs.order_by()\
         .values('user')\
         .annotate(total_bytes=Sum('bandwidth_in') + Sum('bandwidth_out'))\
         .order_by('-total_bytes')[:5]
@@ -353,27 +391,22 @@ def dashboard_stats_api(request):
         'data': [round(entry['total_bytes'] / (1024*1024), 2) for entry in top_users] # MB
     }
     
-    # 5. Period Totals (Based on filtered date or today)
-    date_str = request.GET.get('date')
-    if date_str:
-        try:
-            target_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
-        except ValueError:
-            target_date = timezone.localtime(timezone.now()).date()
-    else:
-        target_date = timezone.localtime(timezone.now()).date()
-
-    period_logs = base_qs.filter(start_time__date=target_date)
-    
+    # 5. Period Totals
     period_stats = {
-        'total_connections': period_logs.count(), 
-        'active_users': period_logs.values('user').distinct().count(),
-        'total_volume_bytes': period_logs.aggregate(vol=Sum('bandwidth_in') + Sum('bandwidth_out'))['vol'] or 0
+        'total_connections': chart_qs.count(), 
+        'active_users': chart_qs.values('user').distinct().count(),
+        'total_volume_bytes': chart_qs.aggregate(vol=Sum('bandwidth_in') + Sum('bandwidth_out'))['vol'] or 0
     }
 
-    # 6. Top Brute Force Targets (Failures) [NEW]
+    # 6. Top Brute Force Targets (Failures)
     from vpn_logs.models import VPNFailure
-    top_failures = VPNFailure.objects.values('user')\
+    failure_qs = VPNFailure.objects.all()
+    if user_q:
+        failure_qs = failure_qs.filter(user__icontains=user_q)
+    if date_str:
+        failure_qs = failure_qs.filter(timestamp__date=target_date)
+    
+    top_failures = failure_qs.values('user')\
         .annotate(count=Count('id'))\
         .order_by('-count')[:5]
 
@@ -396,9 +429,20 @@ def bruteforce_stats_api(request):
     from vpn_logs.models import VPNFailure
     from django.db.models.functions import TruncHour, TruncDay
     
+    queryset = VPNFailure.objects.all()
+
+    # Apply Filters
+    user = request.GET.get('user')
+    if user:
+        queryset = queryset.filter(user__icontains=user)
+    
+    ip = request.GET.get('ip')
+    if ip:
+        queryset = queryset.filter(source_ip__icontains=ip)
+
     # 1. Failures Over Time (Last 24 Hours)
     last_24h = timezone.now() - timedelta(hours=24)
-    trend = VPNFailure.objects.filter(timestamp__gte=last_24h)\
+    trend = queryset.filter(timestamp__gte=last_24h)\
         .annotate(hour=TruncHour('timestamp'))\
         .values('hour')\
         .annotate(count=Count('id'))\
@@ -410,7 +454,7 @@ def bruteforce_stats_api(request):
     }
 
     # 2. Top Attackers (Source IP)
-    top_ips = VPNFailure.objects.values('source_ip', 'country_code')\
+    top_ips = queryset.values('source_ip', 'country_code')\
         .annotate(count=Count('id'))\
         .order_by('-count')[:5]
         
@@ -420,7 +464,7 @@ def bruteforce_stats_api(request):
     }
 
     # 3. Top Targets (Users)
-    top_users = VPNFailure.objects.values('user')\
+    top_users = queryset.values('user')\
         .annotate(count=Count('id'))\
         .order_by('-count')[:5]
         
@@ -433,4 +477,57 @@ def bruteforce_stats_api(request):
         'trend': trend_data,
         'ips': ip_data,
         'users': user_data
+    })
+
+class UserRiskScoreListView(LoginRequiredMixin, ListView):
+    from .models import UserRiskScore
+    model = UserRiskScore
+    template_name = 'dashboard/risk_react.html'
+    context_object_name = 'scores'
+
+@login_required
+def risk_stats_api(request):
+    """API for User Risk Scoring Dashboard statistics"""
+    from .models import UserRiskScore
+    from django.db.models import Count
+    
+    queryset = UserRiskScore.objects.all()
+
+    # Apply Filters
+    user = request.GET.get('user')
+    if user:
+        queryset = queryset.filter(username__icontains=user)
+    
+    level = request.GET.get('level')
+    if level:
+        queryset = queryset.filter(risk_level__iexact=level)
+
+    # 1. Risk Level Distribution (Manual to avoid pyodbc/values/annotate issues)
+    levels = ['None', 'Low', 'Medium', 'High', 'Critical']
+    data = []
+    labels = []
+    
+    for lvl in levels:
+        count = queryset.filter(risk_level=lvl).count()
+        if count > 0:
+            labels.append(lvl)
+            data.append(count)
+    
+    dist_data = {
+        'labels': labels,
+        'data': data
+    }
+    
+    # 2. Top 10 High Risk Users
+    top_risk = queryset.order_by('-current_score')[:10]
+    
+    top_data = {
+        'labels': [entry.username for entry in top_risk],
+        'data': [entry.current_score for entry in top_risk]
+    }
+    
+    from django.http import JsonResponse
+    return JsonResponse({
+        'distribution': dist_data,
+        'top_risk': top_data
     })

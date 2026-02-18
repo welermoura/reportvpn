@@ -402,7 +402,7 @@
         );
     };
 
-    const StatsCharts = ({ data }) => {
+    const StatsCharts = ({ data, onFilterChange }) => {
         const trendRef = useRef(null);
         const ipRef = useRef(null);
         const userRef = useRef(null);
@@ -414,7 +414,10 @@
 
             const chartOptions = {
                 responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { labels: { color: '#858796', font: { size: 10 } } } }
+                plugins: { legend: { labels: { color: '#858796', font: { size: 10 } } } },
+                onHover: (e, elements) => {
+                    e.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                }
             };
 
             // Trend: Failures per Hour
@@ -435,14 +438,35 @@
             charInstances.current.ip = new Chart(ipRef.current, {
                 type: 'bar',
                 data: { labels: data.ips.labels, datasets: [{ label: 'Tentativas', data: data.ips.data, backgroundColor: '#f6c23e' }] },
-                options: { ...chartOptions, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#858796' }, grid: { display: false } }, x: { ticks: { color: '#858796' }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+                options: {
+                    ...chartOptions,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: { y: { ticks: { color: '#858796' }, grid: { display: false } }, x: { ticks: { color: '#858796' }, grid: { color: 'rgba(255,255,255,0.05)' } } },
+                    onClick: (e, elements) => {
+                        if (elements.length > 0 && onFilterChange) {
+                            const label = data.ips.labels[elements[0].index];
+                            onFilterChange({ ip: label });
+                        }
+                    }
+                }
             });
 
             // Top Users
             charInstances.current.user = new Chart(userRef.current, {
                 type: 'bar',
                 data: { labels: data.users.labels, datasets: [{ label: 'Falhas', data: data.users.data, backgroundColor: '#e74a3b' }] },
-                options: { ...chartOptions, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#858796' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#858796' }, grid: { display: false } } } }
+                options: {
+                    ...chartOptions,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { ticks: { color: '#858796' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#858796' }, grid: { display: false } } },
+                    onClick: (e, elements) => {
+                        if (elements.length > 0 && onFilterChange) {
+                            const label = data.users.labels[elements[0].index];
+                            onFilterChange({ user: label });
+                        }
+                    }
+                }
             });
 
             return () => Object.values(charInstances.current).forEach(c => c.destroy());
@@ -482,7 +506,7 @@
                 const search = new URLSearchParams(filters).toString();
                 const [lRes, sRes] = await Promise.all([
                     fetch(`/api/vpn-failures/?${search}`),
-                    fetch(`/api/bruteforce-stats/`)
+                    fetch(`/api/bruteforce-stats/?${search}`)
                 ]);
 
                 const logsData = await lRes.json();
@@ -520,7 +544,7 @@
                 </div>
 
                 {showCharts && stats && (
-                    <StatsCharts data={stats} />
+                    <StatsCharts data={stats} onFilterChange={(newFilters) => setFilters(f => ({ ...f, ...newFilters }))} />
                 )}
 
                 <div className="premium-card" style={{ padding: '0', overflow: 'hidden', marginBottom: '20px' }}>

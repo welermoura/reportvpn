@@ -109,6 +109,13 @@
         fetch('{% url "dashboard:stats_api" %}')
             .then(response => response.json())
             .then(data => {
+                const commonOptions = {
+                    maintainAspectRatio: false,
+                    onHover: function (event, chartElement) {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    }
+                };
+
                 // 1. Trend Chart
                 new Chart(document.getElementById('trendChart'), {
                     type: 'line',
@@ -123,7 +130,17 @@
                             tension: 0.3
                         }]
                     },
-                    options: { maintainAspectRatio: false }
+                    options: Object.assign({}, commonOptions, {
+                        plugins: { legend: { display: false } },
+                        onClick: function (event, elements) {
+                            if (elements && elements.length > 0) {
+                                const index = elements[0].index;
+                                const dateKey = data.trend.keys ? data.trend.keys[index] : data.trend.labels[index];
+                                document.querySelector('input[name="date"]').value = dateKey;
+                                document.getElementById('filterForm').submit();
+                            }
+                        }
+                    })
                 });
 
                 // 2. Dept Chart
@@ -136,7 +153,16 @@
                             backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b']
                         }]
                     },
-                    options: { maintainAspectRatio: false }
+                    options: Object.assign({}, commonOptions, {
+                        onClick: function (event, elements) {
+                            if (elements && elements.length > 0) {
+                                const index = elements[0].index;
+                                const label = data.departments.labels[index];
+                                document.querySelector('input[name="dept_q"]').value = label;
+                                document.getElementById('filterForm').submit();
+                            }
+                        }
+                    })
                 });
 
                 // 3. Title Chart (New)
@@ -149,7 +175,16 @@
                             backgroundColor: ['#f6c23e', '#e74a3b', '#4e73df', '#1cc88a', '#36b9cc']
                         }]
                     },
-                    options: { maintainAspectRatio: false }
+                    options: Object.assign({}, commonOptions, {
+                        onClick: function (event, elements) {
+                            if (elements && elements.length > 0) {
+                                const index = elements[0].index;
+                                const label = data.titles.labels[index];
+                                document.querySelector('input[name="title_q"]').value = label;
+                                document.getElementById('filterForm').submit();
+                            }
+                        }
+                    })
                 });
 
                 // 4. User Chart
@@ -163,7 +198,17 @@
                             backgroundColor: '#36b9cc'
                         }]
                     },
-                    options: { maintainAspectRatio: false }
+                    options: Object.assign({}, commonOptions, {
+                        plugins: { legend: { display: false } },
+                        onClick: function (event, elements) {
+                            if (elements && elements.length > 0) {
+                                const index = elements[0].index;
+                                const label = data.users.labels[index];
+                                document.querySelector('input[name="user_q"]').value = label;
+                                document.getElementById('filterForm').submit();
+                            }
+                        }
+                    })
                 });
             });
     });
