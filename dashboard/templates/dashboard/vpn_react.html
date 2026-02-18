@@ -841,24 +841,25 @@
                                             <div style={{ display: 'flex', alignItems: 'center' }}>
                                                 <div className="user-avatar" style={{ position: 'relative' }}>
                                                     {l.user.substring(0, 2).toUpperCase()}
-                                                    {l.latest_status === 'active' && (
-                                                        <span style={{
-                                                            position: 'absolute',
-                                                            bottom: '0',
-                                                            right: '0',
-                                                            width: '10px',
-                                                            height: '10px',
-                                                            backgroundColor: '#1cc88a',
-                                                            borderRadius: '50%',
-                                                            border: '2px solid #1a1d2d',
-                                                            boxShadow: '0 0 5px rgba(28, 200, 138, 0.8)'
-                                                        }} title="Conectado Agora"></span>
-                                                    )}
+                                                    {/* Check if active AND recent (less than 24h) */
+                                                        l.latest_status === 'active' && (new Date() - new Date(l.last_connection) < 86400000) && (
+                                                            <span style={{
+                                                                position: 'absolute',
+                                                                bottom: '0',
+                                                                right: '0',
+                                                                width: '10px',
+                                                                height: '10px',
+                                                                backgroundColor: '#1cc88a',
+                                                                borderRadius: '50%',
+                                                                border: '2px solid #1a1d2d',
+                                                                boxShadow: '0 0 5px rgba(28, 200, 138, 0.8)'
+                                                            }} title="Conectado Agora"></span>
+                                                        )}
                                                 </div>
                                                 <div>
                                                     <div style={{ fontWeight: 600, color: 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                         {l.ad_display_name || l.user}
-                                                        {l.latest_status === 'active' && (
+                                                        {l.latest_status === 'active' && (new Date() - new Date(l.last_connection) < 86400000) && (
                                                             <span style={{
                                                                 fontSize: '0.65rem',
                                                                 backgroundColor: 'rgba(28, 200, 138, 0.2)',
