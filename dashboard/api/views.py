@@ -1,7 +1,8 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from django.db.models import Sum, Count, Max, Q, Subquery, OuterRef
+from django.db.models import Sum, Count, Max, Q, Subquery, OuterRef, F, Case, When, Value, IntegerField
+from django.db import models
 from django.http import JsonResponse
 import datetime
 
@@ -20,29 +21,40 @@ from .serializers import (
     RiskEventSerializer
 )
 
-class VPNLogViewSet(viewsets.ViewSet):
+class VPNLogViewSet(viewsets.ModelViewSet):
+    queryset = VPNLog.objects.all()
+    serializer_class = VPNLogSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    
-    
     def list(self, request):
-        queryset = self.get_queryset()
-        queryset = self.filter_queryset(queryset)
+        # 0. Initial Queryset for base filtering
+        base_qs = VPNLog.objects.all()
         
+        # Apply filters from query params
+        user_q = request.query_params.get('user_q')
+        title_q = request.query_params.get('title_q')
+        dept_q = request.query_params.get('dept_q')
         date_str = request.query_params.get('date')
+
+        if user_q:
+            base_qs = base_qs.filter(Q(user__icontains=user_q) | Q(ad_display_name__icontains=user_q))
+        if title_q:
+            base_qs = base_qs.filter(ad_title__icontains=title_q)
+        if dept_q:
+            base_qs = base_qs.filter(ad_department__icontains=dept_q)
         if date_str:
             try:
                 filter_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
-                queryset = queryset.filter(start_date=filter_date)
+                base_qs = base_qs.filter(start_date=filter_date)
             except ValueError:
                 pass
 
-        # 1. Latest Log Subquery
+        # 1. Latest Log Subquery (using filtered base_qs or complete set?) 
+        # Usually it's better to use complete set for latest status, but filtered for stats
         latest_log_qs = VPNLog.objects.filter(user=OuterRef('user')).order_by('-start_time')
         
-        # 2. Main aggregation query
-        # We group by user and other info, then annotate stats and latest info
-        qs = VPNLog.objects.values(
+        # 2. Main aggregation query using the filtered base_qs
+        qs = base_qs.values(
             'user', 
             'ad_display_name', 
             'ad_department', 
@@ -50,7 +62,7 @@ class VPNLogViewSet(viewsets.ViewSet):
         ).annotate(
             total_connections=Count('id'),
             total_duration=Sum('duration'),
-            total_volume=Sum(models.F('bandwidth_in') + models.F('bandwidth_out')),
+            total_volume=Sum(F('bandwidth_in') + F('bandwidth_out')),
             last_connection=Max('start_time'),
             latest_source_ip=Subquery(latest_log_qs.values('source_ip')[:1]),
             latest_city=Subquery(latest_log_qs.values('city')[:1]),
