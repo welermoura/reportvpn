@@ -1,0 +1,11 @@
+{
+  "type": "sqlserver",
+  "host": "10.10.1.95",
+  "port": 1433,
+  "database": "VPN_SIEM",
+  "user": "vpn_siem",
+  "password": "vpn@2026",
+  "windows_auth": false,
+  "setup_complete": true
+}
+
