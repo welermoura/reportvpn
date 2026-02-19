@@ -1,0 +1,594 @@
+{% extends 'dashboard/base.html' %}
+
+{% block content %}
+<div id="vpn-dashboard-root"></div>
+
+<!-- React & Dependencies -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+    :root {
+        --glass-bg: rgba(17, 19, 31, 0.95);
+        --glass-border: rgba(255, 255, 255, 0.05);
+        --accent-blue: #4e73df;
+        --accent-green: #1cc88a;
+        --text-secondary: #858796;
+        --input-bg: rgba(255, 255, 255, 0.03);
+    }
+
+    body {
+        background-color: #0d0e12;
+        color: #e3e6f0;
+    }
+
+    .premium-card {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .stat-value-premium {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: white;
+    }
+
+    .stat-label {
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+        font-weight: 500;
+        margin-bottom: 5px;
+    }
+
+    .table-premium {
+        width: 100%;
+        font-family: 'Inter', sans-serif;
+        border-collapse: collapse;
+    }
+
+    .table-premium th {
+        color: var(--text-secondary);
+        font-weight: 600;
+        padding: 15px 10px;
+        border-bottom: 2px solid var(--glass-border);
+        text-align: left;
+        font-size: 0.85rem;
+    }
+
+    .table-premium td {
+        padding: 15px 10px;
+        color: #d1d3e2;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        font-size: 0.85rem;
+    }
+
+    .user-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: white;
+        margin-right: 12px;
+        font-size: 0.75rem;
+    }
+
+    .pulse-live {
+        width: 8px;
+        height: 8px;
+        background: #1cc88a;
+        border-radius: 50%;
+        display: inline-block;
+        box-shadow: 0 0 10px rgba(28, 200, 138, 0.5);
+    }
+
+    .premium-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 0.75rem;
+        border: none;
+        color: white;
+        text-decoration: none;
+        cursor: pointer;
+        transition: filter 0.2s;
+    }
+
+    .premium-btn:hover {
+        filter: brightness(1.1);
+    }
+
+    .btn-pdf {
+        background: #e74a3b;
+    }
+
+    .btn-excel {
+        background: #1cc88a;
+    }
+
+    .btn-clear {
+        background: #858796;
+    }
+
+    .filter-input {
+        background: var(--input-bg);
+        border: 1px solid var(--glass-border);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        outline: none;
+    }
+
+    .filter-input::placeholder {
+        color: #5a5c69;
+    }
+
+    .charts-collapse-header {
+        background: rgba(255, 255, 255, 0.02);
+        padding: 10px 15px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        border: 1px solid var(--glass-border);
+        margin-bottom: 20px;
+    }
+
+    .charts-collapse-header:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-active {
+        color: #4e73df !important;
+        background: rgba(78, 115, 223, 0.1) !important;
+        border-bottom: 2px solid #4e73df !important;
+    }
+</style>
+
+<script type="text/babel">
+    {% verbatim %}
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    const StatsCharts = ({ data, onFilter }) => {
+        const chartIds = {
+            trend: 'chart-trend',
+            dept: 'chart-dept',
+            title: 'chart-title',
+            user: 'chart-user'
+        };
+        const [legends, setLegends] = useState({ depts: [], titles: [] });
+        const chartInstances = useRef({});
+
+        useEffect(() => {
+            if (!data) return;
+
+            const timer = setTimeout(() => {
+                const init = (id, type, chartData, options, onLegend) => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+
+                    const existing = Chart.getChart(el);
+                    if (existing) existing.destroy();
+
+                    try {
+                        const c = new Chart(el, {
+                            type,
+                            data: chartData,
+                            options: {
+                                ...options,
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                animation: { duration: 800 },
+                                plugins: {
+                                    ...options.plugins,
+                                    legend: { display: false },
+                                    tooltip: {
+                                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                                        padding: 12,
+                                        borderColor: 'rgba(255,255,255,0.1)',
+                                        borderWidth: 1
+                                    }
+                                }
+                            }
+                        });
+                        chartInstances.current[id] = c;
+                        if (onLegend) onLegend(chartData.labels, chartData.datasets[0].backgroundColor);
+                    } catch (e) { console.error("Chart error:", e); }
+                };
+
+                // 1. Trend
+                if (data.connections_trend) {
+                    init(chartIds.trend, 'line', {
+                        labels: data.connections_trend.map(t => t.date),
+                        datasets: [{
+                            label: 'Conexões',
+                            data: data.connections_trend.map(t => t.count),
+                            borderColor: '#4e73df',
+                            backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                            fill: true, tension: 0.4, pointRadius: 2
+                        }]
+                    }, {
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#858796' } },
+                            x: { grid: { display: false }, ticks: { color: '#858796' } }
+                        }
+                    });
+                }
+
+                // 2. Dept
+                if (data.departments?.labels?.length > 0) {
+                    init(chartIds.dept, 'doughnut', {
+                        labels: data.departments.labels,
+                        datasets: [{
+                            data: data.departments.data,
+                            backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796'],
+                            borderWidth: 0
+                        }]
+                    }, {
+                        cutout: '70%',
+                        onSegmentClick: (label) => onFilter('dept_q', label)
+                    }, (labels, colors) => {
+                        setLegends(prev => ({ ...prev, depts: labels.map((l, i) => ({ label: l, color: colors[i] })) }));
+                    });
+                }
+
+                // 3. Title
+                if (data.titles?.labels?.length > 0) {
+                    init(chartIds.title, 'doughnut', {
+                        labels: data.titles.labels,
+                        datasets: [{
+                            data: data.titles.data,
+                            backgroundColor: ['#f6c23e', '#e74a3b', '#4e73df', '#1cc88a', '#36b9cc', '#5a5c69'],
+                            borderWidth: 0
+                        }]
+                    }, {
+                        cutout: '70%',
+                        onSegmentClick: (label) => onFilter('title_q', label)
+                    }, (labels, colors) => {
+                        setLegends(prev => ({ ...prev, titles: labels.map((l, i) => ({ label: l, color: colors[i] })) }));
+                    });
+                }
+
+                // 4. User
+                if (data.users?.labels?.length > 0) {
+                    init(chartIds.user, 'bar', {
+                        labels: data.users.labels,
+                        datasets: [{
+                            label: 'Volume',
+                            data: data.users.data,
+                            backgroundColor: '#36b9cc',
+                            borderRadius: 4
+                        }]
+                    }, {
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#858796' } },
+                            x: { grid: { display: false }, ticks: { color: '#858796' } }
+                        },
+                        onSegmentClick: (label) => onFilter('user_q', label)
+                    });
+                }
+            }, 100);
+
+            return () => {
+                clearTimeout(timer);
+                Object.values(chartInstances.current).forEach(c => c && c.destroy());
+            };
+        }, [data, onFilter]);
+
+        const CustomLegend = ({ items }) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingLeft: '10px', justifyContent: 'center', minWidth: '150px' }}>
+                {items.map((item, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '25px', height: '12px', backgroundColor: item.color, borderRadius: '2px', border: '1px solid rgba(255,255,255,0.1)' }}></div>
+                        <span style={{ color: '#858796', fontSize: '0.65rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '110px' }} title={item.label}>
+                            {item.label}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        );
+
+        return (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '15px' }}>
+                <div className="premium-card" style={{ padding: '15px', height: '280px' }}>
+                    <div style={{ color: 'white', fontWeight: 600, fontSize: '0.8rem', marginBottom: '10px' }}>Conexões (30 Dias)</div>
+                    <div style={{ height: '220px' }}><canvas id={chartIds.trend}></canvas></div>
+                </div>
+                <div className="premium-card" style={{ padding: '15px', height: '280px' }}>
+                    <div style={{ color: 'white', fontWeight: 600, fontSize: '0.8rem', marginBottom: '10px' }}>Top Departamentos</div>
+                    <div style={{ display: 'flex', height: '220px', alignItems: 'center' }}>
+                        <div style={{ flex: 1, minWidth: 0, height: '100%' }}><canvas id={chartIds.dept}></canvas></div>
+                        <CustomLegend items={legends.depts} />
+                    </div>
+                </div>
+                <div className="premium-card" style={{ padding: '15px', height: '280px' }}>
+                    <div style={{ color: 'white', fontWeight: 600, fontSize: '0.8rem', marginBottom: '10px' }}>Top Cargos</div>
+                    <div style={{ display: 'flex', height: '220px', alignItems: 'center' }}>
+                        <div style={{ flex: 1, minWidth: 0, height: '100%' }}><canvas id={chartIds.title}></canvas></div>
+                        <CustomLegend items={legends.titles} />
+                    </div>
+                </div>
+                <div className="premium-card" style={{ padding: '15px', height: '280px' }}>
+                    <div style={{ color: 'white', fontWeight: 600, fontSize: '0.8rem', marginBottom: '10px' }}>Top Usuários (Volume)</div>
+                    <div style={{ height: '220px' }}><canvas id={chartIds.user}></canvas></div>
+                </div>
+            </div>
+        );
+    };
+
+    const VPNDetailsModal = ({ user, onClose }) => {
+        const [history, setHistory] = useState([]);
+        const [timeline, setTimeline] = useState([]);
+        const [loading, setLoading] = useState(true);
+        const [activeTab, setActiveTab] = useState('history');
+
+        useEffect(() => {
+            const fetchDetails = async () => {
+                setLoading(true);
+                try {
+                    const [hRes, tRes] = await Promise.all([
+                        fetch(`/api/vpn-logs/?user_q=${user.user}&limit=50`),
+                        fetch(`/api/user-timeline/?username=${user.user}`)
+                    ]);
+                    const hData = await hRes.json();
+                    const tData = await tRes.json();
+                    setHistory(hData.logs || []);
+                    setTimeline(tData || []);
+                } catch (e) { console.error(e); }
+                setLoading(false);
+            };
+            fetchDetails();
+        }, [user]);
+
+        return (
+            <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, backdropFilter: 'blur(8px)' }}>
+                <div className="premium-card" style={{ width: '900px', maxWidth: '95vw', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ padding: '20px', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)' }}>
+                        <div>
+                            <h3 style={{ color: 'white', margin: 0 }}>Detalhes do Usuário: {user.ad_display_name || user.user}</h3>
+                            <div style={{ fontSize: '0.8rem', color: '#858796' }}>{user.ad_title} • {user.ad_department}</div>
+                        </div>
+                        <button style={{ background: 'none', border: 'none', color: '#858796', fontSize: '1.8rem', padding: '0 10px' }} onClick={onClose}>&times;</button>
+                    </div>
+
+                    <div style={{ display: 'flex', borderBottom: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)' }}>
+                        <button onClick={() => setActiveTab('history')} className={`premium-btn ${activeTab === 'history' ? 'tab-active' : ''}`} style={{ borderRadius: 0, padding: '15px 25px' }}>🕒 Histórico de Conexões</button>
+                        <button onClick={() => setActiveTab('timeline')} className={`premium-btn ${activeTab === 'timeline' ? 'tab-active' : ''}`} style={{ borderRadius: 0, padding: '15px 25px' }}>🚨 Linha do Tempo (Incidentes)</button>
+                    </div>
+
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '25px' }}>
+                        {activeTab === 'history' ? (
+                            <table className="table-premium">
+                                <thead>
+                                    <tr><th>Início</th><th>Duração</th><th>IP</th><th>Volume</th><th>Status</th></tr>
+                                </thead>
+                                <tbody>
+                                    {loading ? <tr><td colSpan="5">Carregando...</td></tr> : history.map(h => {
+                                        if (!h) return null;
+                                        const status = (h.status || 'N/A').toUpperCase();
+                                        return (
+                                            <tr key={h.id || Math.random()}>
+                                                <td style={{ fontSize: '0.75rem' }}>{h.start_time ? new Date(h.start_time).toLocaleString() : '-'}</td>
+                                                <td>{h.formatted_duration || '-'}</td>
+                                                <td style={{ fontSize: '0.75rem' }}>{h.source_ip || '-'}</td>
+                                                <td>{h.bandwidth_in !== undefined ? ((h.bandwidth_in + h.bandwidth_out) / (1024 * 1024)).toFixed(2) : '0.00'} MB</td>
+                                                <td><span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', background: h.status === 'active' ? 'rgba(28,200,138,0.1)' : 'rgba(255,255,255,0.05)', color: h.status === 'active' ? '#1cc88a' : '#858796' }}>{status}</span></td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        ) : (
+                            timeline.map((item, idx) => {
+                                if (!item) return null;
+                                return (
+                                    <div key={idx} style={{ position: 'relative', paddingLeft: '25px', paddingBottom: '25px', borderLeft: '2px solid rgba(255,255,255,0.1)' }}>
+                                        <div style={{ position: 'absolute', left: '-7px', top: '0', width: '12px', height: '12px', borderRadius: '50%', background: item.severity === 'critical' ? '#e74a3b' : item.severity === 'warning' ? '#f6c23e' : '#4e73df' }}></div>
+                                        <div style={{ fontSize: '0.7rem', color: '#858796' }}>{item.timestamp ? new Date(item.timestamp).toLocaleString() : '-'}</div>
+                                        <div style={{ color: 'white', fontWeight: 600, fontSize: '0.85rem', margin: '5px 0' }}>{item.summary || 'Informativo'}</div>
+                                        {item.details && typeof item.details === 'object' && (
+                                            <div style={{ fontSize: '0.75rem', color: '#abb1bf', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '6px' }}>
+                                                {Object.entries(item.details).map(([k, v]) => <div key={k}><strong>{k}:</strong> {String(v)}</div>)}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const VPNDashboard = () => {
+        const [logs, setLogs] = useState([]);
+        const [stats, setStats] = useState(null);
+        const [loading, setLoading] = useState(true);
+        const [showCharts, setShowCharts] = useState(true);
+        const [selectedUser, setSelectedUser] = useState(null);
+        const [currentTime, setCurrentTime] = useState(new Date());
+        const [filters, setFilters] = useState({
+            user_q: '', title_q: '', dept_q: '',
+            date: new Date().toISOString().split('T')[0],
+            ordering: '-last_connection'
+        });
+
+        const fetchData = useCallback(async () => {
+            setLoading(true);
+            try {
+                const query = `user_q=${filters.user_q}&title_q=${filters.title_q}&dept_q=${filters.dept_q}&date=${filters.date}&ordering=${filters.ordering}`;
+                const [lRes, sRes] = await Promise.all([
+                    fetch(`/api/vpn-logs/?${query}`),
+                    fetch(`/api/stats/?${query}`)
+                ]);
+                const lData = await lRes.json();
+                const sData = await sRes.json();
+                setLogs(lData.logs || []);
+                setStats(sData);
+            } catch (e) { console.error(e); }
+            setLoading(false);
+        }, [filters]);
+
+        useEffect(() => { fetchData(); }, [fetchData]);
+        useEffect(() => {
+            const tic = setInterval(() => setCurrentTime(new Date()), 1000);
+            return () => clearInterval(tic);
+        }, []);
+
+        const handleSort = (f) => {
+            setFilters(p => ({ ...p, ordering: p.ordering === f ? `-${f}` : f }));
+        };
+
+        const formatBytes = (b) => {
+            const gb = b / (1024 ** 3);
+            return gb >= 1 ? `${gb.toFixed(2)} GB` : `${(b / (1024 ** 2)).toFixed(2)} MB`;
+        };
+
+        const handleFilterChange = useCallback((k, v) => {
+            setFilters(p => ({ ...p, [k]: v }));
+        }, []);
+
+        return (
+            <div style={{ padding: '0 10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                    <h2 style={{ color: 'white', fontWeight: 700, margin: 0, fontSize: '1.4rem' }}>🔌 Relatório VPN</h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '5px 12px', borderRadius: '15px', border: '1px solid var(--glass-border)' }}>
+                        <span className="pulse-live"></span>
+                        <span style={{ fontSize: '0.65rem', color: '#1cc88a', fontWeight: 800 }}>LIVE UPDATING</span>
+                    </div>
+                </div>
+
+                <div className="charts-collapse-header" onClick={() => setShowCharts(!showCharts)}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '1rem' }}>📊</span>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white' }}>Visualizar Gráficos e Estatísticas</span>
+                    </div>
+                    <span style={{ color: 'white', transform: showCharts ? 'rotate(0deg)' : 'rotate(180deg)', transition: '0.3s' }}>▲</span>
+                </div>
+
+                {showCharts && stats && (
+                    <div style={{ marginBottom: '20px' }}>
+                        <StatsCharts data={stats} onFilter={handleFilterChange} />
+                    </div>
+                )}
+
+                {stats && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '25px' }}>
+                        <div className="premium-card" style={{ padding: '25px' }}>
+                            <div className="stat-label">Total de Conexões ({filters.date.split('-').reverse().join('/')})</div>
+                            <div className="stat-value-premium">{stats.period_stats.total_connections}</div>
+                        </div>
+                        <div className="premium-card" style={{ padding: '25px' }}>
+                            <div className="stat-label">Usuários Ativos ({filters.date.split('-').reverse().join('/')})</div>
+                            <div className="stat-value-premium" style={{ color: 'var(--accent-green)' }}>{stats.period_stats.active_users}</div>
+                        </div>
+                        <div className="premium-card" style={{ padding: '25px' }}>
+                            <div className="stat-label">Volume de Dados ({filters.date.split('-').reverse().join('/')})</div>
+                            <div className="stat-value-premium" style={{ color: '#4e73df' }}>{formatBytes(stats.period_stats.total_volume_bytes)}</div>
+                        </div>
+                    </div>
+                )}
+
+                <div className="premium-card" style={{ padding: '0', overflow: 'hidden' }}>
+                    <div style={{ padding: '15px 20px', display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--glass-border)' }}>
+                        <span className="filter-label" style={{ fontSize: '0.8rem', color: '#858796', fontWeight: 600 }}>FILTROS:</span>
+                        <input className="filter-input" style={{ width: '130px' }} placeholder="Usuário..." value={filters.user_q} onChange={e => setFilters(p => ({ ...p, user_q: e.target.value }))} />
+                        <input className="filter-input" style={{ width: '130px' }} placeholder="Cargo..." value={filters.title_q} onChange={e => setFilters(p => ({ ...p, title_q: e.target.value }))} />
+                        <input className="filter-input" style={{ width: '130px' }} placeholder="Departamento..." value={filters.dept_q} onChange={e => setFilters(p => ({ ...p, dept_q: e.target.value }))} />
+                        <input className="filter-input" type="date" value={filters.date} onChange={e => setFilters(p => ({ ...p, date: e.target.value }))} style={{ colorScheme: 'dark', width: '130px' }} />
+
+                        <div style={{ flex: 1 }}></div>
+
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button className="premium-btn" style={{ background: '#4e73df', minWidth: '80px', justifyContent: 'center' }} onClick={() => window.location.href = `/export/pdf/?date=${filters.date}&user_q=${filters.user_q}&title_q=${filters.title_q}&dept_q=${filters.dept_q}`} title="Exportar PDF">
+                                <span style={{ marginRight: '5px' }}>📄</span> PDF
+                            </button>
+                            <button className="premium-btn" style={{ background: '#1cc88a', minWidth: '90px', justifyContent: 'center' }} title="Exportar Excel">
+                                <span style={{ marginRight: '5px' }}>📊</span> Excel
+                            </button>
+                            <button className="premium-btn" style={{ background: '#858796', minWidth: '90px', justifyContent: 'center' }} title="Limpar Filtros" onClick={() => setFilters({ user_q: '', title_q: '', dept_q: '', date: new Date().toISOString().split('T')[0], ordering: '-last_connection' })}>
+                                <span style={{ marginRight: '5px' }}>🧹</span> Limpar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style={{ overflowX: 'auto' }}>
+                        <table className="table-premium">
+                            <thead>
+                                <tr>
+                                    <th onClick={() => handleSort('user')} style={{ cursor: 'pointer', paddingLeft: '20px' }}>Usuário</th>
+                                    <th onClick={() => handleSort('title')} style={{ cursor: 'pointer' }}>Cargo</th>
+                                    <th onClick={() => handleSort('dept')} style={{ cursor: 'pointer' }}>Depto</th>
+                                    <th onClick={() => handleSort('connections')} style={{ cursor: 'pointer' }}>Qtd Conexões</th>
+                                    <th onClick={() => handleSort('last_connection')} style={{ cursor: 'pointer' }}>Acesso</th>
+                                    <th>Origem</th>
+                                    <th>Cidade</th>
+                                    <th>País</th>
+                                    <th>Volume</th>
+                                    <th>Duração</th>
+                                    <th style={{ width: '40px', paddingRight: '20px' }}>Detalhes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {loading && logs.length === 0 ? <tr><td colSpan="11" style={{ textAlign: 'center', padding: '40px' }}>Carregando...</td></tr> :
+                                    logs.map(l => {
+                                        const active = l.latest_status === 'active';
+                                        let dur = l.total_duration || 0;
+                                        if (active) dur += Math.floor((currentTime - new Date(l.last_connection)) / 1000);
+                                        const h = Math.floor(dur / 3600), m = Math.floor((dur % 3600) / 60);
+                                        const init = ((l.ad_display_name || l.user || '??').substring(0, 2)).toUpperCase();
+
+                                        return (
+                                            <tr key={l.user}>
+                                                <td style={{ paddingLeft: '20px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                        <div className="user-avatar" style={{ background: active ? 'rgba(28,200,138,0.2)' : 'rgba(78,115,223,0.2)', color: active ? '#1cc88a' : '#4e73df', border: `1px solid ${active ? 'rgba(28,200,138,0.3)' : 'rgba(78,115,223,0.3)'}` }}>{init}</div>
+                                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                            <span style={{ fontWeight: 600, color: 'white' }}>{l.ad_display_name || l.user}</span>
+                                                            <span style={{ fontSize: '0.65rem', color: '#5a5c69' }}>{l.user}</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>{l.ad_title || '-'}</td>
+                                                <td>{l.ad_department || '-'}</td>
+                                                <td style={{ fontWeight: 700, textAlign: 'center' }}>{l.total_connections}</td>
+                                                <td style={{ fontSize: '0.75rem' }}>{new Date(l.last_connection).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                                                <td style={{ fontSize: '0.75rem' }}>{l.latest_source_ip}</td>
+                                                <td>{l.latest_city || '-'}</td>
+                                                <td>{l.latest_country_code || '-'}</td>
+                                                <td style={{ color: '#4e73df', fontWeight: 600 }}>{formatBytes(l.total_volume)}</td>
+                                                <td style={{ color: active ? '#1cc88a' : 'inherit' }}>{h}h {m}m</td>
+                                                <td style={{ paddingRight: '20px' }}>
+                                                    <button style={{ background: 'rgba(255,255,255,0.05)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setSelectedUser(l)}>
+                                                        <span style={{ filter: 'grayscale(1) brightness(2)' }}>👁️</span>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {selectedUser && <VPNDetailsModal user={selectedUser} onClose={() => setSelectedUser(null)} />}
+            </div>
+        );
+    };
+
+    ReactDOM.createRoot(document.getElementById('vpn-dashboard-root')).render(<VPNDashboard />);
+    {% endverbatim %}
+</script>
+{% endblock %}

@@ -23,14 +23,14 @@ def portal(request):
 
 class VPNLogListView(LoginRequiredMixin, ListView):
     model = VPNLog
-    template_name = 'dashboard/index.html'
+    template_name = 'dashboard/dashboard_premium.html'
     context_object_name = 'logs'
     paginate_by = 20
 
     def get_template_names(self):
         if self.request.headers.get('HX-Request') == 'true':
             return ['dashboard/partials/logs_table.html']
-        return ['dashboard/vpn_react.html']
+        return ['dashboard/dashboard_premium.html']
     
     def get_queryset(self):
         # Start with base queryset
