@@ -10,7 +10,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-<!-- Custom Styles for Premium Look -->
 <style>
     :root {
         --glass-bg: rgba(25, 28, 41, 0.6);
@@ -42,26 +41,9 @@
         margin-bottom: 8px;
     }
 
-    .chart-box {
-        background: var(--glass-bg);
-        border-radius: 12px;
-        border: 1px solid var(--glass-border);
-        padding: 20px;
-        height: 300px;
-    }
-
-    .chart-title {
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: white;
-        margin-bottom: 20px;
-    }
-
     .table-premium {
         width: 100%;
         font-family: 'Inter', sans-serif;
-        font-size: 16px;
-        font-weight: 400;
         color: rgb(248, 250, 252);
         border-collapse: collapse;
     }
@@ -86,84 +68,17 @@
     }
 
     .user-avatar {
-        width: 30px;
-        height: 30px;
-        border-radius: 6px;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
         background: #4e73df;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: 600;
         color: white;
-        margin-right: 8px;
-        font-size: 0.7rem;
-    }
-
-    .btn-pdf {
-        background: #4e73df;
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 6px;
-        font-weight: 600;
+        margin-right: 12px;
         font-size: 0.8rem;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .btn-pdf:hover {
-        background: #2e59d9;
-        transform: translateY(-1px);
-    }
-
-    .filter-input-cell {
-        background: rgba(0, 0, 0, 0.3) !important;
-        border: 1px solid var(--glass-border) !important;
-        color: white !important;
-        font-size: 0.75rem !important;
-        padding: 4px 8px !important;
-        border-radius: 4px !important;
-        width: 100%;
-    }
-
-    .filter-input-cell::placeholder {
-        color: #5a5c69;
-    }
-
-    /* Make calendar icon visible on dark theme */
-    .filter-input-cell::-webkit-calendar-picker-indicator {
-        filter: invert(1);
-        cursor: pointer;
-        opacity: 0.6;
-        transition: opacity 0.2s;
-    }
-
-    .filter-input-cell::-webkit-calendar-picker-indicator:hover {
-        opacity: 1;
-    }
-
-    .filter-input-premium {
-        background: rgba(0, 0, 0, 0.3) !important;
-        border: 1px solid var(--glass-border) !important;
-        color: white !important;
-        font-size: 0.8rem !important;
-        padding: 5px 12px !important;
-        /* Adjusted padding for alignment */
-        border-radius: 6px !important;
-        cursor: pointer;
-        height: 35px;
-        /* Match button height (approx 35-37px) */
-        box-sizing: border-box;
-        font-family: 'Inter', sans-serif;
-    }
-
-    .filter-input-premium::-webkit-calendar-picker-indicator {
-        filter: invert(1);
-        cursor: pointer;
-        opacity: 0.6;
     }
 
     .pulse-live {
@@ -172,534 +87,106 @@
         background: #1cc88a;
         border-radius: 50%;
         display: inline-block;
-        margin-right: 8px;
         box-shadow: 0 0 0 rgba(28, 200, 138, 0.4);
         animation: pulse 2s infinite;
     }
 
     @keyframes pulse {
-        0% {
-            transform: scale(0.95);
-            box-shadow: 0 0 0 0 rgba(28, 200, 138, 0.7);
-        }
-
-        70% {
-            transform: scale(1.1);
-            box-shadow: 0 0 0 10px rgba(28, 200, 138, 0);
-        }
-
-        100% {
-            transform: scale(0.95);
-            box-shadow: 0 0 0 0 rgba(28, 200, 138, 0);
-        }
-    }
-
-    /* Filter Bar Styles from Webfilter */
-    .filters-bar {
-        background: transparent;
-        padding: 10px 0;
-        margin-bottom: 15px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        flex-wrap: wrap;
-    }
-
-    .filters-label {
-        font-weight: bold;
-        color: #fff;
-        margin-right: 10px;
-        text-transform: uppercase;
-        font-size: 0.9rem;
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(28, 200, 138, 0.7); }
+        70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(28, 200, 138, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(28, 200, 138, 0); }
     }
 
     .filter-input {
         background: rgba(15, 23, 42, 0.6);
         border: 1px solid rgba(255, 255, 255, 0.1);
         color: #fff;
-        padding: 6px 12px;
-        border-radius: 4px;
-        min-width: 150px;
+        padding: 8px 12px;
+        border-radius: 6px;
         font-family: 'Inter', sans-serif;
-    }
-
-    .filter-input::placeholder {
-        color: #858796;
+        font-size: 0.85rem;
     }
 
     .filter-input:focus {
         border-color: #4e73df;
         outline: none;
+        box-shadow: 0 0 0 2px rgba(78, 115, 223, 0.2);
     }
 
-    /* Reuse filter-input-premium style but rename for consistency if needed, 
-       or just use filter-input. Let's stick to the new class for consistency with plan. */
-
-    .btn-sm {
-        padding: 6px 12px;
-        font-size: 0.85rem;
-    }
-
-    .btn-primary {
-        background-color: #4e73df;
-        border-color: #4e73df;
-        color: white;
-        border-radius: 4px;
-        cursor: pointer;
-        border: 1px solid transparent;
-    }
-
-    .btn-success {
-        background-color: #1cc88a;
-        border-color: #1cc88a;
-        color: white;
-        border-radius: 4px;
-        cursor: pointer;
-        border: 1px solid transparent;
-    }
-
-    .btn-secondary {
-        background-color: #858796;
-        border-color: #858796;
-        color: white;
-        border-radius: 4px;
-        cursor: pointer;
-        border: 1px solid transparent;
-    }
-
-    /* Timeline Styles */
-    .timeline-container {
-        position: relative;
-        padding: 20px 0;
-    }
-
-    .timeline-item {
-        position: relative;
-        padding-left: 40px;
-        margin-bottom: 25px;
-    }
-
-    .timeline-line {
-        position: absolute;
-        left: 11px;
-        top: 25px;
-        bottom: -25px;
-        width: 2px;
-        background: rgba(255, 255, 255, 0.1);
-    }
-
-    .timeline-item:last-child .timeline-line {
-        display: none;
-    }
-
-    .timeline-dot {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.8rem;
-        z-index: 2;
-    }
-
-    .timeline-content {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 8px;
-        padding: 15px;
-        transition: transform 0.2s;
-    }
-
-    .timeline-content:hover {
-        background: rgba(255, 255, 255, 0.06);
-        transform: translateX(5px);
-    }
-
-    .tab-btn {
-        background: transparent;
-        border: none;
-        color: #858796;
-        padding: 10px 20px;
-        font-weight: 600;
-        cursor: pointer;
-        border-bottom: 2px solid transparent;
-        font-size: 0.95rem;
-        transition: all 0.2s;
-    }
-
-    .tab-btn.active {
-        color: #4e73df;
-        border-bottom-color: #4e73df;
-    }
-
-    .tab-btn:hover {
-        color: white;
-    }
+    button { cursor: pointer; transition: all 0.2s; }
+    button:hover { opacity: 0.9; transform: translateY(-1px); }
 </style>
 
 <script type="text/babel">
-    {% verbatim %}
-    const { useState, useEffect, useCallback, useRef } = React;
+    const { useState, useEffect, useRef } = React;
 
-    // ... StatsCharts Component (unchanged) ...
-    const StatsCharts = ({ data, onFilterChange }) => {
-        if (!data) return null;
-
+    const StatsCharts = ({ data }) => {
         const trendRef = useRef(null);
-        const deptRef = useRef(null);
-        const titleRef = useRef(null);
-        const userRef = useRef(null);
-        const failureRef = useRef(null);
-        const charInstances = useRef({});
-
         useEffect(() => {
-            if (!data) return;
-            // Ensure charInstances is initialized
-            if (!charInstances.current) charInstances.current = {};
-
-            Object.values(charInstances.current).forEach(c => c && c.destroy());
-
-            const chartOptions = {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { labels: { color: '#858796', font: { size: 10 } } } },
-                onHover: (e, elements) => {
-                    e.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
-                }
-            };
-
-            charInstances.current.trend = new Chart(trendRef.current, {
+            if (!data || !trendRef.current) return;
+            const ctx = trendRef.current.getContext('2d');
+            new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: data.trend.labels,
-                    datasets: [{ label: 'Conexões', data: data.trend.data, borderColor: '#4e73df', fill: false, tension: 0.3 }]
+                    labels: data.connections_trend.map(d => d.date.split('-').reverse().slice(0,2).join('/')),
+                    datasets: [{
+                        label: 'Conexões',
+                        data: data.connections_trend.map(d => d.count),
+                        borderColor: '#4e73df',
+                        backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
                 },
                 options: {
-                    ...chartOptions,
+                    responsive: true,
+                    maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
-                    scales: { y: { ticks: { color: '#858796' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#858796' }, grid: { display: false } } },
-                    onClick: (e, elements) => {
-                        if (elements.length > 0) {
-                            const index = elements[0].index;
-                            const dateValue = data.trend.keys ? data.trend.keys[index] : data.trend.labels[index];
-                            if (dateValue && onFilterChange) onFilterChange({ date: dateValue });
-                        }
-                    }
+                    scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } }
                 }
             });
-
-            charInstances.current.dept = new Chart(deptRef.current, {
-                type: 'doughnut',
-                data: { labels: data.departments.labels, datasets: [{ data: data.departments.data, backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'] }] },
-                options: {
-                    ...chartOptions,
-                    plugins: { legend: { position: 'right' } },
-                    cutout: '70%',
-                    onClick: (e, elements) => {
-                        if (elements.length > 0 && onFilterChange) {
-                            const label = data.departments.labels[elements[0].index];
-                            onFilterChange({ dept_q: label });
-                        }
-                    }
-                }
-            });
-
-            charInstances.current.title = new Chart(titleRef.current, {
-                type: 'doughnut',
-                data: { labels: data.titles.labels, datasets: [{ data: data.titles.data, backgroundColor: ['#f6c23e', '#e74a3b', '#4e73df', '#1cc88a', '#36b9cc'] }] },
-                options: {
-                    ...chartOptions,
-                    plugins: { legend: { position: 'right' } },
-                    cutout: '70%',
-                    onClick: (e, elements) => {
-                        if (elements.length > 0 && onFilterChange) {
-                            const label = data.titles.labels[elements[0].index];
-                            onFilterChange({ title_q: label });
-                        }
-                    }
-                }
-            });
-
-            charInstances.current.user = new Chart(userRef.current, {
-                type: 'bar',
-                data: { labels: data.users.labels, datasets: [{ label: 'MB', data: data.users.data, backgroundColor: '#36b9cc' }] },
-                options: {
-                    ...chartOptions,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { ticks: { color: '#858796' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#858796' }, grid: { display: false } } },
-                    onClick: (e, elements) => {
-                        if (elements.length > 0 && onFilterChange) {
-                            const label = data.users.labels[elements[0].index];
-                            onFilterChange({ user_q: label });
-                        }
-                    }
-                }
-            });
-
-            if (data.failures && data.failures.labels.length > 0) {
-                charInstances.current.failure = new Chart(failureRef.current, {
-                    type: 'bar',
-                    data: { labels: data.failures.labels, datasets: [{ label: 'Falhas', data: data.failures.data, backgroundColor: '#e74a3b' }] },
-                    options: {
-                        ...chartOptions,
-                        plugins: { legend: { display: false }, title: { display: false } },
-                        scales: { y: { ticks: { color: '#858796' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#858796' }, grid: { display: false } } }
-                    }
-                });
-            }
-
-            return () => Object.values(charInstances.current).forEach(c => c.destroy());
         }, [data]);
 
         return (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                <div className="chart-box">
-                    <div className="chart-title">Conexões (30 Dias)</div>
-                    <div style={{ height: '220px' }}><canvas ref={trendRef}></canvas></div>
-                </div>
-                <div className="chart-box">
-                    <div className="chart-title">Top Departamentos</div>
-                    <div style={{ height: '220px' }}><canvas ref={deptRef}></canvas></div>
-                </div>
-                <div className="chart-box">
-                    <div className="chart-title">Top Cargos</div>
-                    <div style={{ height: '220px' }}><canvas ref={titleRef}></canvas></div>
-                </div>
-                <div className="chart-box">
-                    <div className="chart-title">Top Usuários (Volume)</div>
-                    <div style={{ height: '220px' }}><canvas ref={userRef}></canvas></div>
-                </div>
-            </div>
-        );
-    };
-
-    const TimelineItem = ({ event }) => {
-        let icon = '🔌';
-        let color = '#4e73df';
-        let bg = 'rgba(78, 115, 223, 0.2)';
-
-        if (event.type === 'security') {
-            if (event.subtype === 'ips') { icon = '🛡️'; color = '#e74a3b'; bg = 'rgba(231, 74, 59, 0.2)'; }
-            else if (event.subtype === 'antivirus') { icon = '🦠'; color = '#f6c23e'; bg = 'rgba(246, 194, 62, 0.2)'; }
-            else if (event.subtype === 'webfilter') { icon = '🚫'; color = '#e74a3b'; bg = 'rgba(231, 74, 59, 0.2)'; }
-            else if (event.subtype === 'bruteforce') { icon = '🚨'; color = '#e74a3b'; bg = 'rgba(231, 74, 59, 0.2)'; }
-        } else if (event.type === 'vpn_failure') {
-            icon = '🔐'; color = '#f6c23e'; bg = 'rgba(246, 194, 62, 0.2)';
-        }
-
-        // Impossible Travel Override
-        if (event.details?.impossible_travel) {
-            icon = '✈️'; color = '#e74a3b'; bg = 'rgba(231, 74, 59, 0.2)';
-        }
-
-        return (
-            <div className="timeline-item">
-                <div className="timeline-line"></div>
-                <div className="timeline-dot" style={{ background: bg, color: color, boxShadow: `0 0 0 4px #1a1d2d` }}>
-                    {icon}
-                </div>
-                <div className="timeline-content" style={{ borderLeft: `3px solid ${color}` }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                        <strong style={{ color: 'white' }}>{event.summary}</strong>
-                        <span style={{ fontSize: '0.75rem', color: '#858796' }}>
-                            {new Date(event.timestamp).toLocaleString('pt-BR')}
-                        </span>
-                    </div>
-
-                    {event.details?.impossible_travel && (
-                        <div style={{ background: 'rgba(231, 74, 59, 0.1)', color: '#e74a3b', padding: '8px', borderRadius: '4px', fontSize: '0.85rem', marginBottom: '8px', border: '1px solid #e74a3b' }}>
-                            🚨 <b>ALERTA DE VIAGEM IMPOSSÍVEL DETECTADA!</b><br />
-                            Mudança de localização inviável em curto período de tempo.
-                        </div>
-                    )}
-
-                    {event.subtype === 'bruteforce' && (
-                        <div style={{ background: 'rgba(231, 74, 59, 0.1)', color: '#e74a3b', padding: '8px', borderRadius: '4px', fontSize: '0.85rem', marginBottom: '8px', border: '1px solid #e74a3b' }}>
-                            🚨 <b>ATAQUE DE FORÇA BRUTA CONFIRMADO!</b><br />
-                            Múltiplas falhas de login detectadas em curto período.<br />
-                            <i>Ação recomendada: Bloquear usuário e resetar senha.</i>
-                        </div>
-                    )}
-
-                    <div style={{ fontSize: '0.85rem', color: '#d1d3e2' }}>
-                        {event.type === 'vpn' && (
-                            <div>
-                                <span>Dur: {event.details.duration}</span> • <span>IP: {event.details.source_ip}</span>
-                            </div>
-                        )}
-                        {event.type === 'security' && (
-                            Object.entries(event.details).map(([k, v]) => (
-                                <div key={k}><span style={{ textTransform: 'capitalize', color: '#858796' }}>{k}:</span> {v}</div>
-                            ))
-                        )}
-                    </div>
-                </div>
+            <div className="premium-card" style={{ padding: '20px', marginBottom: '20px', height: '250px' }}>
+                <div style={{ color: 'white', fontWeight: 600, marginBottom: '15px', fontSize: '0.9rem' }}>CONEXÕES (ÚLTIMOS 30 DIAS)</div>
+                <canvas ref={trendRef}></canvas>
             </div>
         );
     };
 
     const VPNDetailsModal = ({ user, onClose }) => {
-        const [activeTab, setActiveTab] = useState('history');
         const [history, setHistory] = useState([]);
-        const [timeline, setTimeline] = useState([]);
         const [loading, setLoading] = useState(true);
 
         useEffect(() => {
-            if (user && user.user) {
-                setLoading(true);
-                if (activeTab === 'history') {
-                    fetch(`/api/vpn-logs/history/?user=${encodeURIComponent(user.user)}`)
-                        .then(res => res.json())
-                        .then(data => { setHistory(data); setLoading(false); })
-                        .catch(err => { console.error(err); setLoading(false); });
-                } else {
-                    fetch(`/api/user-timeline/?username=${encodeURIComponent(user.user)}`)
-                        .then(res => res.json())
-                        .then(data => { setTimeline(data); setLoading(false); })
-                        .catch(err => { console.error(err); setLoading(false); });
-                }
-            }
-        }, [user, activeTab]);
-
-        if (!user) return null;
-
-        const formatBytes = (bytes) => {
-            if (!bytes) return "0 B";
-            const gb = bytes / (1024 ** 3);
-            return gb >= 1 ? `${gb.toFixed(2)} GB` : `${(bytes / (1024 ** 2)).toFixed(2)} MB`;
-        };
-
-        const formatDuration = (seconds) => {
-            if (!seconds) return "0s";
-            const h = Math.floor(seconds / 3600);
-            const m = Math.floor((seconds % 3600) / 60);
-            const s = seconds % 60;
-            return h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`;
-        };
+            fetch(`/api/vpn-logs/history/?user=${user.user}`)
+                .then(r => r.json())
+                .then(d => { setHistory(d); setLoading(false); });
+        }, [user]);
 
         return (
-            <div style={{
-                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-            }} onClick={onClose}>
-                <div style={{
-                    background: '#1a1d2d', border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '12px', padding: '0', width: '900px', maxWidth: '95%', maxHeight: '90vh',
-                    overflowY: 'auto', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', position: 'relative', display: 'flex', flexDirection: 'column'
-                }} onClick={e => e.stopPropagation()}>
-
-                    {/* Header Fixed */}
-                    <div style={{ padding: '24px 24px 0 24px' }}>
-                        <button onClick={onClose} style={{
-                            position: 'absolute', top: '15px', right: '15px',
-                            background: 'transparent', border: 'none', color: '#fff', fontSize: '1.2rem', cursor: 'pointer'
-                        }}>✕</button>
-
-                        <h3 style={{ color: 'white', marginTop: 0, marginBottom: '20px' }}>
-                            Detalhes do Usuário
-                        </h3>
-
-                        {/* Identity Card */}
-                        <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '20px', borderRadius: '8px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-                            <div style={{ background: '#4e73df', width: '60px', height: '60px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', color: 'white' }}>
-                                {user.user.substring(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                                <div style={{ color: 'white', fontWeight: 700, fontSize: '1.3rem' }}>
-                                    {user.ad_display_name || user.user}
-                                </div>
-                                <div style={{ display: 'flex', gap: '20px', marginTop: '8px', fontSize: '0.9rem', color: '#d1d3e2' }}>
-                                    <span>👤 {user.user}</span>
-                                    {user.ad_department && <span>🏢 {user.ad_department}</span>}
-                                    {user.ad_title && <span>💼 {user.ad_title}</span>}
-                                </div>
-                                <div style={{ marginTop: '10px', display: 'flex', gap: '15px', fontSize: '0.85rem' }}>
-                                    <span style={{ background: 'rgba(78, 115, 223, 0.2)', color: '#4e73df', padding: '2px 8px', borderRadius: '4px' }}>
-                                        Total Conexões: <b>{user.total_connections}</b>
-                                    </span>
-                                    <span style={{ background: 'rgba(28, 200, 138, 0.2)', color: '#1cc88a', padding: '2px 8px', borderRadius: '4px' }}>
-                                        Volume Total: <b>{formatBytes(user.total_volume)}</b>
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Tabs */}
-                        <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: '20px' }}>
-                            <button
-                                className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('history')}
-                            >
-                                📅 Histórico de Conexões
-                            </button>
-                            <button
-                                className={`tab-btn ${activeTab === 'timeline' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('timeline')}
-                            >
-                                ⏱️ Linha do Tempo Unificada
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Content */}
-                    <div style={{ padding: '0 24px 24px 24px', flexGrow: 1, overflowY: 'auto' }}>
-                        {loading ? (
-                            <div style={{ textAlign: 'center', padding: '30px', color: '#858796' }}>Carregando dados...</div>
-                        ) : (
-                            activeTab === 'history' ? (
-                                <div style={{ overflowX: 'auto' }}>
-                                    <table className="table-premium" style={{ fontSize: '0.85rem' }}>
-                                        <thead>
-                                            <tr>
-                                                <th>Início</th>
-                                                <th>Duração</th>
-                                                <th>Origem (IP)</th>
-                                                <th>Localização</th>
-                                                <th>Device / OS</th>
-                                                <th>Volume</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {history.map(h => (
-                                                <tr key={h.id}>
-                                                    <td>
-                                                        <div>{new Date(h.start_time).toLocaleDateString('pt-BR')}</div>
-                                                        <div style={{ fontSize: '0.75rem', color: '#858796' }}>{new Date(h.start_time).toLocaleTimeString('pt-BR')}</div>
-                                                    </td>
-                                                    <td>{formatDuration(h.duration)}</td>
-                                                    <td style={{ fontFamily: 'monospace' }}>{h.source_ip}</td>
-                                                    <td>
-                                                        {h.city ? `${h.city}, ${h.country_code}` : (h.country_name || '-')}
-                                                    </td>
-                                                    <td>
-                                                        <div style={{ fontSize: '0.75rem', color: '#d1d3e2' }}>{h.tunnel_type || '-'}</div>
-                                                    </td>
-                                                    <td style={{ color: '#4e73df', fontWeight: 600 }}>{formatBytes(h.total_volume)}</td>
-                                                </tr>
-                                            ))}
-                                            {history.length === 0 && (
-                                                <tr><td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>Nenhum registro encontrado.</td></tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ) : (
-                                <div className="timeline-container">
-                                    {timeline.map(item => (
-                                        <TimelineItem key={item.id} event={item} />
-                                    ))}
-                                    {timeline.length === 0 && (
-                                        <div style={{ textAlign: 'center', padding: '20px', color: '#858796' }}>Nenhuma atividade registrada na linha do tempo.</div>
-                                    )}
-                                </div>
-                            )
-                        )}
-                    </div>
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={onClose}>
+                <div className="premium-card" style={{ width: '100%', maxWidth: '900px', maxHeight: '85vh', overflowY: 'auto', padding: '25px', position: 'relative' }} onClick={e => e.stopPropagation()}>
+                    <button onClick={onClose} style={{ position: 'absolute', right: '20px', top: '20px', background: 'none', border: 'none', color: 'white', fontSize: '1.5rem' }}>&times;</button>
+                    <h3 style={{ color: 'white', marginBottom: '20px' }}>Histórico: {user.ad_display_name || user.user}</h3>
+                    <table className="table-premium">
+                        <thead>
+                            <tr><th>Início</th><th>Fim</th><th>Duração</th><th>IP</th><th>Volume</th><th>Status</th></tr>
+                        </thead>
+                        <tbody>
+                            {loading ? <tr><td colSpan="6">Carregando...</td></tr> : history.map(h => (
+                                <tr key={h.id}>
+                                    <td>{new Date(h.start_time).toLocaleString()}</td>
+                                    <td>{h.end_time ? new Date(h.end_time).toLocaleString() : '-'}</td>
+                                    <td>{h.formatted_duration || '-'}</td>
+                                    <td>{h.source_ip}</td>
+                                    <td>{((h.bandwidth_in + h.bandwidth_out)/(1024*1024)).toFixed(2)} MB</td>
+                                    <td>{h.status}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         );
@@ -709,306 +196,170 @@
         const [logs, setLogs] = useState([]);
         const [stats, setStats] = useState(null);
         const [loading, setLoading] = useState(true);
-        const [showCharts, setShowCharts] = useState(true);
+        const [showCharts, setShowCharts] = useState(false);
         const [selectedUser, setSelectedUser] = useState(null);
-
-        const getHealthiestToday = () => {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        };
-
+        const [currentTime, setCurrentTime] = useState(new Date());
         const [filters, setFilters] = useState({
-            user_q: '', title_q: '', dept_q: '', date: getHealthiestToday(), ordering: '-last_connection'
+            user_q: '', title_q: '', dept_q: '',
+            date: new Date().toISOString().split('T')[0],
+            ordering: '-last_connection'
         });
 
-        const [serverTime, setServerTime] = useState(new Date());
-        const [currentTime, setCurrentTime] = useState(new Date());
+        const fetchData = useCallback(async () => {
+            setLoading(true);
+            try {
+                const [logsRes, statsRes] = await Promise.all([
+                    fetch(`/api/vpn-logs/?user_q=${filters.user_q}&title_q=${filters.title_q}&dept_q=${filters.dept_q}&date=${filters.date}&ordering=${filters.ordering}`),
+                    fetch(`/api/stats/?date=${filters.date}`)
+                ]);
+                const logsData = await logsRes.json();
+                const statsData = await statsRes.json();
+                setLogs(logsData.logs || []);
+                setStats(statsData);
+            } catch (err) { console.error(err); }
+            setLoading(false);
+        }, [filters]);
+
+        useEffect(() => { fetchData(); }, [fetchData]);
+
+        useEffect(() => {
+            const ticker = setInterval(() => setCurrentTime(new Date()), 1000);
+            const refresh = setInterval(fetchData, 30000);
+            return () => { clearInterval(ticker); clearInterval(refresh); };
+        }, [fetchData]);
 
         const handleSort = (field) => {
             setFilters(prev => {
                 const isCurrent = prev.ordering === field || prev.ordering === `-${field}`;
                 if (!isCurrent) {
-                    // Texto (user, title, dept) -> Começar com A-Z (asc)
-                    // Números/Datas (connections, last_connection, volume, duration) -> Começar com Maior-Menor (desc)
                     const textFields = ['user', 'title', 'dept'];
-                    const defaultOrder = textFields.includes(field) ? field : `-${field}`;
-                    return { ...prev, ordering: defaultOrder };
+                    const order = textFields.includes(field) ? field : `-${field}`;
+                    return { ...prev, ordering: order };
                 }
-                // Alternar entre asc e desc if clicking same column
-                return { ...prev, ordering: prev.ordering.startsWith('-') ? field : `-${field}` };
-            });
-        };
-                }
-                // Toggle current field
                 return { ...prev, ordering: prev.ordering.startsWith('-') ? field : `-${field}` };
             });
         };
 
-        const getSortIcon = (field) => {
-            if (filters.ordering === field) return ' ▴';
-            if (filters.ordering === `-${field}`) return ' ▾';
-            return '';
-        };
-
-        const fetchData = useCallback(async () => {
-            try {
-                const search = new URLSearchParams(filters).toString();
-
-                const [lRes, sRes] = await Promise.all([
-                    fetch(`/api/vpn-logs/?${search}`),
-                    fetch(`/api/stats/?${search}`)
-                ]);
-                const logsData = await lRes.json();
-                setLogs(logsData.logs || []);
-                if (logsData.server_time) {
-                    setServerTime(new Date(logsData.server_time));
-                    setCurrentTime(new Date(logsData.server_time));
-                }
-                setStats(await sRes.json());
-                setLoading(false);
-            } catch (err) { console.error(err); }
-        }, [filters]);
-
-        useEffect(() => {
-            fetchData();
-            const interval = setInterval(fetchData, 30000);
-            return () => clearInterval(interval);
-        }, [fetchData]);
-
-        // Real-time ticker
-        useEffect(() => {
-            const ticker = setInterval(() => {
-                setCurrentTime(prev => new Date(prev.getTime() + 1000));
-            }, 1000);
-            return () => clearInterval(ticker);
-        }, []);
-
-        const formatBytes = (bytes) => {
-            if (!bytes) return "0 B";
-            const gb = bytes / (1024 ** 3);
-            return gb >= 1 ? `${gb.toFixed(2)} GB` : `${(bytes / (1024 ** 2)).toFixed(2)} MB`;
-        };
-
-        const handleExport = (type) => {
-            const params = new URLSearchParams(filters);
-            window.location.href = `/export/${type}/?${params}`;
-        };
-
-        const clearFilters = () => {
-            setFilters({
-                user_q: '', title_q: '', dept_q: '', date: getHealthiestToday(), ordering: '-last_connection'
-            });
+        const formatBytes = (b) => {
+            if (!b) return "0 B";
+            const gb = b / (1024**3);
+            return gb >= 1 ? `${gb.toFixed(2)} GB` : `${(b/(1024**2)).toFixed(2)} MB`;
         };
 
         return (
             <div style={{ padding: '0px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <h2 style={{ fontSize: '1.4rem', color: 'white', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: '1.2rem' }}>🔌</span> Relatório VPN
-                    </h2>
-                    <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.3)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--glass-border)' }}>
+                    <h2 style={{ color: 'white', fontWeight: 700, margin: 0 }}>🔌 Relatório VPN</h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(0,0,0,0.3)', padding: '6px 15px', borderRadius: '20px', border: '1px solid var(--glass-border)' }}>
                         <span className="pulse-live"></span>
-                        <span style={{ fontSize: '0.7rem', color: '#858796', fontWeight: 600 }}>LIVE UPDATING</span>
+                        <span style={{ fontSize: '0.75rem', color: '#858796', fontWeight: 600 }}>LIVE UPDATING</span>
                     </div>
                 </div>
 
-                <div className="premium-card" style={{ marginBottom: '20px', padding: '10px 20px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }} onClick={() => setShowCharts(!showCharts)}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>📊 Visualizar Gráficos e Estatísticas</span>
-                    <span>{showCharts ? '▲' : '▼'}</span>
+                <div className="premium-card" style={{ marginBottom: '20px', padding: '12px 20px', display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => setShowCharts(!showCharts)}>
+                    <span style={{ color: 'white', fontWeight: 600 }}>📊 Visualizar Gráficos e Estatísticas</span>
+                    <span style={{ color: 'white' }}>{showCharts ? '▲' : '▼'}</span>
                 </div>
 
-                {showCharts && stats && (
-                    <React.Fragment>
-                        <StatsCharts data={stats} onFilterChange={(newFilters) => setFilters(f => ({ ...f, ...newFilters }))} />
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                            <div className="premium-card" style={{ padding: '24px' }}>
-                                <div className="stat-label">Total de Conexões {filters.date ? `(${filters.date.split('-').reverse().join('/')})` : '(Hoje)'}</div>
-                                <div className="stat-value-premium">{stats?.period_stats?.total_connections || 0}</div>
-                            </div>
-                            <div className="premium-card" style={{ padding: '24px' }}>
-                                <div className="stat-label">Usuários Ativos {filters.date ? `(${filters.date.split('-').reverse().join('/')})` : '(Hoje)'}</div>
-                                <div className="stat-value-premium" style={{ color: 'var(--accent-green)' }}>{stats?.period_stats?.active_users || 0}</div>
-                            </div>
-                            <div className="premium-card" style={{ padding: '24px' }}>
-                                <div className="stat-label">Volume de Dados {filters.date ? `(${filters.date.split('-').reverse().join('/')})` : '(Hoje)'}</div>
-                                <div className="stat-value-premium" style={{ color: 'var(--accent-blue)' }}>{formatBytes(stats?.period_stats?.total_volume_bytes || 0)}</div>
-                            </div>
+                {showCharts && stats && <StatsCharts data={stats} />}
+
+                {stats && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+                        <div className="premium-card" style={{ padding: '20px' }}>
+                            <div className="stat-label">Conexões ({filters.date})</div>
+                            <div className="stat-value-premium">{stats.period_stats.total_connections}</div>
                         </div>
-                    </React.Fragment>
+                        <div className="premium-card" style={{ padding: '20px' }}>
+                            <div className="stat-label">Usuários Ativos</div>
+                            <div className="stat-value-premium" style={{ color: 'var(--accent-green)' }}>{stats.period_stats.active_users}</div>
+                        </div>
+                        <div className="premium-card" style={{ padding: '20px' }}>
+                            <div className="stat-label">Volume Total</div>
+                            <div className="stat-value-premium" style={{ color: 'var(--accent-blue)' }}>{formatBytes(stats.period_stats.total_volume_bytes)}</div>
+                        </div>
+                    </div>
                 )}
 
-                <div className="premium-card" style={{ padding: '0', overflow: 'hidden', marginBottom: '20px' }}>
-                    <div className="filters-bar" style={{ margin: 0, padding: '15px 20px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                        <span className="filters-label">FILTROS:</span>
-
-                        <input
-                            type="text"
-                            className="filter-input"
-                            placeholder="Usuário..."
-                            value={filters.user_q}
-                            onChange={e => setFilters({ ...filters, user_q: e.target.value })}
-                        />
-
-                        <input
-                            type="text"
-                            className="filter-input"
-                            placeholder="Cargo..."
-                            value={filters.title_q}
-                            onChange={e => setFilters({ ...filters, title_q: e.target.value })}
-                        />
-
-                        <input
-                            type="text"
-                            className="filter-input"
-                            placeholder="Departamento..."
-                            value={filters.dept_q}
-                            onChange={e => setFilters({ ...filters, dept_q: e.target.value })}
-                        />
-
-                        <input
-                            type="date"
-                            className="filter-input"
-                            value={filters.date}
-                            onChange={e => setFilters({ ...filters, date: e.target.value })}
-                            style={{ colorScheme: 'dark' }}
-                        />
-
-                        <div style={{ flexGrow: 1 }}></div>
-
-                        <button className="btn btn-primary btn-sm" style={{ marginRight: '8px', display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => handleExport('pdf')}>
-                            📄 PDF
-                        </button>
-                        <button className="btn btn-success btn-sm" style={{ marginRight: '8px', display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => handleExport('xlsx')}>
-                            📊 Excel
-                        </button>
-                        <button className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={clearFilters}>
-                            🧹 Limpar
-                        </button>
+                <div className="premium-card" style={{ padding: '0', overflow: 'hidden' }}>
+                    <div style={{ padding: '15px 20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center', borderBottom: '1px solid var(--glass-border)' }}>
+                        <span style={{ color: 'white', fontWeight: 700, fontSize: '0.8rem' }}>FILTROS:</span>
+                        <input className="filter-input" placeholder="Usuário..." value={filters.user_q} onChange={e => setFilters({...filters, user_q: e.target.value})} />
+                        <input className="filter-input" placeholder="Cargo..." value={filters.title_q} onChange={e => setFilters({...filters, title_q: e.target.value})} />
+                        <input className="filter-input" placeholder="Setor..." value={filters.dept_q} onChange={e => setFilters({...filters, dept_q: e.target.value})} />
+                        <input className="filter-input" type="date" value={filters.date} onChange={e => setFilters({...filters, date: e.target.value})} style={{ colorScheme: 'dark' }} />
+                        <button className="filter-input" style={{ background: '#4e73df', border: 'none', color: 'white' }} onClick={() => fetchData()}>🔍 Buscar</button>
+                        <button className="filter-input" style={{ background: '#858796', border: 'none', color: 'white' }} onClick={() => setFilters({user_q:'', title_q:'', dept_q:'', date: new Date().toISOString().split('T')[0], ordering:'-last_connection'})}>🧹 Limpar</button>
                     </div>
 
-                    <div style={{ padding: '0 15px 15px 15px', overflowX: 'auto' }}>
+                    <div style={{ overflowX: 'auto', padding: '0 15px 15px' }}>
                         <table className="table-premium">
                             <thead>
                                 <tr>
-                                    <th style={{ width: '220px', cursor: 'pointer' }} onClick={() => handleSort('user')}>Usuário {getSortIcon('user')}</th>
-                                    <th style={{ cursor: 'pointer' }} onClick={() => handleSort('title')}>Cargo {getSortIcon('title')}</th>
-                                    <th style={{ cursor: 'pointer' }} onClick={() => handleSort('dept')}>Depto {getSortIcon('dept')}</th>
-                                    <th style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => handleSort('connections')}>Qtd Conexões {getSortIcon('connections')}</th>
-                                    <th style={{ cursor: 'pointer' }} onClick={() => handleSort('last_connection')}>Acesso {getSortIcon('last_connection')}</th>
-                                    <th>Origem</th>
+                                    <th style={{ cursor: 'pointer' }} onClick={() => handleSort('user')}>Usuário</th>
+                                    <th style={{ cursor: 'pointer' }} onClick={() => handleSort('title')}>Cargo</th>
+                                    <th style={{ cursor: 'pointer' }} onClick={() => handleSort('dept')}>Depto</th>
+                                    <th style={{ cursor: 'pointer' }} onClick={() => handleSort('connections')}>Conexões</th>
+                                    <th style={{ cursor: 'pointer' }} onClick={() => handleSort('last_connection')}>Visto em</th>
+                                    <th>Volume</th>
                                     <th>Cidade</th>
-                                    <th>País</th>
-                                    <th style={{ cursor: 'pointer' }} onClick={() => handleSort('volume')}>Volume {getSortIcon('volume')}</th>
-                                    <th style={{ cursor: 'pointer' }} onClick={() => handleSort('duration')}>Duração {getSortIcon('duration')}</th>
-                                    <th>Detalhes</th>
+                                    <th>Duração</th>
+                                    <th style={{ width: '50px' }}></th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {loading ? (
-                                    <tr><td colSpan="11" style={{ textAlign: 'center', padding: '40px' }}>Carregando dados...</td></tr>
-                                ) : logs.map(l => (
-                                    <tr key={l.user}>
-                                        <td>
-                                            <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                <div className="user-avatar" style={{ position: 'relative' }}>
-                                                    {l.user.substring(0, 2).toUpperCase()}
-                                                    {/* Check if active AND recent (less than 24h) */
-                                                        l.latest_status === 'active' && (new Date() - new Date(l.last_connection) < 86400000) && (
-                                                            <span style={{
-                                                                position: 'absolute',
-                                                                bottom: '0',
-                                                                right: '0',
-                                                                width: '10px',
-                                                                height: '10px',
-                                                                backgroundColor: '#1cc88a',
-                                                                borderRadius: '50%',
-                                                                border: '2px solid #1a1d2d',
-                                                                boxShadow: '0 0 5px rgba(28, 200, 138, 0.8)'
-                                                            }} title="Conectado Agora"></span>
-                                                        )}
-                                                </div>
-                                                <div>
-                                                    <div style={{ fontWeight: 600, color: 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        {l.ad_display_name || l.user}
-                                                        {l.latest_status === 'active' && (new Date() - new Date(l.last_connection) < 86400000) && (
-                                                            <span style={{
-                                                                fontSize: '0.65rem',
-                                                                backgroundColor: 'rgba(28, 200, 138, 0.2)',
-                                                                color: '#1cc88a',
-                                                                padding: '1px 6px',
-                                                                borderRadius: '4px',
-                                                                border: '1px solid rgba(28, 200, 138, 0.3)'
-                                                            }}>ON</span>
-                                                        )}
+                                {loading ? <tr><td colSpan="9" style={{ textAlign: 'center', padding: '50px' }}>Carregando...</td></tr> : 
+                                 logs.map(l => {
+                                    const isActive = (l.latest_status === 'active' || l.online_priority === 1);
+                                    let dur = l.total_duration || 0;
+                                    if(isActive) {
+                                        const start = new Date(l.last_connection);
+                                        const diff = Math.floor((currentTime - start) / 1000);
+                                        if(diff > 0) dur += diff;
+                                    }
+                                    const h = Math.floor(dur/3600);
+                                    const m = Math.floor((dur%3600)/60);
+                                    const s = dur % 60;
+
+                                    return (
+                                        <tr key={l.user}>
+                                            <td>
+                                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                    <div className="user-avatar">{l.user.substring(0,2).toUpperCase()}</div>
+                                                    <div>
+                                                        <div style={{ color: 'white', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            {l.ad_display_name || l.user}
+                                                            {isActive && <span style={{ fontSize: '0.6rem', background: 'rgba(28,200,138,0.2)', color: '#1cc88a', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(28,200,138,0.3)' }}>ON</span>}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.7rem', color: '#858796' }}>{l.user}</div>
                                                     </div>
-                                                    <div style={{ fontSize: '0.7rem', color: '#5a5c69' }}>{l.user}</div>
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td>{l.ad_title || '-'}</td>
-                                        <td>{l.ad_department || '-'}</td>
-                                        <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{l.total_connections}</td>
-                                        <td>{new Date(l.last_connection).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-                                        <td>{l.latest_source_ip}</td>
-                                        <td>{l.latest_city}</td>
-                                        <td>{l.latest_country_code || '-'}</td>
-                                        <td style={{ color: 'var(--accent-blue)', fontWeight: 600 }}>
-                                            {formatBytes(l.total_volume)}
-                                            {(l.latest_status === 'active' || l.latest_status === 'tunnel-up') && (new Date() - new Date(l.last_connection) < 86400000) && (
-                                                <span className="pulse-live" style={{ marginLeft: '5px', display: 'inline-block', width: '6px', height: '6px' }} title="Sessão Ativa - Volume em atualização"></span>
-                                            )}
-                                         </td>
-                                        <td>
-                                            {(() => {
-                                                let duration = l.total_duration || 0;
-                                                const isActive = (l.latest_status === 'active' || l.latest_status === 'tunnel-up');
-                                                const isRecent = (new Date() - new Date(l.last_connection) < 86400000);
-                                                
-                                                if (isActive && isRecent) {
-                                                    const start = new Date(l.last_connection);
-                                                    const diffSeconds = Math.max(0, Math.floor((currentTime - start) / 1000));
-                                                    duration = (l.total_duration || 0) + diffSeconds;
-                                                }
-                                                const h = Math.floor(duration / 3600);
-                                                const m = Math.floor((duration % 3600) / 60);
-                                                const s = duration % 60;
-                                                return (
-                                                    <span style={{ fontVariantNumeric: 'tabular-nums', color: (isActive && isRecent) ? '#1cc88a' : 'inherit' }}>
-                                                        {h}h {m}m {s}s
-                                                        {(isActive && isRecent) && <span className="pulse-live" style={{ marginLeft: '5px', display: 'inline-block', width: '6px', height: '6px' }}></span>}
-                                                    </span>
-                                                );
-                                            })()}
-                                         </td>
-                                        <td>
-                                            <button
-                                                className="btn-sm"
-                                                style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
-                                                onClick={() => setSelectedUser(l)}
-                                                title="Ver Histórico de Conexões"
-                                            >
-                                                👁️
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                            </td>
+                                            <td>{l.ad_title || '-'}</td>
+                                            <td>{l.ad_department || '-'}</td>
+                                            <td style={{ fontWeight: 700 }}>{l.total_connections}</td>
+                                            <td>{new Date(l.last_connection).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+                                            <td style={{ color: '#4e73df' }}>{formatBytes(l.total_volume)} {isActive && <span className="pulse-live" style={{ width: '5px', height: '5px' }}></span>}</td>
+                                            <td style={{ fontSize: '0.85rem' }}>{l.latest_city || '-'} ({l.latest_country_code || '??'})</td>
+                                            <td style={{ fontVariantNumeric: 'tabular-nums', color: isActive ? '#1cc88a' : 'inherit' }}>
+                                                {h}h {m}m {s}s {isActive && <span className="pulse-live" style={{ width: '5px', height: '5px', marginLeft: '5px' }}></span>}
+                                            </td>
+                                            <td>
+                                                <button style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '5px 10px', borderRadius: '4px' }} onClick={() => setSelectedUser(l)}>👁️</button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                {selectedUser && (
-                    <VPNDetailsModal user={selectedUser} onClose={() => setSelectedUser(null)} />
-                )}
+                {selectedUser && <VPNDetailsModal user={selectedUser} onClose={() => setSelectedUser(null)} />}
             </div>
         );
     };
 
     const root = ReactDOM.createRoot(document.getElementById('vpn-dashboard-root'));
     root.render(<VPNDashboard />);
-    {% endverbatim %}
 </script>
 {% endblock %}

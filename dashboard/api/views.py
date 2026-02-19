@@ -24,6 +24,7 @@ class VPNLogViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     
+    
     def list(self, request):
         queryset = self.get_queryset()
         queryset = self.filter_queryset(queryset)
@@ -36,10 +37,11 @@ class VPNLogViewSet(viewsets.ViewSet):
             except ValueError:
                 pass
 
-        # Aggregation Logic
+        # 1. Latest Log Subquery
         latest_log_qs = VPNLog.objects.filter(user=OuterRef('user')).order_by('-start_time')
         
-        # 1. Base Query with Aggregations and Subqueries
+        # 2. Main aggregation query
+        # We group by user and other info, then annotate stats and latest info
         qs = VPNLog.objects.values(
             'user', 
             'ad_display_name', 
@@ -54,29 +56,22 @@ class VPNLogViewSet(viewsets.ViewSet):
             latest_city=Subquery(latest_log_qs.values('city')[:1]),
             latest_country=Subquery(latest_log_qs.values('country_name')[:1]),
             latest_country_code=Subquery(latest_log_qs.values('country_code')[:1]),
-            latest_status=Subquery(latest_log_qs.values('status')[:1])
+            latest_status=Subquery(latest_log_qs.values('status')[:1]),
+            # Calculate online priority (1 for active, 0 for others)
+            online_priority=Subquery(
+                VPNLog.objects.filter(user=OuterRef('user'))
+                .order_by('-start_time')
+                .annotate(
+                    p=Case(
+                        When(status__in=['active', 'tunnel-up'], then=Value(1)),
+                        default=Value(0),
+                        output_field=IntegerField()
+                    )
+                ).values('p')[:1]
+            )
         )
 
-        # 2. Priority Annotation (1 = Online, 0 = Offline)
-        from django.db.models import Case, When, Value, IntegerField, OuterRef, Subquery, Max, Sum, Count, F
-        
-        # This subquery finds the priority of the LATEST session for EACH user group
-        priority_sq = Subquery(
-            VPNLog.objects.filter(user=OuterRef('user'))
-            .order_by('-start_time')
-            .annotate(
-                p=Case(
-                    # Note: Using the exact logic for 'ON' (active status)
-                    When(status__in=['active', 'tunnel-up'], then=Value(1)),
-                    default=Value(0),
-                    output_field=IntegerField()
-                )
-            ).values('p')[:1]
-        )
-        
-        qs = qs.annotate(online_priority=priority_sq)
-
-        # 3. Ordering Mapping
+        # 3. Handle Ordering
         ordering_param = request.query_params.get('ordering', '-last_connection')
         
         sort_map = {
@@ -98,8 +93,7 @@ class VPNLogViewSet(viewsets.ViewSet):
         
         secondary_sort = sort_map.get(ordering_param, '-last_connection')
 
-        # 4. Final Order: Priority First (Online first), then user field
-        # We MUST ensure online_priority is treated as a comparable integer
+        # 4. Apply Final Ordering: Always Online Priority first, then user's choice
         qs = qs.order_by('-online_priority', secondary_sort)
 
         serializer = VPNLogAggregatedSerializer(qs, many=True)
@@ -107,6 +101,7 @@ class VPNLogViewSet(viewsets.ViewSet):
             'logs': serializer.data,
             'server_time': datetime.datetime.now().isoformat()
         })
+
 
 
     @action(detail=False, methods=['get'])

@@ -15,6 +15,7 @@ class VPNLogAggregatedSerializer(serializers.Serializer):
     latest_country = serializers.CharField(allow_null=True)
     latest_country_code = serializers.CharField(allow_null=True)
     latest_status = serializers.CharField(allow_null=True)
+    online_priority = serializers.IntegerField(default=0)
 
 class VPNLogSerializer(serializers.ModelSerializer):
     """Serializer for individual VPN Log entries (History)"""
