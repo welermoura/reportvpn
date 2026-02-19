@@ -34,10 +34,10 @@ class VPNLogListView(LoginRequiredMixin, ListView):
     
     def get_queryset(self):
         # Start with base queryset
-        # Start with base queryset (SSL Only)
+        # Start with base queryset (Strict SSL Only)
         queryset = VPNLog.objects.filter(
-            Q(raw_data__tunneltype__icontains='ssl') | 
-            Q(raw_data__vpntunnel__icontains='ssl')
+            Q(raw_data__tunneltype__startswith='ssl') | 
+            Q(raw_data__vpntype__icontains='ssl')
         )
         
         # Load Trusted Countries (keeping logic if needed for future, but row coloring might need adjustment)
@@ -85,7 +85,11 @@ class VPNLogListView(LoginRequiredMixin, ListView):
         # Subquery for latest connection details (for context like IP, City)
         # We order by -start_time to get the latest.
         # Note: This subquery is correlated to the outer query via user=OuterRef('user')
-        latest_log_qs = VPNLog.objects.filter(user=OuterRef('user')).order_by('-start_time')
+        latest_log_qs = VPNLog.objects.filter(
+            Q(user=OuterRef('user')),
+            Q(raw_data__tunneltype__startswith='ssl') | 
+            Q(raw_data__vpntype='ssl-vpn')
+        ).order_by('-start_time')
         
         # Aggregation Logic
         # 1. Clear any existing ordering which might break grouping
@@ -185,8 +189,8 @@ def export_logs_pdf(request):
     # Reuse filtering logic manually since we are not in a ListView
     # SSL Only
     queryset = VPNLog.objects.filter(
-        Q(raw_data__tunneltype__icontains='ssl') | 
-        Q(raw_data__vpntunnel__icontains='ssl')
+        Q(raw_data__tunneltype__startswith='ssl') | 
+        Q(raw_data__vpntype__icontains='ssl')
     )
     
     # 1. Date Filter
@@ -253,8 +257,8 @@ def export_logs_pdf(request):
 def export_logs_xlsx(request):
     # SSL Only
     queryset = VPNLog.objects.filter(
-        Q(raw_data__tunneltype__icontains='ssl') | 
-        Q(raw_data__vpntunnel__icontains='ssl')
+        Q(raw_data__tunneltype__startswith='ssl') | 
+        Q(raw_data__vpntype__icontains='ssl')
     )
     
     # Apply Filters (Same as PDF)
@@ -298,10 +302,10 @@ def export_logs_xlsx(request):
 
 @login_required
 def dashboard_stats_api(request):
-    # Base QuerySet for Stats (SSL Only)
+    # Base QuerySet for Stats (Strict SSL Only)
     base_qs = VPNLog.objects.filter(
-        Q(raw_data__tunneltype__icontains='ssl') | 
-        Q(raw_data__vpntunnel__icontains='ssl')
+        Q(raw_data__tunneltype__startswith='ssl') | 
+        Q(raw_data__vpntype__icontains='ssl')
     )
 
     # --- Apply Filters ---
@@ -337,11 +341,12 @@ def dashboard_stats_api(request):
         .annotate(count=Count('id'))\
         .order_by('start_date')
         
-    trend_data = {
-        'labels': [entry['start_date'].strftime('%d/%m') for entry in daily_trend],
-        'keys': [entry['start_date'].strftime('%Y-%m-%d') for entry in daily_trend],
-        'data': [entry['count'] for entry in daily_trend]
-    }
+    trend_data = [
+        {
+            'date': entry['start_date'].strftime('%Y-%m-%d'),
+            'count': entry['count']
+        } for entry in daily_trend
+    ]
     
     # --- Prepare Filtered QS for other charts ---
     date_str = request.GET.get('date')
@@ -416,7 +421,7 @@ def dashboard_stats_api(request):
     }
     
     return JsonResponse({
-        'trend': trend_data,
+        'connections_trend': trend_data,
         'departments': dept_data,
         'titles': title_data,
         'users': user_data,
