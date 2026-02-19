@@ -92,9 +92,20 @@
     }
 
     @keyframes pulse {
-        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(28, 200, 138, 0.7); }
-        70% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(28, 200, 138, 0); }
-        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(28, 200, 138, 0); }
+        0% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(28, 200, 138, 0.7);
+        }
+
+        70% {
+            transform: scale(1.1);
+            box-shadow: 0 0 0 10px rgba(28, 200, 138, 0);
+        }
+
+        100% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(28, 200, 138, 0);
+        }
     }
 
     .filter-input {
@@ -113,12 +124,20 @@
         box-shadow: 0 0 0 2px rgba(78, 115, 223, 0.2);
     }
 
-    button { cursor: pointer; transition: all 0.2s; }
-    button:hover { opacity: 0.9; transform: translateY(-1px); }
+    button {
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    button:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+    }
 </style>
 
 <script type="text/babel">
-    const { useState, useEffect, useRef } = React;
+{% verbatim %}
+    const { useState, useEffect, useRef, useCallback } = React;
 
     const StatsCharts = ({ data }) => {
         const trendRef = useRef(null);
@@ -128,7 +147,7 @@
             new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: data.connections_trend.map(d => d.date.split('-').reverse().slice(0,2).join('/')),
+                    labels: data.connections_trend.map(d => d.date.split('-').reverse().slice(0, 2).join('/')),
                     datasets: [{
                         label: 'Conexões',
                         data: data.connections_trend.map(d => d.count),
@@ -181,7 +200,7 @@
                                     <td>{h.end_time ? new Date(h.end_time).toLocaleString() : '-'}</td>
                                     <td>{h.formatted_duration || '-'}</td>
                                     <td>{h.source_ip}</td>
-                                    <td>{((h.bandwidth_in + h.bandwidth_out)/(1024*1024)).toFixed(2)} MB</td>
+                                    <td>{((h.bandwidth_in + h.bandwidth_out) / (1024 * 1024)).toFixed(2)} MB</td>
                                     <td>{h.status}</td>
                                 </tr>
                             ))}
@@ -242,8 +261,8 @@
 
         const formatBytes = (b) => {
             if (!b) return "0 B";
-            const gb = b / (1024**3);
-            return gb >= 1 ? `${gb.toFixed(2)} GB` : `${(b/(1024**2)).toFixed(2)} MB`;
+            const gb = b / (1024 ** 3);
+            return gb >= 1 ? `${gb.toFixed(2)} GB` : `${(b / (1024 ** 2)).toFixed(2)} MB`;
         };
 
         return (
@@ -283,12 +302,12 @@
                 <div className="premium-card" style={{ padding: '0', overflow: 'hidden' }}>
                     <div style={{ padding: '15px 20px', display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center', borderBottom: '1px solid var(--glass-border)' }}>
                         <span style={{ color: 'white', fontWeight: 700, fontSize: '0.8rem' }}>FILTROS:</span>
-                        <input className="filter-input" placeholder="Usuário..." value={filters.user_q} onChange={e => setFilters({...filters, user_q: e.target.value})} />
-                        <input className="filter-input" placeholder="Cargo..." value={filters.title_q} onChange={e => setFilters({...filters, title_q: e.target.value})} />
-                        <input className="filter-input" placeholder="Setor..." value={filters.dept_q} onChange={e => setFilters({...filters, dept_q: e.target.value})} />
-                        <input className="filter-input" type="date" value={filters.date} onChange={e => setFilters({...filters, date: e.target.value})} style={{ colorScheme: 'dark' }} />
+                        <input className="filter-input" placeholder="Usuário..." value={filters.user_q} onChange={e => setFilters({ ...filters, user_q: e.target.value })} />
+                        <input className="filter-input" placeholder="Cargo..." value={filters.title_q} onChange={e => setFilters({ ...filters, title_q: e.target.value })} />
+                        <input className="filter-input" placeholder="Setor..." value={filters.dept_q} onChange={e => setFilters({ ...filters, dept_q: e.target.value })} />
+                        <input className="filter-input" type="date" value={filters.date} onChange={e => setFilters({ ...filters, date: e.target.value })} style={{ colorScheme: 'dark' }} />
                         <button className="filter-input" style={{ background: '#4e73df', border: 'none', color: 'white' }} onClick={() => fetchData()}>🔍 Buscar</button>
-                        <button className="filter-input" style={{ background: '#858796', border: 'none', color: 'white' }} onClick={() => setFilters({user_q:'', title_q:'', dept_q:'', date: new Date().toISOString().split('T')[0], ordering:'-last_connection'})}>🧹 Limpar</button>
+                        <button className="filter-input" style={{ background: '#858796', border: 'none', color: 'white' }} onClick={() => setFilters({ user_q: '', title_q: '', dept_q: '', date: new Date().toISOString().split('T')[0], ordering: '-last_connection' })}>🧹 Limpar</button>
                     </div>
 
                     <div style={{ overflowX: 'auto', padding: '0 15px 15px' }}>
@@ -307,48 +326,48 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {loading ? <tr><td colSpan="9" style={{ textAlign: 'center', padding: '50px' }}>Carregando...</td></tr> : 
-                                 logs.map(l => {
-                                    const isActive = (l.latest_status === 'active' || l.online_priority === 1);
-                                    let dur = l.total_duration || 0;
-                                    if(isActive) {
-                                        const start = new Date(l.last_connection);
-                                        const diff = Math.floor((currentTime - start) / 1000);
-                                        if(diff > 0) dur += diff;
-                                    }
-                                    const h = Math.floor(dur/3600);
-                                    const m = Math.floor((dur%3600)/60);
-                                    const s = dur % 60;
+                                {loading ? <tr><td colSpan="9" style={{ textAlign: 'center', padding: '50px' }}>Carregando...</td></tr> :
+                                    logs.map(l => {
+                                        const isActive = (l.latest_status === 'active' || l.online_priority === 1);
+                                        let dur = l.total_duration || 0;
+                                        if (isActive) {
+                                            const start = new Date(l.last_connection);
+                                            const diff = Math.floor((currentTime - start) / 1000);
+                                            if (diff > 0) dur += diff;
+                                        }
+                                        const h = Math.floor(dur / 3600);
+                                        const m = Math.floor((dur % 3600) / 60);
+                                        const s = dur % 60;
 
-                                    return (
-                                        <tr key={l.user}>
-                                            <td>
-                                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                    <div className="user-avatar">{l.user.substring(0,2).toUpperCase()}</div>
-                                                    <div>
-                                                        <div style={{ color: 'white', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                            {l.ad_display_name || l.user}
-                                                            {isActive && <span style={{ fontSize: '0.6rem', background: 'rgba(28,200,138,0.2)', color: '#1cc88a', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(28,200,138,0.3)' }}>ON</span>}
+                                        return (
+                                            <tr key={l.user}>
+                                                <td>
+                                                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                        <div className="user-avatar">{l.user.substring(0, 2).toUpperCase()}</div>
+                                                        <div>
+                                                            <div style={{ color: 'white', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                {l.ad_display_name || l.user}
+                                                                {isActive && <span style={{ fontSize: '0.6rem', background: 'rgba(28,200,138,0.2)', color: '#1cc88a', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(28,200,138,0.3)' }}>ON</span>}
+                                                            </div>
+                                                            <div style={{ fontSize: '0.7rem', color: '#858796' }}>{l.user}</div>
                                                         </div>
-                                                        <div style={{ fontSize: '0.7rem', color: '#858796' }}>{l.user}</div>
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td>{l.ad_title || '-'}</td>
-                                            <td>{l.ad_department || '-'}</td>
-                                            <td style={{ fontWeight: 700 }}>{l.total_connections}</td>
-                                            <td>{new Date(l.last_connection).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
-                                            <td style={{ color: '#4e73df' }}>{formatBytes(l.total_volume)} {isActive && <span className="pulse-live" style={{ width: '5px', height: '5px' }}></span>}</td>
-                                            <td style={{ fontSize: '0.85rem' }}>{l.latest_city || '-'} ({l.latest_country_code || '??'})</td>
-                                            <td style={{ fontVariantNumeric: 'tabular-nums', color: isActive ? '#1cc88a' : 'inherit' }}>
-                                                {h}h {m}m {s}s {isActive && <span className="pulse-live" style={{ width: '5px', height: '5px', marginLeft: '5px' }}></span>}
-                                            </td>
-                                            <td>
-                                                <button style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '5px 10px', borderRadius: '4px' }} onClick={() => setSelectedUser(l)}>👁️</button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                                </td>
+                                                <td>{l.ad_title || '-'}</td>
+                                                <td>{l.ad_department || '-'}</td>
+                                                <td style={{ fontWeight: 700 }}>{l.total_connections}</td>
+                                                <td>{new Date(l.last_connection).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+                                                <td style={{ color: '#4e73df' }}>{formatBytes(l.total_volume)} {isActive && <span className="pulse-live" style={{ width: '5px', height: '5px' }}></span>}</td>
+                                                <td style={{ fontSize: '0.85rem' }}>{l.latest_city || '-'} ({l.latest_country_code || '??'})</td>
+                                                <td style={{ fontVariantNumeric: 'tabular-nums', color: isActive ? '#1cc88a' : 'inherit' }}>
+                                                    {h}h {m}m {s}s {isActive && <span className="pulse-live" style={{ width: '5px', height: '5px', marginLeft: '5px' }}></span>}
+                                                </td>
+                                                <td>
+                                                    <button style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '5px 10px', borderRadius: '4px' }} onClick={() => setSelectedUser(l)}>👁️</button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                             </tbody>
                         </table>
                     </div>
@@ -361,5 +380,6 @@
 
     const root = ReactDOM.createRoot(document.getElementById('vpn-dashboard-root'));
     root.render(<VPNDashboard />);
+{% endverbatim %}
 </script>
 {% endblock %}
