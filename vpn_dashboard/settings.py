@@ -84,6 +84,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'dashboard.context_processors.portal_modules',
             ],
         },
     },
@@ -225,6 +226,11 @@ CELERY_BEAT_SCHEDULE = {
     'Atualização de Score de Risco (30 min)': {
         'task': 'Atualizar Scores de Risco',
         'schedule': 1800.0,
+    },
+    'Consolidação de Conexões (Meia-noite)': {
+        'task': 'Consolidar Conexões VPN à Meia-Noite',
+        # Configurado para rodar diariamente às 23:59
+        'schedule': __import__('celery.schedules').schedules.crontab(minute=59, hour=23),
     },
 }
 

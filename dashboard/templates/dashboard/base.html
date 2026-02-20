@@ -32,24 +32,13 @@
             </a>
 
             <!-- Security Modules -->
-            <a href="{% url 'security_events:antivirus' %}"
-                class="{% if 'antivirus' in request.path %}active{% endif %}">
-                <i class="fas fa-bug"></i> Antivirus
+            {% for module in portal_modules %}
+            <a href="{% url module.url_name %}"
+                class="{% if module.slug in request.path or module.url_name.split|last in request.path %}active{% endif %}"
+                title="{{ module.description }}">
+                <i class="{{ module.icon }}"></i> {{ module.title }}
             </a>
-            <a href="{% url 'security_events:ips' %}" class="{% if 'ips' in request.path %}active{% endif %}">
-                <i class="fas fa-shield-alt"></i> IPS
-            </a>
-            <a href="{% url 'security_events:webfilter' %}"
-                class="{% if 'webfilter' in request.path %}active{% endif %}">
-                <i class="fas fa-globe"></i> Web Filter
-            </a>
-            <a href="{% url 'dashboard:bruteforce_dashboard' %}"
-                class="{% if 'bruteforce' in request.path %}active{% endif %}">
-                <i class="fas fa-user-lock"></i> Força Bruta
-            </a>
-            <a href="{% url 'dashboard:risk_dashboard' %}" class="{% if 'risk' in request.path %}active{% endif %}">
-                <i class="fas fa-user-shield"></i> Risco de Usuário
-            </a>
+            {% endfor %}
 
             <a href="{% url 'admin:index' %}" class="{% if 'admin' in request.path %}active{% endif %}">
                 <i class="fas fa-cog"></i> Configurações
