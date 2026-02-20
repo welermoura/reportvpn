@@ -73,3 +73,13 @@ class CustomSolarScheduleAdmin(admin.ModelAdmin):
 @admin.register(ClockedSchedule)
 class CustomClockedScheduleAdmin(admin.ModelAdmin):
     pass
+
+from .models import PortalModule
+
+@admin.register(PortalModule)
+class PortalModuleAdmin(admin.ModelAdmin):
+    list_display = ('title', 'slug', 'is_active', 'order', 'url_name')
+    list_editable = ('is_active', 'order')
+    prepopulated_fields = {'slug': ('title',)}
+    search_fields = ('title', 'slug', 'description')
+    ordering = ('order',)
