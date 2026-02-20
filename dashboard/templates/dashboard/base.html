@@ -26,11 +26,6 @@
                 class="{% if request.resolver_match.url_name == 'index' and request.resolver_match.namespace == 'dashboard' %}active{% endif %}">
                 <i class="fas fa-home"></i> Portal
             </a>
-            <a href="{% url 'dashboard:vpn_reports' %}"
-                class="{% if request.resolver_match.url_name == 'vpn_reports' %}active{% endif %}">
-                <i class="fas fa-network-wired"></i> Histórico VPN
-            </a>
-
             <!-- Security Modules -->
             {% for module in portal_modules %}
             <a href="{% url module.url_name %}"
