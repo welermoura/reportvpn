@@ -14,7 +14,8 @@ modules = [
         'description': 'Acesso aos logs de conexão da VPN.',
         'url_name': 'dashboard:vpn_reports',
         'order': 1,
-        'is_active': True
+        'is_active': True,
+        'color': 'text-blue-500'
     },
     {
         'title': 'Intrusão (IPS)',
@@ -23,7 +24,8 @@ modules = [
         'description': 'Painel de Eventos de Intrusão (IPS).',
         'url_name': 'security_events:ips',
         'order': 2,
-        'is_active': True
+        'is_active': True,
+        'color': 'text-red-500'
     },
     {
         'title': 'Antivírus',
@@ -32,7 +34,8 @@ modules = [
         'description': 'Painel de Eventos de Antivírus.',
         'url_name': 'security_events:antivirus',
         'order': 3,
-        'is_active': True
+        'is_active': True,
+        'color': 'text-yellow-500'
     },
     {
         'title': 'Web Filter',
@@ -41,7 +44,8 @@ modules = [
         'description': 'Painel de Eventos de Web Filter.',
         'url_name': 'security_events:webfilter',
         'order': 4,
-        'is_active': True
+        'is_active': True,
+        'color': 'text-cyan-500'
     },
     {
         'title': 'Força Bruta',
@@ -50,7 +54,8 @@ modules = [
         'description': 'Painel de Eventos de Falhas de Autenticação (Força Bruta).',
         'url_name': 'dashboard:bruteforce_dashboard',
         'order': 5,
-        'is_active': True
+        'is_active': True,
+        'color': 'text-purple-500'
     },
     {
         'title': 'Score de Risco',
@@ -59,7 +64,8 @@ modules = [
         'description': 'Análise de Score de Risco de Usuários.',
         'url_name': 'dashboard:risk_dashboard',
         'order': 6,
-        'is_active': True
+        'is_active': True,
+        'color': 'text-emerald-500'
     }
 ]
 

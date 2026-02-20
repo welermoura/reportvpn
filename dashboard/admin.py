@@ -78,8 +78,8 @@ from .models import PortalModule
 
 @admin.register(PortalModule)
 class PortalModuleAdmin(admin.ModelAdmin):
-    list_display = ('title', 'slug', 'is_active', 'order', 'url_name')
-    list_editable = ('is_active', 'order')
+    list_display = ('title', 'slug', 'is_active', 'order', 'url_name', 'color')
+    list_editable = ('is_active', 'order', 'color')
     prepopulated_fields = {'slug': ('title',)}
     search_fields = ('title', 'slug', 'description')
     ordering = ('order',)

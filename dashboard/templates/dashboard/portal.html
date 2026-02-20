@@ -106,6 +106,31 @@
         top: 20px;
         right: 20px;
     }
+
+    /* Custom CSS Colors Support for PortalModule */
+    .text-blue-500 {
+        color: #3b82f6 !important;
+    }
+
+    .text-red-500 {
+        color: #ef4444 !important;
+    }
+
+    .text-yellow-500 {
+        color: #f59e0b !important;
+    }
+
+    .text-cyan-500 {
+        color: #06b6d4 !important;
+    }
+
+    .text-purple-500 {
+        color: #a855f7 !important;
+    }
+
+    .text-emerald-500 {
+        color: #10b981 !important;
+    }
 </style>
 
 <div class="welcome-section" style="margin-bottom: 20px;">
@@ -123,7 +148,7 @@
         {% endif %}
 
         <!-- Icon rendering: Check if it's an emoji or a class -->
-        <div class="portal-icon">
+        <div class="portal-icon {{ module.color }}">
             {% if "fa-" in module.icon %}
             <i class="{{ module.icon }}"></i>
             {% else %}

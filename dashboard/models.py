@@ -12,6 +12,7 @@ class PortalModule(models.Model):
     title = models.CharField(max_length=100, verbose_name="Título")
     slug = models.SlugField(unique=True, verbose_name="Identificador (Slug)")
     icon = models.CharField(max_length=50, default="📊", help_text="Emoji ou classe de ícone (ex: 📊, 🛡️, fa-solid fa-shield)", verbose_name="Ícone")
+    color = models.CharField(max_length=50, default="text-blue-500", help_text="Classe utilitária CSS ou cor em Hex (ex: text-blue-500, #ff0000, etc.)", verbose_name="Cor do Ícone")
     description = models.TextField(blank=True, verbose_name="Descrição")
     url_name = models.CharField(max_length=200, help_text="Nome da rota Django (ex: dashboard:vpn_reports) ou URL absoluta", verbose_name="Rota/URL")
     order = models.IntegerField(default=0, verbose_name="Ordem de Exibição")
