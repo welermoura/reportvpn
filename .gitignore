@@ -51,3 +51,4 @@ gunicorn.ctl
 .db_config.json
 .db_config
 *.db_config*
+count_logs.py

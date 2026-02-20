@@ -131,7 +131,7 @@ class VPNLogViewSet(viewsets.ModelViewSet):
             
         logs = VPNLog.objects.filter(user__iexact=user).order_by('-start_time')[:50]
         serializer = VPNLogSerializer(logs, many=True)
-        return Response(serializer.data)
+        return Response({'logs': serializer.data})
 
 class VPNFailureViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for VPN Failures"""

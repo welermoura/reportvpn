@@ -155,7 +155,26 @@
         background: rgba(78, 115, 223, 0.1) !important;
         border-bottom: 2px solid #4e73df !important;
     }
+
+    .tab-inactive {
+        color: var(--text-secondary) !important;
+        background: transparent !important;
+        opacity: 0.7;
+    }
+
+    .tab-inactive:hover {
+        color: white !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        opacity: 1;
+    }
 </style>
+
+<script>
+    window.formatBytes = function (b) {
+        const gb = b / (1024 ** 3);
+        return gb >= 1 ? `${gb.toFixed(2)} GB` : `${((b || 0) / (1024 ** 2)).toFixed(2)} MB`;
+    };
+</script>
 
 <script type="text/babel">
     {% verbatim %}
@@ -353,7 +372,7 @@
                 setLoading(true);
                 try {
                     const [hRes, tRes] = await Promise.all([
-                        fetch(`/api/vpn-logs/?user_q=${user.user}&limit=50`),
+                        fetch(`/api/vpn-logs/history/?user=${user.user}&limit=50`),
                         fetch(`/api/user-timeline/?username=${user.user}`)
                     ]);
                     const hData = await hRes.json();
@@ -369,17 +388,44 @@
         return (
             <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, backdropFilter: 'blur(8px)' }}>
                 <div className="premium-card" style={{ width: '900px', maxWidth: '95vw', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ padding: '20px', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)' }}>
-                        <div>
-                            <h3 style={{ color: 'white', margin: 0 }}>Detalhes do Usuário: {user.ad_display_name || user.user}</h3>
-                            <div style={{ fontSize: '0.8rem', color: '#858796' }}>{user.ad_title} • {user.ad_department}</div>
+                    <div style={{ padding: '20px 25px', background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--glass-border)', position: 'relative' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                            <h3 style={{ color: 'white', margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>Detalhes do Usuário VPN</h3>
+                            <button style={{ background: 'none', border: 'none', color: '#858796', fontSize: '1.8rem', cursor: 'pointer', padding: '0 5px' }} onClick={onClose}>&times;</button>
                         </div>
-                        <button style={{ background: 'none', border: 'none', color: '#858796', fontSize: '1.8rem', padding: '0 10px' }} onClick={onClose}>&times;</button>
+
+                        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '25px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                            <div style={{ width: '85px', height: '85px', borderRadius: '50%', background: 'rgba(78,115,223,0.2)', color: '#4e73df', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem', fontWeight: 800, border: '1px solid rgba(78,115,223,0.3)' }}>
+                                {(user.ad_display_name || user.user || '??').substring(0, 2).toUpperCase()}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <h2 style={{ color: 'white', margin: '0 0 10px 0', fontSize: '1.5rem', fontWeight: 700 }}>{user.ad_display_name || user.user}</h2>
+                                <div style={{ display: 'flex', gap: '20px', color: '#858796', fontSize: '0.85rem', marginBottom: '15px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ fontSize: '0.9rem' }}>👤</span> <span style={{ color: '#abb1bf' }}>{user.user}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ fontSize: '0.9rem' }}>🏢</span> <span style={{ color: '#abb1bf' }}>{user.ad_department || '-'}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ fontSize: '0.9rem' }}>💼</span> <span style={{ color: '#abb1bf' }}>{user.ad_title || '-'}</span>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <div style={{ background: 'rgba(78,115,223,0.15)', color: '#4e73df', padding: '8px 15px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 700 }}>
+                                        Total Conexões: <span style={{ color: '#7494f3' }}>{user.total_connections}</span>
+                                    </div>
+                                    <div style={{ background: 'rgba(28,200,138,0.15)', color: '#1cc88a', padding: '8px 15px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 700 }}>
+                                        Volume Total: <span style={{ color: '#2ecc71' }}>{window.formatBytes(user.total_volume)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div style={{ display: 'flex', borderBottom: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)' }}>
-                        <button onClick={() => setActiveTab('history')} className={`premium-btn ${activeTab === 'history' ? 'tab-active' : ''}`} style={{ borderRadius: 0, padding: '15px 25px' }}>🕒 Histórico de Conexões</button>
-                        <button onClick={() => setActiveTab('timeline')} className={`premium-btn ${activeTab === 'timeline' ? 'tab-active' : ''}`} style={{ borderRadius: 0, padding: '15px 25px' }}>🚨 Linha do Tempo (Incidentes)</button>
+                        <button onClick={() => setActiveTab('history')} className={`premium-btn ${activeTab === 'history' ? 'tab-active' : 'tab-inactive'}`} style={{ borderRadius: 0, padding: '15px 25px' }}>🕒 Histórico de Conexões</button>
+                        <button onClick={() => setActiveTab('timeline')} className={`premium-btn ${activeTab === 'timeline' ? 'tab-active' : 'tab-inactive'}`} style={{ borderRadius: 0, padding: '15px 25px' }}>🚨 Linha do Tempo (Incidentes)</button>
                     </div>
 
                     <div style={{ flex: 1, overflowY: 'auto', padding: '25px' }}>
@@ -466,11 +512,6 @@
             setFilters(p => ({ ...p, ordering: p.ordering === f ? `-${f}` : f }));
         };
 
-        const formatBytes = (b) => {
-            const gb = b / (1024 ** 3);
-            return gb >= 1 ? `${gb.toFixed(2)} GB` : `${(b / (1024 ** 2)).toFixed(2)} MB`;
-        };
-
         const handleFilterChange = useCallback((k, v) => {
             setFilters(p => ({ ...p, [k]: v }));
         }, []);
@@ -511,7 +552,7 @@
                         </div>
                         <div className="premium-card" style={{ padding: '25px' }}>
                             <div className="stat-label">Volume de Dados ({filters.date.split('-').reverse().join('/')})</div>
-                            <div className="stat-value-premium" style={{ color: '#4e73df' }}>{formatBytes(stats.period_stats.total_volume_bytes)}</div>
+                            <div className="stat-value-premium" style={{ color: '#4e73df' }}>{window.formatBytes(stats.period_stats.total_volume_bytes)}</div>
                         </div>
                     </div>
                 )}
@@ -561,7 +602,18 @@
                                     logs.map(l => {
                                         const active = l.latest_status === 'active';
                                         let dur = l.total_duration || 0;
-                                        if (active) dur += Math.floor((currentTime - new Date(l.last_connection)) / 1000);
+
+                                        // Apenas roda o cronômetro ao vivo se o acesso for realmente do dia de hoje
+                                        const connDate = new Date(l.last_connection);
+                                        const today = new Date();
+                                        const isToday = connDate.getDate() === today.getDate() &&
+                                            connDate.getMonth() === today.getMonth() &&
+                                            connDate.getFullYear() === today.getFullYear();
+
+                                        if (active && isToday && filters.date === today.toISOString().split('T')[0]) {
+                                            dur += Math.floor((currentTime - connDate) / 1000);
+                                        }
+
                                         const h = Math.floor(dur / 3600), m = Math.floor((dur % 3600) / 60);
                                         const init = ((l.ad_display_name || l.user || '??').substring(0, 2)).toUpperCase();
 
@@ -583,7 +635,7 @@
                                                 <td style={{ fontSize: '0.75rem' }}>{l.latest_source_ip}</td>
                                                 <td>{l.latest_city || '-'}</td>
                                                 <td>{l.latest_country_code || '-'}</td>
-                                                <td style={{ color: '#4e73df', fontWeight: 600 }}>{formatBytes(l.total_volume)}</td>
+                                                <td style={{ color: '#4e73df', fontWeight: 600 }}>{window.formatBytes(l.total_volume)}</td>
                                                 <td style={{ color: active ? '#1cc88a' : 'inherit' }}>{h}h {m}m</td>
                                                 <td style={{ paddingRight: '20px' }}>
                                                     <button style={{ background: 'rgba(255,255,255,0.05)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setSelectedUser(l)}>
