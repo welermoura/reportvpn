@@ -183,25 +183,39 @@
                     if (existing) existing.destroy();
 
                     try {
+                        const chartOptions = {
+                            ...options,
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: { duration: 800 },
+                            onHover: (event, chartElement) => {
+                                event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                            },
+                            onClick: (event, elements) => {
+                                if (elements.length > 0 && options.onSegmentClick) {
+                                    const element = elements[0];
+                                    const datasetIndex = element.datasetIndex;
+                                    const index = element.index;
+                                    const label = chartData.labels[index];
+                                    options.onSegmentClick(label);
+                                }
+                            },
+                            plugins: {
+                                ...options.plugins,
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                                    padding: 12,
+                                    borderColor: 'rgba(255,255,255,0.1)',
+                                    borderWidth: 1
+                                }
+                            }
+                        };
+
                         const c = new Chart(el, {
                             type,
                             data: chartData,
-                            options: {
-                                ...options,
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                animation: { duration: 800 },
-                                plugins: {
-                                    ...options.plugins,
-                                    legend: { display: false },
-                                    tooltip: {
-                                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                                        padding: 12,
-                                        borderColor: 'rgba(255,255,255,0.1)',
-                                        borderWidth: 1
-                                    }
-                                }
-                            }
+                            options: chartOptions
                         });
                         chartInstances.current[id] = c;
                         if (onLegend) onLegend(chartData.labels, chartData.datasets[0].backgroundColor);
@@ -513,13 +527,13 @@
                         <div style={{ flex: 1 }}></div>
 
                         <div style={{ display: 'flex', gap: '10px' }}>
-                            <button className="premium-btn" style={{ background: '#4e73df', minWidth: '80px', justifyContent: 'center' }} onClick={() => window.location.href = `/export/pdf/?date=${filters.date}&user_q=${filters.user_q}&title_q=${filters.title_q}&dept_q=${filters.dept_q}`} title="Exportar PDF">
+                            <button className="premium-btn" style={{ background: '#4e73df', minWidth: '80px', justifyContent: 'center', cursor: 'pointer' }} onClick={() => { const p = new URLSearchParams(filters).toString(); window.location.href = `/export/pdf/?${p}`; }} title="Exportar PDF">
                                 <span style={{ marginRight: '5px' }}>📄</span> PDF
                             </button>
-                            <button className="premium-btn" style={{ background: '#1cc88a', minWidth: '90px', justifyContent: 'center' }} title="Exportar Excel">
+                            <button className="premium-btn" style={{ background: '#1cc88a', minWidth: '90px', justifyContent: 'center', cursor: 'pointer' }} onClick={() => { const p = new URLSearchParams(filters).toString(); window.location.href = `/export/xlsx/?${p}`; }} title="Exportar Excel">
                                 <span style={{ marginRight: '5px' }}>📊</span> Excel
                             </button>
-                            <button className="premium-btn" style={{ background: '#858796', minWidth: '90px', justifyContent: 'center' }} title="Limpar Filtros" onClick={() => setFilters({ user_q: '', title_q: '', dept_q: '', date: new Date().toISOString().split('T')[0], ordering: '-last_connection' })}>
+                            <button className="premium-btn" style={{ background: '#858796', minWidth: '90px', justifyContent: 'center', cursor: 'pointer' }} title="Limpar Filtros" onClick={() => setFilters({ user_q: '', title_q: '', dept_q: '', date: new Date().toISOString().split('T')[0], ordering: '-last_connection' })}>
                                 <span style={{ marginRight: '5px' }}>🧹</span> Limpar
                             </button>
                         </div>
