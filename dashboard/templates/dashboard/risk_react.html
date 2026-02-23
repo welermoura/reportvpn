@@ -330,7 +330,7 @@
     const RiskModal = ({ user, onClose }) => {
         if (!user) return null;
 
-        const sortedEvents = [...user.events].sort((a, b) => b.weight_added - a.weight_added);
+        const sortedEvents = user.events ? [...user.events].sort((a, b) => b.weight_added - a.weight_added) : [];
 
         const getSourceColor = (source) => {
             const s = (source || '').toLowerCase();
@@ -377,48 +377,23 @@
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         {sortedEvents.length > 0 ? sortedEvents.map((event, idx) => (
                             <div key={idx} style={{
-                                display: 'flex',
-                                background: 'rgba(255,255,255,0.03)',
-                                borderRadius: '12px',
-                                borderLeft: `5px solid ${getSourceColor(event.event_source)}`,
-                                overflow: 'hidden'
+                                display: 'flex', background: 'rgba(255,255,255,0.03)', borderRadius: '12px',
+                                borderLeft: `5px solid ${getSourceColor(event.event_source)}`, overflow: 'hidden'
                             }}>
                                 <div style={{ flex: 1, padding: '18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{
-                                            fontSize: '0.75rem',
-                                            fontWeight: 700,
-                                            textTransform: 'uppercase',
-                                            letterSpacing: '0.05em',
-                                            color: getSourceColor(event.event_source),
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px'
-                                        }}>
+                                        <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: getSourceColor(event.event_source), display: 'flex', alignItems: 'center', gap: '8px' }}>
                                             {getSourceIcon(event.event_source)} {event.event_source}
                                         </span>
                                         <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>
                                             {new Date(event.timestamp).toLocaleString('pt-BR')}
                                         </span>
                                     </div>
-                                    <div style={{ fontSize: '0.92rem', color: '#d1d3e2', lineHeight: '1.6', fontWeight: 400 }}>
-                                        {event.description}
-                                    </div>
+                                    <div style={{ fontSize: '0.92rem', color: '#d1d3e2', lineHeight: '1.6', fontWeight: 400 }}>{event.description}</div>
                                 </div>
-                                <div style={{
-                                    width: '100px',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                    background: 'rgba(255,255,255,0.02)',
-                                    borderLeft: '1px solid rgba(255,255,255,0.05)',
-                                    padding: '10px'
-                                }}>
+                                <div style={{ width: '100px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', background: 'rgba(255,255,255,0.02)', borderLeft: '1px solid rgba(255,255,255,0.05)', padding: '10px' }}>
                                     <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Impacto</div>
-                                    <div style={{ fontWeight: 800, fontSize: '1.3rem', color: event.weight_added > 20 ? '#e74a3b' : '#fff' }}>
-                                        +{event.weight_added}
-                                    </div>
+                                    <div style={{ fontWeight: 800, fontSize: '1.3rem', color: event.weight_added > 20 ? '#e74a3b' : '#fff' }}>+{event.weight_added}</div>
                                 </div>
                             </div>
                         )) : (

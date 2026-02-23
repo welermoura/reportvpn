@@ -508,6 +508,19 @@
             setPage(1);
         };
 
+        const Pagination = () => (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,0.05)', flexWrap: 'wrap', gap: '10px' }}>
+                <span style={{ color: '#858796', fontSize: '0.85rem' }}>Página {page} de {totalPages || 1} — {totalCount.toLocaleString('pt-BR')} registros</span>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <button onClick={() => setPage(1)} disabled={page === 1} style={{ padding: '4px 8px', background: page === 1 ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}>⏮</button>
+                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '4px 10px', background: page === 1 ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}>◀</button>
+                    <span style={{ padding: '4px 14px', background: 'rgba(78,115,223,0.3)', border: '1px solid rgba(78,115,223,0.5)', color: 'white', borderRadius: '4px', minWidth: '80px', textAlign: 'center', fontSize: '0.85rem' }}>{page} / {totalPages || 1}</span>
+                    <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: '4px 10px', background: page === totalPages ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1 }}>▶</button>
+                    <button onClick={() => setPage(totalPages)} disabled={page === totalPages} style={{ padding: '4px 8px', background: page === totalPages ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1 }}>⏭</button>
+                </div>
+            </div>
+        );
+
         return (
             <div style={{ padding: '0px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -668,17 +681,7 @@
                         </table>
                     </div>
 
-                    {/* Pagination */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,0.05)', flexWrap: 'wrap', gap: '10px' }}>
-                        <span style={{ color: '#858796', fontSize: '0.85rem' }}>Página {page} de {totalPages || 1} — {totalCount.toLocaleString('pt-BR')} registros</span>
-                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                            <button onClick={() => setPage(1)} disabled={page === 1} style={{ padding: '4px 8px', background: page === 1 ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}>⏮</button>
-                            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '4px 10px', background: page === 1 ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}>◀</button>
-                            <span style={{ padding: '4px 14px', background: 'rgba(78,115,223,0.3)', border: '1px solid rgba(78,115,223,0.5)', color: 'white', borderRadius: '4px', minWidth: '80px', textAlign: 'center', fontSize: '0.85rem' }}>{page} / {totalPages || 1}</span>
-                            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: '4px 10px', background: page === totalPages ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1 }}>▶</button>
-                            <button onClick={() => setPage(totalPages)} disabled={page === totalPages} style={{ padding: '4px 8px', background: page === totalPages ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1 }}>⏭</button>
-                        </div>
-                    </div>
+                    <Pagination />
                 </div>
 
                 {selectedEvent && <WebFilterDetailsModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />}

@@ -634,14 +634,11 @@
                         </table>
                     </div>
 
-                        </table>
-                    </div>
-
                     <Pagination />
                 </div >
 
-            { selectedEvent && <AppControlDetailsModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />
-    }
+                {selectedEvent && <AppControlDetailsModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+                }
             </div >
         );
     }

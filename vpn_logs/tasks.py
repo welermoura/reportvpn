@@ -4,7 +4,6 @@ from django.core.cache import cache
 from dateutil.parser import parse
 from integrations.fortianalyzer import FortiAnalyzerClient
 from integrations.ad import ActiveDirectoryClient
-from integrations.geoip import GeoIPClient
 from vpn_logs.models import VPNLog
 import datetime
 import logging
@@ -28,7 +27,6 @@ def fetch_vpn_logs_task(self):
         
         fa_client = FortiAnalyzerClient()
         ad_client = ActiveDirectoryClient()
-        geoip_client = GeoIPClient()
 
         # Load Trusted Countries once
         from integrations.models import FortiAnalyzerConfig
@@ -203,37 +201,30 @@ def fetch_vpn_logs_task(self):
                     clean_user = username.split('\\')[-1]
                     ad_info = ad_client.get_user_info(clean_user) or {}
 
-                # Enrich com dados geográficos — prioriza campos nativos do FortiGate
-                # O FortiGate já inclui srccountry, srccity nos logs VPN
+                # Enrich com dados geográficos — campos nativos do FortiGate
                 fa_country = str(log.get('srccountry', '') or log.get('remcountry', '')).strip()
                 fa_city = str(log.get('srccity', '') or log.get('remcity', '')).strip()
-                fa_country_code = ''
+                
+                # Mapeamento estático leve para os países mais comuns (compatibilidade)
+                COUNTRY_MAP = {
+                    'brazil': 'BR', 'united states': 'US', 'argentina': 'AR', 
+                    'mexico': 'MX', 'chile': 'CL', 'colombia': 'CO', 'peru': 'PE',
+                    'paraguay': 'PY', 'uruguay': 'UY', 'canada': 'CA', 'germany': 'DE',
+                    'france': 'FR', 'united kingdom': 'GB', 'spain': 'ES', 'portugal': 'PT'
+                }
 
-                # Converter nome do país em código ISO se precisarmos
-                # Mantemos GeoIP apenas como fallback para o country_code (usado na detecção de suspeitos)
-                geo_info = {}
-                if fa_country and fa_country.lower() not in ['', 'reserved', 'n/a']:
-                    # Já temos país do FA — completar country_code via GeoIP apenas se necessário
-                    if source_ip and source_ip != '0.0.0.0':
-                        geo_info = geoip_client.get_location(source_ip) or {}
-                    country_name_val = fa_country
-                    country_code_val = geo_info.get('country_code', '')
-                    city_val = fa_city or geo_info.get('city', '')
-                elif source_ip and source_ip != '0.0.0.0':
-                    geo_info = geoip_client.get_location(source_ip) or {}
-                    country_name_val = geo_info.get('country_name', '')
-                    country_code_val = geo_info.get('country_code', '')
-                    city_val = geo_info.get('city', '')
-                else:
-                    country_name_val = ''
-                    country_code_val = ''
-                    city_val = ''
+                country_name_val = fa_country if fa_country.lower() not in ['reserved', 'n/a'] else ''
+                country_code_val = COUNTRY_MAP.get(country_name_val.lower(), '')
+                city_val = fa_city
 
                 # Determine suspicious
                 is_suspicious = False
                 if country_code_val:
                     if country_code_val.upper() not in trusted_countries_list:
                         is_suspicious = True
+                elif country_name_val and trusted_countries_list:
+                    # Fallback para string match
+                    is_suspicious = not any(v in country_name_val.upper() for v in trusted_countries_list)
 
                 log_entry = VPNLog(
                     session_id=session_id,
@@ -265,18 +256,18 @@ def fetch_vpn_logs_task(self):
                 from vpn_logs.models import VPNFailure
                 from security_events.models import SecurityEvent
                 
-                # Enrich GeoIP para Failure — prioriza campos do próprio log FortiGate
+                # Enrich GeoIP para Failure — prioriza log nativo
                 fa_country_fail = str(log.get('srccountry', '') or log.get('remcountry', '')).strip()
                 fa_city_fail = str(log.get('srccity', '') or log.get('remcity', '')).strip()
-                geo_info = {}
-                if fa_country_fail and fa_country_fail.lower() not in ['', 'reserved', 'n/a']:
-                    country_code_fail = geoip_client.get_location(source_ip).get('country_code', '') if source_ip and source_ip != '0.0.0.0' else ''
+
+                if fa_country_fail and fa_country_fail.lower() not in ['reserved', 'n/a']:
+                    country_name_fail = fa_country_fail
+                    country_code_fail = COUNTRY_MAP.get(fa_country_fail.lower(), '')
+                    city_fail = fa_city_fail
                 else:
-                    if source_ip and source_ip != '0.0.0.0':
-                        geo_info = geoip_client.get_location(source_ip) or {}
-                    fa_country_fail = geo_info.get('country_name', '')
-                    fa_city_fail = geo_info.get('city', '')
-                    country_code_fail = geo_info.get('country_code', '')
+                    country_name_fail = ''
+                    country_code_fail = ''
+                    city_fail = ''
 
                 reason = log.get('reason', action)
                 
@@ -285,7 +276,7 @@ def fetch_vpn_logs_task(self):
                     source_ip=source_ip,
                     timestamp=start_time,
                     reason=reason,
-                    city=fa_city_fail,
+                    city=city_fail,
                     country_code=country_code_fail,
                     raw_data=log
                 )

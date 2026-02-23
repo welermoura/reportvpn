@@ -567,6 +567,33 @@
                     </div>
                 </div>
 
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '25px' }}>
+                    <div className="premium-card" style={{ padding: '20px', borderLeft: '4px solid #4e73df' }}>
+                        <div style={{ fontSize: '0.8rem', color: '#858796', fontWeight: 700, textTransform: 'uppercase', marginBottom: '5px' }}>
+                            Total de Eventos
+                        </div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 700, color: 'white' }}>
+                            {totalCount.toLocaleString('pt-BR')}
+                        </div>
+                    </div>
+                    <div className="premium-card" style={{ padding: '20px', borderLeft: '4px solid #e74a3b' }}>
+                        <div style={{ fontSize: '0.8rem', color: '#858796', fontWeight: 700, textTransform: 'uppercase', marginBottom: '5px' }}>
+                            Críticos
+                        </div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#e74a3b' }}>
+                            {totalCount.toLocaleString('pt-BR')}
+                        </div>
+                    </div>
+                    <div className="premium-card" style={{ padding: '20px', borderLeft: '4px solid #f6c23e' }}>
+                        <div style={{ fontSize: '0.8rem', color: '#858796', fontWeight: 700, textTransform: 'uppercase', marginBottom: '5px' }}>
+                            Altos
+                        </div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#f6c23e' }}>
+                            0
+                        </div>
+                    </div>
+                </div>
+
                 <div className="premium-card" style={{ marginBottom: '20px', padding: '10px 20px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }} onClick={() => setShowCharts(!showCharts)}>
                     <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>📊 Visualizar Métricas de Ataque</span>
                     <span>{showCharts ? '▲' : '▼'}</span>

@@ -5,7 +5,6 @@ from django.db import IntegrityError
 from dateutil.parser import parse
 from integrations.fortianalyzer import FortiAnalyzerClient
 from integrations.ad import ActiveDirectoryClient
-from integrations.geoip import GeoIPClient
 from .models import SecurityEvent
 import datetime
 import logging
@@ -36,7 +35,6 @@ def fetch_security_events_task(self, target_subtype=None):
         
         fa_client = FortiAnalyzerClient()
         ad_client = ActiveDirectoryClient()
-        geoip_client = GeoIPClient()
 
         # Configurações de busca - focado apenas no dado recente (crons rodam a cada 30min)
         # Ajustado para 6 horas pelo fuso horário ser potencialmente distorcido entre FA e Django
@@ -159,25 +157,16 @@ def fetch_security_events_task(self, target_subtype=None):
                         event.ad_title = ad_info.get('title', '')
                         event.ad_display_name = ad_info.get('display_name', '')
 
-                # Enriquecimento GeoIP — prioriza dados do próprio log do FortiGate
-                # O FortiGate já inclui srccountry, srccity, dstcountry nos logs IPS/WebFilter
+                # Enriquecimento de Países usando nativamente os logs do FortiGate
                 fa_src_country = str(log.get('srccountry', '')).strip()
                 fa_src_city = str(log.get('srccity', '')).strip()
                 fa_dst_country = str(log.get('dstcountry', '')).strip()
 
                 if fa_src_country and fa_src_country.lower() not in ['', 'reserved', 'n/a']:
                     event.src_country = fa_src_country
-                elif src_ip and src_ip != '0.0.0.0':
-                    geo_info = geoip_client.get_location(src_ip)
-                    if geo_info:
-                        event.src_country = geo_info.get('country_name', '')
 
                 if fa_dst_country and fa_dst_country.lower() not in ['', 'reserved', 'n/a']:
                     event.dst_country = fa_dst_country
-                elif dst_ip and dst_ip != '0.0.0.0':
-                    geo_info = geoip_client.get_location(dst_ip)
-                    if geo_info:
-                        event.dst_country = geo_info.get('country_name', '')
 
                 # Campos específicos por subtipo e campos comuns que podem vir de lugares diferentes
                 raw_action = str(log.get('action', '')).lower()
