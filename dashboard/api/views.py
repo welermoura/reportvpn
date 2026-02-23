@@ -134,29 +134,37 @@ class VPNLogViewSet(viewsets.ModelViewSet):
         return Response({'logs': serializer.data})
 
 class VPNFailureViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet for VPN Failures"""
-    queryset = VPNFailure.objects.all().order_by('-timestamp')
+    """ViewSet for VPN Failures — com limite de 500 registros mais recentes"""
     serializer_class = VPNFailureSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        # Limitar a 500 registros mais recentes para evitar timeout com 3.17M de registros
+        queryset = VPNFailure.objects.order_by('-timestamp')[:500]
         user = self.request.query_params.get('user')
-        if user:
-            queryset = queryset.filter(user__icontains=user)
+        ip = self.request.query_params.get('ip')
+        if user or ip:
+            # Quando filtrado, buscar sem o limit fixo mas com filtro
+            queryset = VPNFailure.objects.order_by('-timestamp')
+            if user:
+                queryset = queryset.filter(user__icontains=user)
+            if ip:
+                queryset = queryset.filter(source_ip__icontains=ip)
+            queryset = queryset[:500]
         return queryset
 
 class UserRiskScoreViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet for User Risk Scores"""
-    # Use explicit reference to the model to avoid any shadowing
-    queryset = UserRiskScore.objects.all().prefetch_related('events').order_by('-current_score')
+    """ViewSet for User Risk Scores — sem prefetch_related para evitar carregar 184k eventos"""
+    queryset = UserRiskScore.objects.all().order_by('-current_score')
     serializer_class = UserRiskScoreSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Local import as a last resort if global fails
         from dashboard.models import UserRiskScore
-        queryset = UserRiskScore.objects.all().prefetch_related('events').order_by('-current_score')
+        # Sem prefetch_related('events') — era o gargalo principal (carregava 184k RiskEvents)
+        queryset = UserRiskScore.objects.filter(
+            current_score__gt=0  # Ignorar usuários sem risco calculado
+        ).order_by('-current_score')
         
         user = self.request.query_params.get('user')
         if user:

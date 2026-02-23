@@ -458,8 +458,9 @@ def bruteforce_stats_api(request):
         'data': [entry['count'] for entry in trend]
     }
 
-    # 2. Top Attackers (Source IP)
-    top_ips = queryset.values('source_ip', 'country_code')\
+    # 2. Top Attackers (Source IP) — limitado às últimas 48h para performance
+    last_48h = timezone.now() - timedelta(hours=48)
+    top_ips = queryset.filter(timestamp__gte=last_48h).values('source_ip', 'country_code')\
         .annotate(count=Count('id'))\
         .order_by('-count')[:5]
         
@@ -468,8 +469,8 @@ def bruteforce_stats_api(request):
         'data': [entry['count'] for entry in top_ips]
     }
 
-    # 3. Top Targets (Users)
-    top_users = queryset.values('user')\
+    # 3. Top Targets (Users) — últimas 48h para performance
+    top_users = queryset.filter(timestamp__gte=last_48h).values('user')\
         .annotate(count=Count('id'))\
         .order_by('-count')[:5]
         
@@ -492,13 +493,13 @@ class UserRiskScoreListView(LoginRequiredMixin, ListView):
 
 @login_required
 def risk_stats_api(request):
-    """API for User Risk Scoring Dashboard statistics"""
+    """API for User Risk Scoring Dashboard statistics — otimizada com aggregate"""
     from .models import UserRiskScore
-    from django.db.models import Count
+    from django.db.models import Count, Case, When, IntegerField
     
-    queryset = UserRiskScore.objects.all()
+    # Filtrar apenas usuários com risco calculado (exclui score=0)
+    queryset = UserRiskScore.objects.filter(current_score__gt=0)
 
-    # Apply Filters
     user = request.GET.get('user')
     if user:
         queryset = queryset.filter(username__icontains=user)
@@ -507,16 +508,10 @@ def risk_stats_api(request):
     if level:
         queryset = queryset.filter(risk_level__iexact=level)
 
-    # 1. Risk Level Distribution (Manual to avoid pyodbc/values/annotate issues)
-    levels = ['None', 'Low', 'Medium', 'High', 'Critical']
-    data = []
-    labels = []
-    
-    for lvl in levels:
-        count = queryset.filter(risk_level=lvl).count()
-        if count > 0:
-            labels.append(lvl)
-            data.append(count)
+    # 1. Risk Level Distribution — UMA única query com values/annotate
+    dist_rows = queryset.values('risk_level').annotate(count=Count('id')).order_by('-count')
+    labels = [r['risk_level'] for r in dist_rows]
+    data = [r['count'] for r in dist_rows]
     
     dist_data = {
         'labels': labels,

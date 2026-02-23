@@ -1,7 +1,7 @@
 {% extends 'dashboard/base.html' %}
 
 {% block content %}
-<div id="webfilter-dashboard-root"></div>
+<div id="appcontrol-dashboard-root"></div>
 
 <!-- React & Dependencies -->
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -11,7 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 
-<!-- Custom Styles for Premium Look (Copied EXACTLY from vpn_react.html) -->
+<!-- Custom Styles for Premium Look -->
 <style>
     :root {
         --glass-bg: rgba(25, 28, 41, 0.6);
@@ -167,24 +167,6 @@
         font-size: 0.85rem;
     }
 
-    .btn-primary {
-        background-color: #4e73df;
-        border-color: #4e73df;
-        color: white;
-        border-radius: 4px;
-        cursor: pointer;
-        border: 1px solid transparent;
-    }
-
-    .btn-success {
-        background-color: #1cc88a;
-        border-color: #1cc88a;
-        color: white;
-        border-radius: 4px;
-        cursor: pointer;
-        border: 1px solid transparent;
-    }
-
     .btn-secondary {
         background-color: #858796;
         border-color: #858796;
@@ -203,8 +185,8 @@
     // --- Components ---
 
     const StatsCharts = ({ stats, onFilterChange }) => {
+        const appsRef = useRef(null);
         const catRef = useRef(null);
-        const siteRef = useRef(null);
         const chartInstances = useRef({});
 
         useEffect(() => {
@@ -220,11 +202,8 @@
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                        titleColor: '#f8fafc',
-                        bodyColor: '#cbd5e1',
-                        borderColor: 'rgba(255, 255, 255, 0.1)',
-                        borderWidth: 1,
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)', titleColor: '#f8fafc',
+                        bodyColor: '#cbd5e1', borderColor: 'rgba(255, 255, 255, 0.1)', borderWidth: 1,
                     }
                 },
                 scales: {
@@ -233,18 +212,17 @@
                 }
             };
 
-            // Categories Chart
-            if (stats.top_categories) {
-                chartInstances.current.categories = new Chart(catRef.current, {
+            // Top Apps Chart
+            if (stats.top_apps) {
+                chartInstances.current.apps = new Chart(appsRef.current, {
                     type: 'bar',
                     data: {
-                        labels: stats.top_categories.map(item => item.category),
+                        labels: stats.top_apps.map(item => item.app_name),
                         datasets: [{
-                            label: 'Eventos',
-                            data: stats.top_categories.map(item => item.count),
-                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
-                            borderRadius: 4,
-                            barThickness: 20
+                            label: 'Acessos',
+                            data: stats.top_apps.map(item => item.count),
+                            backgroundColor: 'rgba(54, 185, 204, 0.8)',
+                            borderRadius: 4, barThickness: 15
                         }]
                     },
                     options: {
@@ -252,26 +230,25 @@
                         onClick: (event, elements) => {
                             if (elements.length > 0 && onFilterChange) {
                                 const index = elements[0].index;
-                                const value = stats.top_categories[index].category;
-                                onFilterChange('category', value);
+                                const value = stats.top_apps[index].app_name;
+                                onFilterChange('app_name', value);
                             }
                         }
                     }
                 });
             }
 
-            // Sites Chart
-            if (stats.top_sites) {
-                chartInstances.current.sites = new Chart(siteRef.current, {
+            // Categories Chart
+            if (stats.top_categories) {
+                chartInstances.current.categories = new Chart(catRef.current, {
                     type: 'bar',
                     data: {
-                        labels: stats.top_sites.map(item => item.url),
+                        labels: stats.top_categories.map(item => item.app_category),
                         datasets: [{
-                            label: 'Eventos',
-                            data: stats.top_sites.map(item => item.count),
-                            backgroundColor: 'rgba(239, 68, 68, 0.8)',
-                            borderRadius: 4,
-                            barThickness: 20
+                            label: 'Acessos',
+                            data: stats.top_categories.map(item => item.count),
+                            backgroundColor: 'rgba(246, 194, 62, 0.8)',
+                            borderRadius: 4, barThickness: 15
                         }]
                     },
                     options: {
@@ -279,8 +256,8 @@
                         onClick: (event, elements) => {
                             if (elements.length > 0 && onFilterChange) {
                                 const index = elements[0].index;
-                                const value = stats.top_sites[index].url;
-                                onFilterChange('url', value);
+                                const value = stats.top_categories[index].app_category;
+                                onFilterChange('app_category', value);
                             }
                         }
                     }
@@ -293,25 +270,32 @@
         return (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px', marginBottom: '30px' }}>
                 <div className="chart-box" style={{ height: '400px' }}>
-                    <div className="chart-title">Top 20 Categorias Bloqueadas</div>
-                    <div style={{ height: '340px' }}><canvas ref={catRef}></canvas></div>
+                    <div className="chart-title">Top 20 Aplicações</div>
+                    <div style={{ height: '340px' }}><canvas ref={appsRef}></canvas></div>
                 </div>
                 <div className="chart-box" style={{ height: '400px' }}>
-                    <div className="chart-title">Top 20 Sites Bloqueados</div>
-                    <div style={{ height: '340px' }}><canvas ref={siteRef}></canvas></div>
+                    <div className="chart-title">Top 20 Categorias de Aplicação</div>
+                    <div style={{ height: '340px' }}><canvas ref={catRef}></canvas></div>
                 </div>
             </div>
         );
     };
 
-    const WebFilterDetailsModal = ({ event, onClose }) => {
+    const AppControlDetailsModal = ({ event, onClose }) => {
         if (!event) return null;
 
         const formatTime = (ts) => new Date(ts).toLocaleString('pt-BR');
-        const details = event.details || {};
-        const displayName = event.ad_display_name || event.username || 'N/A';
+        const displayName = event.ad_display_name || event.username || 'Desconhecido';
         const displaySub = event.username || event.src_ip || 'N/A';
         const initials = displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+        const formatBytes = (bytes) => {
+            if (!bytes) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        };
 
         return (
             <div style={{
@@ -330,7 +314,7 @@
                     }}>✕</button>
 
                     <h3 style={{ color: 'white', marginTop: 0, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px' }}>
-                        Detalhes do Evento Web
+                        Detalhes do Controle de Aplicação
                     </h3>
 
                     {/* Identity Card */}
@@ -358,66 +342,52 @@
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                 <div>
-                                    <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Ação</label>
+                                    <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Aplicação</label>
                                     <span style={{
                                         padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600,
-                                        background: event.action === 'blocked' ? 'rgba(220, 53, 69, 0.2)' : 'rgba(28, 200, 138, 0.2)',
-                                        color: event.action === 'blocked' ? '#dc3545' : '#1cc88a'
-                                    }}>
-                                        {event.action_display || event.action}
-                                    </span>
+                                        background: 'rgba(54, 185, 204, 0.2)', color: '#36b9cc'
+                                    }}>{event.app_name || 'Desconhecido'}</span>
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Categoria</label>
                                     <span style={{
                                         padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600,
-                                        background: 'rgba(54, 185, 204, 0.2)', color: '#36b9cc'
-                                    }}>{event.category}</span>
+                                        background: 'rgba(246, 194, 62, 0.2)', color: '#f6c23e'
+                                    }}>{event.app_category || '-'}</span>
                                 </div>
                             </div>
                             <div>
-                                <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>URL / Site</label>
-                                <div style={{ wordBreak: 'break-all', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '6px', fontSize: '0.9rem', color: '#60a5fa', fontFamily: 'monospace' }}>
-                                    {event.url}
-                                </div>
+                                <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Ação</label>
+                                <span style={{
+                                    padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600,
+                                    background: event.action === 'blocked' ? 'rgba(220, 53, 69, 0.2)' : 'rgba(28, 200, 138, 0.2)',
+                                    color: event.action === 'blocked' ? '#dc3545' : '#1cc88a'
+                                }}>
+                                    {event.action || '-'}
+                                </span>
                             </div>
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             <div>
-                                <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Rede</label>
+                                <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Rede & Endpoint</label>
                                 <div style={{ fontSize: '0.9rem', color: '#d1d3e2' }}>
                                     <div><span style={{ color: '#858796' }}>Origem:</span> {event.src_ip} {event.src_country && `(${event.src_country})`}</div>
                                     <div><span style={{ color: '#858796' }}>Destino:</span> {event.dst_ip || '-'} {event.dst_country && `(${event.dst_country})`}</div>
                                 </div>
                             </div>
-                            {details.msg && (
-                                <div>
-                                    <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Mensagem do Sistema</label>
-                                    <div style={{ fontSize: '0.85rem', color: '#d1d3e2', background: 'rgba(59, 130, 246, 0.1)', padding: '8px', borderRadius: '4px', borderLeft: '2px solid #4e73df' }}>
-                                        {details.msg}
-                                    </div>
-                                </div>
-                            )}
 
-                            {/* Policy & Traffic Details */}
                             <div>
-                                <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Política & Tráfego</label>
+                                <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Uso de Banda (Estimado)</label>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '0.9rem', color: '#d1d3e2' }}>
                                     <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '8px', borderRadius: '4px' }}>
-                                        <div style={{ color: '#858796', fontSize: '0.75rem' }}>Direção</div>
-                                        <div>{details.direction ? details.direction.toUpperCase() : '-'}</div>
+                                        <div style={{ color: '#858796', fontSize: '0.75rem' }}>Recebido (Bytes In)</div>
+                                        <div>{formatBytes(event.bytes_in)}</div>
                                     </div>
                                     <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '8px', borderRadius: '4px' }}>
-                                        <div style={{ color: '#858796', fontSize: '0.75rem' }}>ID da Política</div>
-                                        <div>{details.policyid || '-'}</div>
+                                        <div style={{ color: '#858796', fontSize: '0.75rem' }}>Enviado (Bytes Out)</div>
+                                        <div>{formatBytes(event.bytes_out)}</div>
                                     </div>
-                                    {details.profile && (
-                                        <div style={{ gridColumn: '1 / -1', background: 'rgba(255, 255, 255, 0.03)', padding: '8px', borderRadius: '4px' }}>
-                                            <div style={{ color: '#858796', fontSize: '0.75rem' }}>Perfil Web (Profile)</div>
-                                            <div>{details.profile}</div>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         </div>
@@ -427,14 +397,13 @@
         );
     };
 
-    function WebFilterDashboard() {
+    function AppControlDashboard() {
         const [events, setEvents] = useState([]);
         const [stats, setStats] = useState(null);
         const [loading, setLoading] = useState(true);
         const [page, setPage] = useState(1);
         const [totalPages, setTotalPages] = useState(1);
-        const [showCharts, setShowCharts] = useState(false);
-        const [categoryOptions, setCategoryOptions] = useState([]);
+        const [showCharts, setShowCharts] = useState(true);
         const [selectedEvent, setSelectedEvent] = useState(null);
 
         const getTodayDate = () => {
@@ -443,16 +412,9 @@
         };
 
         const [filters, setFilters] = useState({
-            username: '', category: '', action: '', department: '', url: '',
+            username: '', app_name: '', action: '', src_ip: '',
             start_date: getTodayDate(), end_date: getTodayDate()
         });
-
-        useEffect(() => {
-            fetch('/api/security-events/webfilter/categories/')
-                .then(res => res.json())
-                .then(data => Array.isArray(data) ? setCategoryOptions(data.sort()) : null)
-                .catch(console.error);
-        }, []);
 
         useEffect(() => {
             fetchData(true);
@@ -463,14 +425,30 @@
         const fetchData = async (showLoading = true) => {
             if (showLoading) setLoading(true);
             try {
-                const params = new URLSearchParams({
-                    page: page,
-                    ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
-                });
+                // Remove campos vazios, mapeia src_ip se preenchido
+                const activeFilters = Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''));
+                const params = new URLSearchParams({ page: page, ...activeFilters });
+                // Passa src_ip genérico para 'search' caso backend não suporte filtro exato, ou como search_fields (que pega global).
+                // Como setamos search_fields=['app_name','username','src_ip'], passaremos a flag 'search' quando digita no app_name ou ip. Mas para ser específico, vamos enviar no param customizado "search" juntando os dois se quisermos.
+                // Como configuramos filter_backends com SearchFilter, o param é `search`. Vamos agregar para mandar na query geral `search`.
+                // Porém o mais elegante é usar o próprio get ou icontains no filterset, mas usaremos django_filters Search que atua no param "search".
+
+                // Mapeamento local para "search" unificado:
+                let searchQuery = [];
+                if (filters.app_name) searchQuery.push(filters.app_name);
+                if (filters.username) searchQuery.push(filters.username);
+                if (filters.src_ip) searchQuery.push(filters.src_ip);
+
+                if (searchQuery.length > 0) {
+                    params.set('search', searchQuery.join(' '));
+                    params.delete('app_name');
+                    params.delete('username');
+                    params.delete('src_ip');
+                }
 
                 const [eventsRes, statsRes] = await Promise.all([
-                    fetch(`/api/security-events/webfilter/?${params}`),
-                    fetch(`/api/security-events/webfilter/stats/?${params}`)
+                    fetch(`/api/security-events/app-control/?${params}`),
+                    fetch(`/api/security-events/app-control/stats/?${params}`)
                 ]);
 
                 const eventsData = await eventsRes.json();
@@ -490,17 +468,9 @@
             setPage(1);
         };
 
-        const handleExport = (type) => {
-            const params = new URLSearchParams();
-            Object.entries(filters).forEach(([key, value]) => {
-                if (value) params.append(key, value);
-            });
-            window.location.href = `/security/export/webfilter/${type}/?${params.toString()}`;
-        };
-
         const clearFilters = () => {
             setFilters({
-                username: '', category: '', action: '', department: '', url: '',
+                username: '', app_name: '', action: '', src_ip: '',
                 start_date: getTodayDate(), end_date: getTodayDate()
             });
             setPage(1);
@@ -510,7 +480,7 @@
             <div style={{ padding: '0px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                     <h2 style={{ fontSize: '1.4rem', color: 'white', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: '1.2rem' }}>🌐</span> Filtro de Conteúdo Web
+                        <span style={{ fontSize: '1.2rem' }}>📱</span> Controle de Aplicações Internas
                     </h2>
                     <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.3)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--glass-border)' }}>
                         <span className="pulse-live"></span>
@@ -526,20 +496,6 @@
                 {showCharts && (
                     <React.Fragment>
                         <StatsCharts stats={stats} onFilterChange={handleFilterChange} />
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                            <div className="premium-card" style={{ padding: '24px' }}>
-                                <div className="stat-label">Total de Eventos</div>
-                                <div className="stat-value-premium" style={{ color: '#36b9cc' }}>
-                                    {stats?.total_events?.toLocaleString() || 0}
-                                </div>
-                            </div>
-                            <div className="premium-card" style={{ padding: '24px' }}>
-                                <div className="stat-label">Acessos Bloqueados</div>
-                                <div className="stat-value-premium" style={{ color: '#dc3545' }}>
-                                    {stats?.blocked_events?.toLocaleString() || 0}
-                                </div>
-                            </div>
-                        </div>
                     </React.Fragment>
                 )}
 
@@ -551,40 +507,34 @@
                         <input
                             type="text" className="filter-input" placeholder="Usuário..."
                             value={filters.username} onChange={(e) => handleFilterChange('username', e.target.value)}
+                            style={{ width: '120px' }}
                         />
                         <input
-                            type="text" className="filter-input" placeholder="Site / URL..."
-                            value={filters.url} onChange={(e) => handleFilterChange('url', e.target.value)}
+                            type="text" className="filter-input" placeholder="Aplicação..."
+                            value={filters.app_name} onChange={(e) => handleFilterChange('app_name', e.target.value)}
+                            style={{ width: '130px' }}
+                        />
+                        <input
+                            type="text" className="filter-input" placeholder="IP Origem..."
+                            value={filters.src_ip} onChange={(e) => handleFilterChange('src_ip', e.target.value)}
+                            style={{ width: '130px' }}
                         />
                         <select
-                            className="filter-input" style={{ width: '180px' }}
-                            value={filters.category} onChange={(e) => handleFilterChange('category', e.target.value)}
-                        >
-                            <option value="">Todas Categorias</option>
-                            {categoryOptions.map((cat, idx) => <option key={idx} value={cat}>{cat}</option>)}
-                        </select>
-                        <select
-                            className="filter-input" style={{ width: '150px' }}
+                            className="filter-input" style={{ width: '120px' }}
                             value={filters.action} onChange={(e) => handleFilterChange('action', e.target.value)}
                         >
                             <option value="">Todas Ações</option>
                             <option value="blocked">Bloqueado</option>
-                            <option value="passthrough">Permitido</option>
+                            <option value="pass">Permitido</option>
                         </select>
                         <input
                             type="date" className="filter-input"
                             value={filters.start_date} onChange={(e) => handleFilterChange('start_date', e.target.value)}
-                            style={{ colorScheme: 'dark' }}
+                            style={{ colorScheme: 'dark', width: '130px' }}
                         />
 
                         <div style={{ flexGrow: 1 }}></div>
 
-                        <button className="btn btn-primary btn-sm" style={{ marginRight: '8px', display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => handleExport('pdf')}>
-                            📄 PDF
-                        </button>
-                        <button className="btn btn-success btn-sm" style={{ marginRight: '8px', display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => handleExport('xlsx')}>
-                            📊 Excel
-                        </button>
                         <button className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={clearFilters}>
                             🧹 Limpar
                         </button>
@@ -596,9 +546,9 @@
                                 <tr>
                                     <th>Data/Hora</th>
                                     <th>Usuário</th>
-                                    <th>IP Origem</th>
+                                    <th>Aplicação</th>
                                     <th>Categoria</th>
-                                    <th>URL / Site</th>
+                                    <th>IP Origem</th>
                                     <th>Ação</th>
                                     <th style={{ textAlign: 'center' }}>Detalhes</th>
                                 </tr>
@@ -622,31 +572,27 @@
                                                         <div style={{ fontWeight: 600, color: 'white' }}>{event.ad_display_name || event.username}</div>
                                                         <div style={{ fontSize: '0.7rem', color: '#5a5c69' }}>
                                                             <span>{event.user_department || 'N/A'}</span>
-                                                            {event.user_department && <span> • </span>}
-                                                            <span>{event.ad_title}</span>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td style={{ color: '#d1d3e2' }}>{event.src_ip}</td>
+                                            <td>
+                                                <span style={{ fontWeight: 600, color: '#f8fafc' }}>{event.app_name || '-'}</span>
+                                            </td>
                                             <td>
                                                 <span style={{
                                                     padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem',
-                                                    background: 'rgba(54, 185, 204, 0.15)', color: '#36b9cc', border: '1px solid rgba(54, 185, 204, 0.2)'
-                                                }}>{event.category || 'Outros'}</span>
+                                                    background: 'rgba(246, 194, 62, 0.15)', color: '#f6c23e', border: '1px solid rgba(246, 194, 62, 0.2)'
+                                                }}>{event.app_category || 'Outros'}</span>
                                             </td>
-                                            <td>
-                                                <div style={{ maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#858796' }} title={event.url}>
-                                                    {event.url}
-                                                </div>
-                                            </td>
+                                            <td style={{ color: '#d1d3e2' }}>{event.src_ip}</td>
                                             <td>
                                                 <span style={{
                                                     padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600,
                                                     background: event.action === 'blocked' ? 'rgba(220, 53, 69, 0.2)' : 'rgba(28, 200, 138, 0.2)',
                                                     color: event.action === 'blocked' ? '#dc3545' : '#1cc88a'
                                                 }}>
-                                                    {event.action_display}
+                                                    {event.action || '-'}
                                                 </span>
                                             </td>
                                             <td style={{ textAlign: 'center' }}>
@@ -682,14 +628,14 @@
                     </div>
                 </div>
 
-                {selectedEvent && <WebFilterDetailsModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />}
+                {selectedEvent && <AppControlDetailsModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />}
             </div>
         );
     }
 
-    const container = document.getElementById('webfilter-dashboard-root');
+    const container = document.getElementById('appcontrol-dashboard-root');
     const root = createRoot(container);
-    root.render(<WebFilterDashboard />);
+    root.render(<AppControlDashboard />);
     {% endverbatim %}
 </script>
 {% endblock %}

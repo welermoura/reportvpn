@@ -29,11 +29,12 @@
             <!-- Security Modules -->
             {% for module in portal_modules %}
             <a href="{% url module.url_name %}"
-                class="{% if module.slug in request.path or module.url_name.split|last in request.path %}active{% endif %}"
+                class="{% if request.resolver_match.view_name == module.url_name %}active{% endif %}"
                 title="{{ module.description }}">
                 <i class="{{ module.icon }}"></i> {{ module.title }}
             </a>
             {% endfor %}
+
 
             <a href="{% url 'admin:index' %}" class="{% if 'admin' in request.path %}active{% endif %}">
                 <i class="fas fa-cog"></i> Configurações

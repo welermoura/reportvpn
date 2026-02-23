@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 LOCK_EXPIRE = 60 * 10  # Lock expires in 10 minutes
 
-@shared_task(bind=True, name='Coleta de Eventos de Segurança (Geral)')
+@shared_task(bind=True)
 def fetch_security_events_task(self, target_subtype=None):
     """
     Task para coletar eventos de segurança (IPS, Antivirus, WebFilter) do FortiAnalyzer.
@@ -38,16 +38,18 @@ def fetch_security_events_task(self, target_subtype=None):
         ad_client = ActiveDirectoryClient()
         geoip_client = GeoIPClient()
 
-        # Configurações de busca
-        days_ago = 7
-        start_date = timezone.now() - datetime.timedelta(days=days_ago)
-        fetch_limit = 1000
+        # Configurações de busca - focado apenas no dado recente (crons rodam a cada 30min)
+        # Ajustado para 6 horas pelo fuso horário ser potencialmente distorcido entre FA e Django
+        hours_ago = 6
+        start_date = timezone.now() - datetime.timedelta(hours=hours_ago)
+        fetch_limit = 5000
         
         # Subtipos para coletar
         all_subtypes = [
             {'name': 'ips', 'log_type': 'ips', 'filter': 'subtype=="ips"'},
             {'name': 'antivirus', 'log_type': 'virus', 'filter': 'subtype=="virus"'},
-            {'name': 'webfilter', 'log_type': 'webfilter', 'filter': 'subtype=="webfilter"'}
+            {'name': 'webfilter', 'log_type': 'webfilter', 'filter': 'subtype=="webfilter"'},
+            {'name': 'app-control', 'log_type': 'traffic', 'filter': 'app!=""'}
         ]
         
         if target_subtype:
@@ -157,19 +159,36 @@ def fetch_security_events_task(self, target_subtype=None):
                         event.ad_title = ad_info.get('title', '')
                         event.ad_display_name = ad_info.get('display_name', '')
 
-                # Enriquecimento GeoIP
-                if src_ip and src_ip != '0.0.0.0':
+                # Enriquecimento GeoIP — prioriza dados do próprio log do FortiGate
+                # O FortiGate já inclui srccountry, srccity, dstcountry nos logs IPS/WebFilter
+                fa_src_country = str(log.get('srccountry', '')).strip()
+                fa_src_city = str(log.get('srccity', '')).strip()
+                fa_dst_country = str(log.get('dstcountry', '')).strip()
+
+                if fa_src_country and fa_src_country.lower() not in ['', 'reserved', 'n/a']:
+                    event.src_country = fa_src_country
+                elif src_ip and src_ip != '0.0.0.0':
                     geo_info = geoip_client.get_location(src_ip)
                     if geo_info:
                         event.src_country = geo_info.get('country_name', '')
-                
-                if dst_ip and dst_ip != '0.0.0.0':
+
+                if fa_dst_country and fa_dst_country.lower() not in ['', 'reserved', 'n/a']:
+                    event.dst_country = fa_dst_country
+                elif dst_ip and dst_ip != '0.0.0.0':
                     geo_info = geoip_client.get_location(dst_ip)
                     if geo_info:
                         event.dst_country = geo_info.get('country_name', '')
 
                 # Campos específicos por subtipo e campos comuns que podem vir de lugares diferentes
-                event.action = log.get('action', '')
+                raw_action = str(log.get('action', '')).lower()
+                
+                # Normaliza actions do Log Bruto para casar com os Filtros do App/FrontEnd
+                if raw_action in ['accept', 'passthrough', 'allowed', 'ip-conn', 'close', 'client-rst', 'server-rst', 'timeout']:
+                    event.action = 'pass' if subtype['name'] == 'app-control' else 'passthrough'
+                elif raw_action in ['deny', 'block', 'blocked', 'clear_session', 'reset']:
+                    event.action = 'blocked'
+                else:
+                    event.action = raw_action
                 
                 if subtype['name'] == 'ips':
                     event.attack_name = log.get('attack', '')
@@ -182,7 +201,27 @@ def fetch_security_events_task(self, target_subtype=None):
                 elif subtype['name'] == 'webfilter':
                     event.url = urllib.parse.unquote(log.get('url', ''))
                     event.category = log.get('catdesc', '')
-                    # event.action já mapeado acima
+                elif subtype['name'] == 'app-control':
+                    app_raw = str(log.get('app', '')).strip()
+                    cat_raw = str(log.get('appcat', '')).strip()
+                    
+                    # Ignorar ruídos de rede genérica do Fortigate para limpar o painel AppControl
+                    if app_raw.lower() in ['', 'unscanned', 'unknown'] and cat_raw.lower() in ['', 'unscanned', 'unknown']:
+                        continue
+                    
+                    if not app_raw and cat_raw:
+                        app_raw = cat_raw # fallback nome=categoria
+                    elif not app_raw or app_raw.lower() == 'unscanned':
+                        app_raw = "Tráfego Genérico"
+                        
+                    if not cat_raw or cat_raw.lower() == 'unscanned':
+                        cat_raw = "Geral"
+                        
+                    event.app_name = app_raw
+                    event.app_category = cat_raw
+                    event.app_risk = str(log.get('apprisk', 'low'))
+                    event.bytes_in = int(log.get('rcvdbyte', 0)) if log.get('rcvdbyte') else None
+                    event.bytes_out = int(log.get('sentbyte', 0)) if log.get('sentbyte') else None
 
 
                 try:
@@ -218,3 +257,26 @@ def fetch_antivirus_task():
 @shared_task(name='Coleta de Eventos Web Filter')
 def fetch_webfilter_task():
     return fetch_security_events_task(target_subtype='webfilter')
+
+
+@shared_task(name='Coleta de Eventos App Control')
+def fetch_appcontrol_task():
+    return fetch_security_events_task(target_subtype='app-control')
+
+
+@shared_task(name='Varredura de Risco LDAP (Radar AD)')
+def run_ad_radar_scan_task():
+    """
+    Executa a verificação completa de inatividade e caminhos de delegacão do AD (Radar AD).
+    Roda em Background para não estourar timeout do proxy Nginx.
+    """
+    from security_events.api.radar_scanner import RadarScanner
+    logger.info("Iniciando Radar AD Task via Celery...")
+    try:
+        scanner = RadarScanner()
+        snap = scanner.run_scan()
+        logger.info(f"Scan finalizado com sucesso. ID Snapshot: {snap.id}")
+        return f"Scan concluído. Contas Críticas: {snap.inactive_privileged_count}"
+    except Exception as e:
+        logger.error(f"Falha ao executar Radar AD Task: {str(e)}", exc_info=True)
+        return f"Erro: {str(e)}"

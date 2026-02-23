@@ -30,11 +30,25 @@ class FortiAnalyzerClient:
         
         # Filtro de tempo padrão se não informado (últimas 24h)
         import datetime
-        now = datetime.datetime.now()
-        s = start_time if start_time else (now - datetime.timedelta(days=1))
-        e = end_time if end_time else now
+        import pytz
         
-        # Formatar datas: "YYYY-MM-DDTHH:MM:SS"
+        # FortiAnalyzer opera em horário local (BRT -03:00).
+        # O Django/Celery rodam em UTC no container.
+        # Precisamos converter os timestamps para BRT antes de enviar.
+        brt = pytz.timezone('America/Sao_Paulo')
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        now_local = now_utc.astimezone(brt)
+        
+        s = start_time if start_time else (now_local - datetime.timedelta(days=1))
+        e = end_time if end_time else now_local
+        
+        # Converter start_time e end_time para BRT se tiver tzinfo
+        if hasattr(s, 'tzinfo') and s.tzinfo is not None:
+            s = s.astimezone(brt)
+        if hasattr(e, 'tzinfo') and e.tzinfo is not None:
+            e = e.astimezone(brt)
+        
+        # Formatar datas: "YYYY-MM-DDTHH:MM:SS" no fuso do FA (BRT)
         time_range = {
             "start": s.strftime("%Y-%m-%dT%H:%M:%S"),
             "end": e.strftime("%Y-%m-%dT%H:%M:%S")
