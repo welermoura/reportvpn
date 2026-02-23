@@ -210,8 +210,9 @@ def fetch_vpn_logs_task(self):
                     ad_info = ad_client.get_user_info(clean_user) or {}
 
                 # Enrich com dados geográficos — campos nativos do FortiGate
-                fa_country = str(log.get('srccountry', '') or log.get('remcountry', '')).strip()
-                fa_city = str(log.get('srccity', '') or log.get('remcity', '')).strip()
+                import urllib.parse
+                fa_country = urllib.parse.unquote(str(log.get('srccountry', '') or log.get('remcountry', '')).strip())
+                fa_city = urllib.parse.unquote(str(log.get('srccity', '') or log.get('remcity', '')).strip())
                 
                 # Elevando COUNTRY_MAP foi feito no topo do arquivo (via import utils ou logo acima do loop).
                 # Movemos a declaração pro começo do Try.
@@ -259,9 +260,11 @@ def fetch_vpn_logs_task(self):
                 from vpn_logs.models import VPNFailure
                 from security_events.models import SecurityEvent
                 
+                
                 # Enrich GeoIP para Failure — prioriza log nativo
-                fa_country_fail = str(log.get('srccountry', '') or log.get('remcountry', '')).strip()
-                fa_city_fail = str(log.get('srccity', '') or log.get('remcity', '')).strip()
+                import urllib.parse
+                fa_country_fail = urllib.parse.unquote(str(log.get('srccountry', '') or log.get('remcountry', '')).strip())
+                fa_city_fail = urllib.parse.unquote(str(log.get('srccity', '') or log.get('remcity', '')).strip())
 
                 if fa_country_fail and fa_country_fail.lower() not in ['reserved', 'n/a']:
                     country_name_fail = fa_country_fail
@@ -315,7 +318,8 @@ def fetch_vpn_logs_task(self):
                 if failure_count >= 5:
                     # Verificar se já existe evento de Brute Force recente (evitar spam)
                     last_event = SecurityEvent.objects.filter(
-                        event_type='bruteforce',
+                        event_type='ips',
+                        attack_name='Brute Force Attack Detected',
                         username=username,
                         src_ip=source_ip,
                         timestamp__gte=time_threshold
