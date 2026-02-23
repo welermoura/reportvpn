@@ -1,0 +1,48 @@
+/* Custom Admin CSS to fix small Permission/Filter boxes */
+.selector-available select,
+.selector-chosen select {
+    height: 700px !important;
+    min-height: 700px !important;
+}
+
+/* Take ABSOLUTE full page width */
+.selector {
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+}
+
+/* Boxes take exactly 48% each to avoid overflow */
+.selector .selector-available,
+.selector .selector-chosen {
+    width: 48% !important;
+    margin: 0 !important;
+    float: none !important;
+}
+
+.selector .selector-filter {
+    width: 100% !important;
+}
+
+/* Ensure the arrows in the middle don't get squashed */
+.selector ul.selector-chooser {
+    padding: 0 1% !important;
+    margin: 0 !important;
+    width: 4% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+}
+
+.selector ul.selector-chooser li {
+    margin: 10px 0 !important;
+    list-style-type: none !important;
+}
+
+.stacked {
+    width: 100% !important;
+}

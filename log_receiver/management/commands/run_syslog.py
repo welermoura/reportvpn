@@ -13,19 +13,21 @@ class SyslogUDPHandler(socketserver.BaseRequestHandler):
         socket = self.request[1]
         client_address = self.client_address[0]
         
-        print(f"--- SYSLOG RECEIVED FROM {client_address} ---")
-        print(data[:200]) # Primeiros 200 caracteres
+        print(f"--- SYSLOG RECEIVED FROM {client_address} ---", flush=True)
+        print(data[:200], flush=True) # Primeiros 200 caracteres
         
         try:
+            # --- DETECÇÃO DE DISPOSITIVOS (sempre, mesmo com Syslog desativado) ---
+            parsed_data = parse_fortinet_syslog(data)
+            devid = parsed_data.get('devid', parsed_data.get('device_id', ''))
+            self.record_device(devid, parsed_data, client_address)
+
             from integrations.models import SyslogConfig
             config = SyslogConfig.load()
             if not config.is_enabled:
-                # Se desativado, ignoramos o processamento mas o socket continua aberto no container
+                # Se desativado, registrou o device mas para o processamento de log
                 return
 
-            # Assumindo que o maior emissor é o Fortigate (Padrão KV)
-            parsed_data = parse_fortinet_syslog(data)
-            
             # --- ROTEADOR DE PARSERS E MODELS ---
             log_type = parsed_data.get('type', '')
             subtype = parsed_data.get('subtype', '')
@@ -150,6 +152,25 @@ class SyslogUDPHandler(socketserver.BaseRequestHandler):
         except Exception as e:
             logger.error(f"Erro ao salvar syslog secevent: {e}")
 
+    def record_device(self, devid, parsed_data, ip):
+        from integrations.models import KnownDevice
+        from django.utils import timezone
+        
+        if not devid:
+            devid = f"UNKNOWN-{ip}"
+        
+        devname = parsed_data.get('devname', f"Device at {ip}")
+        
+        # Update or create device inline
+        device, created = KnownDevice.objects.update_or_create(
+            device_id=devid,
+            defaults={
+                'hostname': devname,
+                'ip_address': ip,
+                'last_seen': timezone.now()
+            }
+        )
+
     def process_vpn_log(self, parsed_data, source_emitter):
         from vpn_logs.models import VPNLog
         from django.utils import timezone
@@ -207,6 +228,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         HOST, PORT = "0.0.0.0", 5140
         self.stdout.write(self.style.SUCCESS(f'Iniciando Syslog Receiver Passivo em {HOST}:{PORT}/UDP...'))
+        print(f"LOG: Syslog Receiver started on {HOST}:{PORT}", flush=True)
         
         # ThreadingUDPServer prevents blocking on multiple incoming logs
         with socketserver.ThreadingUDPServer((HOST, PORT), SyslogUDPHandler) as server:

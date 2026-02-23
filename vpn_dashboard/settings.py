@@ -284,16 +284,17 @@ JAZZMIN_SETTINGS = {
         "vpn_logs.VPNFailure": "fas fa-user-shield",
         "security_events.SecurityEvent": "fas fa-shield-alt",
         "security_events.ADAuthEvent": "fas fa-fingerprint",
-        "integrations.FortiAnalyzerConfig": "fas fa-server",
-        "integrations.ActiveDirectoryConfig": "fas fa-address-book",
-        "integrations.SyslogConfig": "fas fa-pau-stream",
+        "integrations.FortiAnalyzerConfig": "fas fa-database",
+        "integrations.ActiveDirectoryConfig": "fas fa-id-card",
+        "integrations.SyslogConfig": "fas fa-stream",
+        "integrations.KnownDevice": "fas fa-microchip",
     },
     
     "default_icon_parents": "fas fa-chevron-circle-right",
     "default_icon_children": "fas fa-circle",
     
     "related_modal_active": True,
-    "custom_css": None,
+    "custom_css": "admin/css/custom_admin.css",
     "custom_js": None,
     "show_ui_builder": False,
     
