@@ -16,7 +16,8 @@ from vpn_logs.models import VPNLog, VPNFailure
 from .serializers import (
     VPNLogAggregatedSerializer, 
     VPNFailureSerializer, 
-    UserRiskScoreSerializer, 
+    UserRiskScoreSerializer,
+    UserRiskScoreDetailSerializer,
     VPNLogSerializer, 
     RiskEventSerializer
 )
@@ -154,24 +155,33 @@ class VPNFailureViewSet(viewsets.ReadOnlyModelViewSet):
         return queryset
 
 class UserRiskScoreViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet for User Risk Scores — sem prefetch_related para evitar carregar 184k eventos"""
-    queryset = UserRiskScore.objects.all().order_by('-current_score')
+    """ViewSet para Score de Risco — serializer leve na lista, completo no detalhe"""
     serializer_class = UserRiskScoreSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_serializer_class(self):
+        # Usa serializer completo (com events) apenas no detalhe individual
+        if self.action == 'retrieve':
+            return UserRiskScoreDetailSerializer
+        return UserRiskScoreSerializer
+
     def get_queryset(self):
         from dashboard.models import UserRiskScore
-        # Sem prefetch_related('events') — era o gargalo principal (carregava 184k RiskEvents)
+        # Apenas usuários com risco real, sem prefetch na listagem
         queryset = UserRiskScore.objects.filter(
-            current_score__gt=0  # Ignorar usuários sem risco calculado
+            current_score__gt=0
         ).order_by('-current_score')
-        
+
+        # No detalhe, adicionar prefetch_related para buscar events eficientemente
+        if self.action == 'retrieve':
+            queryset = queryset.prefetch_related('events')
+
         user = self.request.query_params.get('user')
         if user:
             queryset = queryset.filter(username__icontains=user)
-        
+
         level = self.request.query_params.get('level')
         if level:
             queryset = queryset.filter(risk_level__iexact=level)
-            
+
         return queryset

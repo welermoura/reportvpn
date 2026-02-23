@@ -83,12 +83,24 @@ class RiskEventSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class UserRiskScoreSerializer(serializers.ModelSerializer):
-    events = RiskEventSerializer(many=True, read_only=True)
-    
+    """Serializer LEVE para listagem — SEM events para evitar N+1 queries (10.610 queries!)"""
     class Meta:
         from dashboard.models import UserRiskScore
         model = UserRiskScore
         fields = [
-            'id', 'username', 'current_score', 'risk_level', 
+            'id', 'username', 'current_score', 'risk_level',
+            'last_calculated', 'trend'
+            # 'events' removido da listagem: causava 1 query por usuário (10.610 queries total)
+        ]
+
+class UserRiskScoreDetailSerializer(serializers.ModelSerializer):
+    """Serializer COMPLETO para detalhe individual — inclui events com prefetch"""
+    events = RiskEventSerializer(many=True, read_only=True)
+
+    class Meta:
+        from dashboard.models import UserRiskScore
+        model = UserRiskScore
+        fields = [
+            'id', 'username', 'current_score', 'risk_level',
             'last_calculated', 'trend', 'events'
         ]
