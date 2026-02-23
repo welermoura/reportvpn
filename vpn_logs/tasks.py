@@ -28,6 +28,14 @@ def fetch_vpn_logs_task(self):
         fa_client = FortiAnalyzerClient()
         ad_client = ActiveDirectoryClient()
 
+        # Mapeamento estático leve para os países mais comuns
+        COUNTRY_MAP = {
+            'brazil': 'BR', 'united states': 'US', 'argentina': 'AR', 
+            'mexico': 'MX', 'chile': 'CL', 'colombia': 'CO', 'peru': 'PE',
+            'paraguay': 'PY', 'uruguay': 'UY', 'canada': 'CA', 'germany': 'DE',
+            'france': 'FR', 'united kingdom': 'GB', 'spain': 'ES', 'portugal': 'PT'
+        }
+
         # Load Trusted Countries once
         from integrations.models import FortiAnalyzerConfig
         try:
@@ -205,13 +213,8 @@ def fetch_vpn_logs_task(self):
                 fa_country = str(log.get('srccountry', '') or log.get('remcountry', '')).strip()
                 fa_city = str(log.get('srccity', '') or log.get('remcity', '')).strip()
                 
-                # Mapeamento estático leve para os países mais comuns (compatibilidade)
-                COUNTRY_MAP = {
-                    'brazil': 'BR', 'united states': 'US', 'argentina': 'AR', 
-                    'mexico': 'MX', 'chile': 'CL', 'colombia': 'CO', 'peru': 'PE',
-                    'paraguay': 'PY', 'uruguay': 'UY', 'canada': 'CA', 'germany': 'DE',
-                    'france': 'FR', 'united kingdom': 'GB', 'spain': 'ES', 'portugal': 'PT'
-                }
+                # Elevando COUNTRY_MAP foi feito no topo do arquivo (via import utils ou logo acima do loop).
+                # Movemos a declaração pro começo do Try.
 
                 country_name_val = fa_country if fa_country.lower() not in ['reserved', 'n/a'] else ''
                 country_code_val = COUNTRY_MAP.get(country_name_val.lower(), '')
@@ -271,15 +274,34 @@ def fetch_vpn_logs_task(self):
 
                 reason = log.get('reason', action)
                 
-                VPNFailure.objects.create(
-                    user=username,
-                    source_ip=source_ip,
-                    timestamp=start_time,
-                    reason=reason,
-                    city=city_fail,
-                    country_code=country_code_fail,
-                    raw_data=log
-                )
+                # Deduplicação: Evitar que a mesma task ou repetição do log crie clones no mesmo segundo
+                # Criando um identificador baseado nos traços principais do log
+                import hashlib
+                import json
+                log_signature = f"{username}_{source_ip}_{start_time.isoformat()}_{reason}"
+                event_hash = hashlib.md5(log_signature.encode('utf-8')).hexdigest()
+                
+                from django.db.models import JSONField
+                
+                # Check if this exact failure was already processed
+                # As SQLite and Postgres JSON extract varies, we will rely on timestamp + user + ip + reason combo
+                if VPNFailure.objects.filter(
+                    user=username, 
+                    source_ip=source_ip, 
+                    timestamp=start_time, 
+                    reason=reason
+                ).exists():
+                    action_already_processed = True
+                else:
+                    VPNFailure.objects.create(
+                        user=username,
+                        source_ip=source_ip,
+                        timestamp=start_time,
+                        reason=reason,
+                        city=city_fail,
+                        country_code=country_code_fail,
+                        raw_data=log
+                    )
                 
                 # --- BRUTE FORCE DETECTION ---
                 # Regra: > 5 falhas nos últimos 5 minutos para mesmo user/ip

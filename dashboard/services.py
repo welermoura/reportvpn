@@ -71,13 +71,14 @@ class RiskScoringService:
             # Pegar categorias mais bloqueadas para a descrição
             top_categories = list(web_events.values('category').annotate(count=models.Count('id')).order_by('-count')[:3])
             cat_desc = ", ".join([f"{c['category']} ({c['count']})" for c in top_categories])
+            last_web_event = web_events.order_by('-timestamp').first()
             
             total_score += weight
             risk_events.append({
                 'source': 'webfilter',
                 'weight': weight,
                 'desc': f"Web Filter: {web_events_count} bloqueios (Capado em 100 pts). Principais: {cat_desc}",
-                'ts': timezone.now()
+                'ts': last_web_event.timestamp if last_web_event else timezone.now()
             })
 
         # 4. VPN: Acessos Suspeitos ou Viagem Impossível
@@ -104,17 +105,19 @@ class RiskScoringService:
                 })
 
         # 5. Falhas de Login VPN (Brute Force)
-        failures_count = VPNFailure.objects.filter(
+        vpn_failures = VPNFailure.objects.filter(
             user=username,
             timestamp__gte=start_date
-        ).count()
+        )
+        failures_count = vpn_failures.count()
         if failures_count >= 10:
             total_score += 15
+            last_failure_event = vpn_failures.order_by('-timestamp').first()
             risk_events.append({
                 'source': 'vpn',
                 'weight': 15,
                 'desc': f"VPN: {failures_count} falhas de login detectadas",
-                'ts': timezone.now()
+                'ts': last_failure_event.timestamp if last_failure_event else timezone.now()
             })
 
         # Atualizar a pontuação atual
@@ -155,13 +158,35 @@ class RiskScoringService:
         """
         # Obter todos os usernames únicos de todas as fontes
         usernames = set()
-        usernames.update(SecurityEvent.objects.values_list('username', flat=True))
-        usernames.update(VPNLog.objects.values_list('user', flat=True))
-        usernames.update(VPNFailure.objects.values_list('user', flat=True))
+        usernames.update(SecurityEvent.objects.exclude(username='').values_list('username', flat=True))
+        usernames.update(VPNLog.objects.exclude(user='').values_list('user', flat=True))
+        usernames.update(VPNFailure.objects.exclude(user='').values_list('user', flat=True))
         
+        from integrations.ad import ActiveDirectoryClient
+        import re
+
+        ad_client = ActiveDirectoryClient()
         results = []
+
         for username in usernames:
-            if username: # Ignorar usernames vazios
-                results.append(cls.calculate_score(username, days))
+            if not username or username.lower() in ['unknown', 'n/a']:
+                continue
+                
+            # Identificar e descartar IPs falsos disfarçados de Username
+            if re.match(r'^\d{1,3}(\.\d{1,3}){3}$', username):
+                UserRiskScore.objects.filter(username=username).delete()
+                continue
+                
+            clean_user = username.split('\\')[-1]
+            ad_info = ad_client.get_user_info(clean_user)
+            
+            if not ad_info:
+                # O usuário não consta no AD. (Possível brute force root/admin ou external scan)
+                # Remove o score irrelevante da dashboard.
+                UserRiskScore.objects.filter(username=username).delete()
+                continue
+
+            # Usuário corporativo real validado
+            results.append(cls.calculate_score(username, days))
         
         return results

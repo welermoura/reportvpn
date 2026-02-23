@@ -356,6 +356,14 @@
                                     }}>{event.app_category || '-'}</span>
                                 </div>
                             </div>
+                            {(event.raw_data?.hostname || event.raw_data?.url) && (
+                                <div>
+                                    <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>URL / Website</label>
+                                    <div style={{ fontSize: '0.85rem', color: '#4e73df', wordBreak: 'break-all', textDecoration: 'underline' }}>
+                                        {event.raw_data?.hostname || event.raw_data?.url}
+                                    </div>
+                                </div>
+                            )}
                             <div>
                                 <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Ação</label>
                                 <span style={{
