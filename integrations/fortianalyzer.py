@@ -1,6 +1,10 @@
 import requests
+import urllib3
 from django.conf import settings
 from .models import FortiAnalyzerConfig
+
+# Desativa avisos de requisições HTTPS não verificadas (comum em redes internas)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class FortiAnalyzerClient:
     def __init__(self):
