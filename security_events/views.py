@@ -361,6 +361,16 @@ def webfilter_react_dashboard(request):
     """React-based webfilter dashboard - data loaded via API"""
     return render(request, 'security_events/webfilter_react.html')
 
+@login_required
+def appcontrol_react_dashboard(request):
+    """React-based App Control dashboard - data loaded via API"""
+    return render(request, 'security_events/appcontrol_react.html')
+
+@login_required
+def ad_audit_react_dashboard(request):
+    """React-based AD Audit dashboard - data loaded via API"""
+    return render(request, 'security_events/ad_audit_react.html')
+
 
 @login_required
 def export_events_pdf(request):

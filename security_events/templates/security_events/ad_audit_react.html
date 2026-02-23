@@ -1,0 +1,892 @@
+{% extends 'dashboard/base.html' %}
+
+{% block content %}
+<div id="adaudit-dashboard-root"></div>
+
+<!-- React & Dependencies -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<!-- Styles do Radar Original Portados -->
+<style>
+    :root {
+        --bg: #0b0f17;
+        --panel: #101827;
+        --text: #e6edf3;
+        --muted: #9fb0c3;
+        --line: rgba(255, 255, 255, 0.10);
+        --accent: #77bdfb;
+        --severity-alto: #ff4757;
+        --severity-medio: #ffa502;
+        --severity-baixo: #2ed573;
+        --chip: rgba(255, 255, 255, 0.08);
+        --node-user: #5b9bf5;
+        --node-group: #a78bfa;
+        --node-ou: #fbbf24;
+        --node-computer: #34d399;
+        --drawer-w: 600px;
+    }
+
+    #adaudit-dashboard-root {
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+        background: var(--bg);
+        color: var(--text);
+        min-height: calc(100vh - 70px);
+        margin: -1.5rem;
+        /* Cancelar padding do SB admin */
+        padding: 20px;
+        border-radius: 10px;
+    }
+
+    /* ---- Custom Scrollbar ---- */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: var(--bg);
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.4);
+    }
+
+    /* ---- Header ---- */
+    .radar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .radar-header h1 {
+        font-size: 18px;
+        font-weight: 800;
+        color: var(--text);
+        margin: 0;
+    }
+
+    .radar-header .sub {
+        font-size: 12px;
+        color: var(--muted);
+    }
+
+    /* ---- Button Control ---- */
+    .btn-scan {
+        background: rgba(119, 189, 251, 0.15);
+        border: 1px solid var(--accent);
+        color: var(--accent);
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-scan:hover:not(:disabled) {
+        background: var(--accent);
+        color: var(--bg);
+    }
+
+    .btn-scan:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* ---- KPIs ---- */
+    .kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+
+    .kpi {
+        padding: 16px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .kpi .label {
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+
+    .kpi .num {
+        font-size: 32px;
+        font-weight: 900;
+        margin-top: 6px;
+        color: var(--text);
+    }
+
+    .kpi .hint {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 4px;
+    }
+
+    .kpi-alto {
+        border-color: rgba(255, 71, 87, 0.5);
+        background: rgba(255, 71, 87, 0.08);
+        box-shadow: 0 0 24px rgba(255, 71, 87, 0.15);
+    }
+
+    .kpi-alto .num {
+        color: var(--severity-alto);
+    }
+
+    /* ---- Tabs ---- */
+    .tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid var(--line);
+        overflow-x: auto;
+    }
+
+    .tab-btn {
+        padding: 12px 20px;
+        background: none;
+        border: none;
+        color: var(--muted);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        white-space: nowrap;
+        transition: 0.2s;
+    }
+
+    .tab-btn:hover {
+        color: var(--text);
+    }
+
+    .tab-btn.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+    }
+
+    .tab-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 800;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--muted);
+        margin-left: 8px;
+    }
+
+    .tab-btn.active .tab-count {
+        background: rgba(119, 189, 251, 0.2);
+        color: var(--accent);
+    }
+
+    /* ---- Toolbar ---- */
+    .toolbar {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .input,
+    .select {
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        color: var(--text);
+        border-radius: 8px;
+        outline: none;
+        font-size: 13px;
+    }
+
+    .input {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    /* ---- Risk Cards ---- */
+    .risk-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .risk-card {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 16px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-left: 4px solid var(--severity-medio);
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    .risk-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .risk-card-alto {
+        border-left-color: var(--severity-alto);
+    }
+
+    .rc-body {
+        flex: 1;
+    }
+
+    .rc-title {
+        font-weight: 800;
+        font-size: 14px;
+    }
+
+    .rc-meta {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 6px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .rc-right {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+    }
+
+    /* ---- Badges ---- */
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 800;
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        background: rgba(255, 255, 255, 0.06);
+        white-space: nowrap;
+    }
+
+    .badge-high {
+        border-color: rgba(255, 71, 87, 0.55);
+        background: rgba(255, 71, 87, 0.18);
+        color: #ff6b7a;
+    }
+
+    .badge-med {
+        border-color: rgba(255, 165, 2, 0.45);
+        background: rgba(255, 165, 2, 0.12);
+        color: #ffb836;
+    }
+
+    .pulse-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--severity-alto);
+        animation: pulse 1.6s ease-in-out infinite;
+        flex-shrink: 0;
+    }
+
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.55);
+        }
+
+        70% {
+            box-shadow: 0 0 0 8px rgba(0, 0, 0, 0);
+        }
+    }
+
+    /* ---- Pipeline Mini ---- */
+    .mini-pipe {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .mini-node {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 800;
+        color: #fff;
+    }
+
+    .mini-arrow {
+        color: var(--muted);
+        font-size: 12px;
+    }
+
+    /* ---- Pipeline Drawer ---- */
+    .pipeline-wrap {
+        padding: 16px;
+        border-radius: 12px;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        overflow-x: auto;
+        margin-bottom: 20px;
+    }
+
+    .pipeline {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .pipe-node {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .pipe-circle {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: 800;
+        color: #fff;
+        border: 2px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .pipe-label {
+        font-size: 12px;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .pipe-kind {
+        font-size: 11px;
+        color: var(--muted);
+    }
+
+    /* ---- Modal / Drawer ---- */
+    .drawer-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 1040;
+        opacity: 0;
+        pointer-events: none;
+        transition: 0.3s;
+    }
+
+    .drawer-overlay.open {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: var(--drawer-w);
+        max-width: 90vw;
+        background: var(--panel);
+        border-left: 1px solid var(--line);
+        z-index: 1050;
+        transform: translateX(100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        box-shadow: -5px 0 25px rgba(0, 0, 0, 0.5);
+    }
+
+    .drawer.open {
+        transform: translateX(0);
+    }
+
+    .drawer-header {
+        padding: 20px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .drawer-header-alto {
+        border-top: 4px solid var(--severity-alto);
+    }
+
+    .dh-title {
+        font-size: 18px;
+        font-weight: 900;
+    }
+
+    .dh-meta {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 8px;
+        display: flex;
+        gap: 15px;
+        align-items: center;
+    }
+
+    .drawer-close {
+        background: rgba(255, 255, 255, 0.08);
+        border: none;
+        color: var(--text);
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .drawer-close:hover {
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .drawer-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+    }
+
+    /* ---- Accordion ---- */
+    .accordion {
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.2);
+        margin-bottom: 10px;
+        overflow: hidden;
+    }
+
+    .acc-header {
+        padding: 14px 16px;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 14px;
+        display: flex;
+        justify-content: space-between;
+        user-select: none;
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .acc-header:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .acc-body {
+        padding: 0 16px 16px;
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--muted);
+        white-space: pre-wrap;
+    }
+
+    /* ---- Tabela Escura ---- */
+    .dark-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .dark-table th {
+        text-align: left;
+        padding: 12px 14px;
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        border-bottom: 1px solid var(--line);
+    }
+
+    .dark-table td {
+        padding: 12px 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        vertical-align: middle;
+    }
+
+    .dark-table tr:hover td {
+        background: rgba(255, 255, 255, 0.02);
+    }
+</style>
+
+<script type="text/babel">
+    {% verbatim %}
+    const { useState, useEffect, useMemo } = React;
+    const { createRoot } = ReactDOM;
+
+    // Iconografia/Cores dos Nodes
+    const nodeColor = (t) => {
+        switch ((t || '').toLowerCase()) {
+            case 'user': return 'var(--node-user)';
+            case 'group': return 'var(--node-group)';
+            case 'ou': return 'var(--node-ou)';
+            case 'computer': return 'var(--node-computer)';
+            default: return 'var(--muted)';
+        }
+    };
+    const nodeInitial = (t) => {
+        switch ((t || '').toLowerCase()) {
+            case 'user': return 'U';
+            case 'group': return 'G';
+            case 'ou': return 'O';
+            case 'computer': return 'C';
+            default: return '?';
+        }
+    };
+    const isAlto = (impact) => (impact || '').toUpperCase() === 'ALTO';
+
+    // Componente Reutilizavel do Drawer
+    const Drawer = ({ risk, onClose }) => {
+        const [openAcc, setOpenAcc] = useState({});
+
+        if (!risk) return null;
+        const alto = isAlto(risk.impact_label);
+
+        const toggle = (title) => setOpenAcc(p => ({ ...p, [title]: !p[title] }));
+
+        const Accordion = ({ title, content }) => (
+            <div className="accordion">
+                <div className="acc-header" onClick={() => toggle(title)}>
+                    {title} <span>{openAcc[title] ? '▲' : '▼'}</span>
+                </div>
+                {openAcc[title] && <div className="acc-body">{content || "Nenhuma informação."}</div>}
+            </div>
+        );
+
+        // Gerar textos padrão como no original se n vier da API
+        const whatText = `O Radar viu que o usuário(a) ${risk.user} tem um caminho (por participação em grupos) até o grupo sensível ${risk.priv_group}.\nEsse caminho tem ${risk.path_hops} passo(s).`;
+        const whyText = `Classificação de impacto deste caso: ${risk.impact_label}.\nGrupos sensíveis podem abrir portas para ações administrativas.\nEsse caminho prova que existe um canal estrutural que chega perto de um poder elevado.`;
+        const checkText = `1) Identifique os grupos intermediários na aba "Caminho bruto".\n2) Remova o acesso mais distante possível para consertar.\n3) Evite adicionar contas padrão de funcionários em Grupos de TI base sem rever delegações recursivas.`;
+        const techText = `Score deste caminho é ${risk.score}.\nA conta é simples: (Peso do Grupo / Número de Passos).\nScore alto = Risco Imediato.`;
+
+        return (
+            <>
+                <div className="drawer-overlay open" onClick={onClose}></div>
+                <div className="drawer open">
+                    <div className={`drawer-header ${alto ? 'drawer-header-alto' : ''}`}>
+                        <div>
+                            <div className="dh-title">{risk.user} → {risk.priv_group}</div>
+                            <div className="dh-meta">
+                                <span className={`badge ${alto ? 'badge-high' : 'badge-med'}`}>{risk.impact_label}</span>
+                                <span>score: <b>{risk.score}</b></span>
+                                <span>passos: <b>{risk.path_hops}</b></span>
+                            </div>
+                        </div>
+                        <button className="drawer-close" onClick={onClose}>×</button>
+                    </div>
+                    <div className="drawer-body">
+                        <h4 style={{ fontSize: '14px', marginBottom: '10px', color: 'white' }}>Caminho Visual</h4>
+                        <div className="pipeline-wrap">
+                            <div className="pipeline">
+                                {/* Node Source (User) */}
+                                <div className="pipe-node">
+                                    <div className="pipe-circle" style={{ background: nodeColor('user') }}>{nodeInitial('user')}</div>
+                                    <div className="pipe-label">{risk.user}</div>
+                                    <div className="pipe-kind">Usuário</div>
+                                </div>
+
+                                {risk.path_steps && risk.path_steps.length > 2 && risk.path_steps.slice(1, -1).map((hop, i) => (
+                                    <React.Fragment key={i}>
+                                        <span style={{ color: alto ? 'var(--severity-alto)' : 'var(--muted)', fontSize: '20px' }}>→</span>
+                                        <div className="pipe-node">
+                                            <div className="pipe-circle" style={{ background: nodeColor('group') }}>{nodeInitial('group')}</div>
+                                            <div className="pipe-label">{hop.replace('CN=', '').split(',')[0]}</div>
+                                            <div className="pipe-kind">Intermediário</div>
+                                        </div>
+                                    </React.Fragment>
+                                ))}
+
+                                <span style={{ color: alto ? 'var(--severity-alto)' : 'var(--muted)', fontSize: '20px' }}>→</span>
+
+                                {/* Node Target (Group) */}
+                                <div className="pipe-node">
+                                    <div className="pipe-circle" style={{ background: nodeColor('group') }}>{nodeInitial('group')}</div>
+                                    <div className="pipe-label">{risk.priv_group}</div>
+                                    <div className="pipe-kind">Grupo Crítico</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <Accordion title="O que o Radar viu" content={whatText} />
+                        <Accordion title="Por que importa" content={whyText} />
+                        <Accordion title="Checklist de correção" content={checkText} />
+                        <Accordion title="Detalhes técnicos (Score)" content={techText} />
+
+                        <h4 style={{ fontSize: '14px', marginTop: '20px', marginBottom: '10px', color: 'white' }}>Caminho bruto (LDAP)</h4>
+                        <div style={{ background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '8px', fontFamily: 'monospace', fontSize: '12px', wordBreak: 'break-all' }}>
+                            {risk.path_human}
+                        </div>
+                    </div>
+                </div>
+            </>
+        );
+    };
+
+    // MAIN Component
+    function ModernRadarApp() {
+        const [data, setData] = useState(null);
+        const [loading, setLoading] = useState(true);
+        const [scanning, setScanning] = useState(false);
+
+        const [activeTab, setActiveTab] = useState('Riscos');
+        const [searchQ, setSearchQ] = useState('');
+        const [selectedRisk, setSelectedRisk] = useState(null);
+
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const res = await fetch('/api/security-events/radar-ad/stats/');
+                const json = await res.json();
+                setData(json);
+            } catch (e) {
+                alert("Erro ao buscar dados do banco de dados.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        useEffect(() => { fetchData(); }, []);
+
+        const doScan = async () => {
+            setScanning(true);
+            try {
+                const csrfMatch = document.cookie.match(/csrftoken=([^;]+)/);
+                const csrfToken = csrfMatch ? csrfMatch[1] : '';
+                const res = await fetch('/api/security-events/radar-ad/scan/', {
+                    method: 'POST', headers: { 'X-CSRFToken': csrfToken }
+                });
+                if (res.status === 202) {
+                    alert('Tarefa de varredura BFS foi enfileirada no Celery!\nAguarde alguns minutos e atualize a página.');
+                } else {
+                    await fetchData();
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setScanning(false);
+            }
+        };
+
+        if (loading) return <div style={{ padding: '50px', textAlign: 'center', color: 'var(--muted)' }}>Carregando RadarAD Data...</div>;
+
+        const findings = data?.findings_data || [];
+        const directMembers = data?.direct_members_data || {};
+        const inactiveUsers = data?.inactive_users_data || [];
+
+        // Counters
+        const highRisksCount = findings.filter(f => isAlto(f.impact_label)).length;
+        const maxScore = findings.length > 0 ? Math.max(...findings.map(f => f.score || 0)) : 0;
+        const directTotal = Object.values(directMembers).reduce((acc, g) => acc + (g.members || []).length, 0);
+
+        // Filters
+        const filteredRisks = findings.filter(f =>
+            (!searchQ || f.user.toLowerCase().includes(searchQ.toLowerCase()) || f.priv_group.toLowerCase().includes(searchQ.toLowerCase()))
+        );
+
+        return (
+            <React.Fragment>
+                <div className="radar-header">
+                    <div>
+                        <h1>RadarAD - Active Directory Audit</h1>
+                        <div className="sub">Visibilidade e Postura de Privilégios baseada em Grafos</div>
+                    </div>
+                    <button className="btn-scan" onClick={doScan} disabled={scanning}>
+                        {scanning ? 'Mapeando Árvore AD...' : 'Disparar Varredura BFS'}
+                    </button>
+                </div>
+
+                {!data?.has_data ? (
+                    <div style={{ textAlign: 'center', padding: '100px 0', color: 'var(--muted)' }}>
+                        <h3>Nenhum snapshot encontrado.</h3>
+                        <p>Clique em Disparar Varredura para coletar as trilhas do AD.</p>
+                    </div>
+                ) : (
+                    <>
+                        <div className="kpis">
+                            <div className="kpi">
+                                <div className="label">Usuários no escopo</div>
+                                <div className="num">{data.total_users}</div>
+                                <div className="hint">Contas lidas no domínio</div>
+                            </div>
+                            <div className="kpi">
+                                <div className="label">Caminhos Críticos (BFS)</div>
+                                <div className="num">{findings.length}</div>
+                                <div className="hint">Delegações Indiretas</div>
+                            </div>
+                            <div className="kpi kpi-alto">
+                                <div className="label">Impacto Alto</div>
+                                <div className="num">{highRisksCount}</div>
+                                <div className="hint">Exigem Resposta (Tier 0)</div>
+                            </div>
+                            <div className="kpi">
+                                <div className="label">Maior Score de Hops</div>
+                                <div className="num">{maxScore.toFixed(2)}</div>
+                                <div className="hint">Pontuação Máxima Achada</div>
+                            </div>
+                            <div className="kpi" style={{ borderColor: data.inactive_privileged > 0 ? 'var(--severity-alto)' : '' }}>
+                                <div className="label">Admins Inativos Abandonados</div>
+                                <div className="num" style={{ color: data.inactive_privileged > 0 ? 'var(--severity-alto)' : '' }}>{data.inactive_privileged}</div>
+                                <div className="hint">Acesso Sensível Parado</div>
+                            </div>
+                        </div>
+
+                        <div className="tabs">
+                            {['Riscos', 'Membros Diretos', 'Contas Inativas'].map(t => {
+                                let count = 0;
+                                if (t === 'Riscos') count = findings.length;
+                                if (t === 'Membros Diretos') count = directTotal;
+                                if (t === 'Contas Inativas') count = inactiveUsers.length;
+
+                                return (
+                                    <button key={t} className={`tab-btn ${activeTab === t ? 'active' : ''}`} onClick={() => setActiveTab(t)}>
+                                        {t} <span className="tab-count">{count}</span>
+                                    </button>
+                                )
+                            })}
+                        </div>
+
+                        {/* TAB: RISCOS (GRAFO BFS) */}
+                        {activeTab === 'Riscos' && (
+                            <div>
+                                <div className="toolbar">
+                                    <input className="input" placeholder="Buscar Caminho (Ex: Domain Admins)..." value={searchQ} onChange={e => setSearchQ(e.target.value)} />
+                                </div>
+                                <div className="risk-list">
+                                    {filteredRisks.map((f, i) => {
+                                        const alto = isAlto(f.impact_label);
+                                        return (
+                                            <div key={i} className={`risk-card ${alto ? 'risk-card-alto' : ''}`} onClick={() => setSelectedRisk(f)}>
+                                                {alto && <div className="pulse-dot"></div>}
+                                                <div className="rc-body">
+                                                    <div className="rc-title">{f.user} → {f.priv_group}</div>
+                                                    <div className="rc-meta">
+                                                        <span className="mini-pipe">
+                                                            <span className="mini-node" style={{ background: nodeColor('user') }}>U</span>
+                                                            {f.path_hops > 1 && <span className="mini-arrow" style={{ color: alto ? 'var(--severity-alto)' : '' }}>→</span>}
+                                                            {f.path_hops > 1 && <span className="mini-node" style={{ background: nodeColor('group'), fontSize: '9px' }}>{f.path_hops - 1}</span>}
+                                                            <span className="mini-arrow" style={{ color: alto ? 'var(--severity-alto)' : '' }}>→</span>
+                                                            <span className="mini-node" style={{ background: nodeColor('group') }}>G</span>
+                                                        </span>
+                                                        <span>score: <b>{f.score}</b></span>
+                                                        <span>hops/passos: <b>{f.path_hops}</b></span>
+                                                    </div>
+                                                </div>
+                                                <div className="rc-right">
+                                                    <span className={`badge ${alto ? 'badge-high' : 'badge-med'}`}>{f.impact_label}</span>
+                                                    {f.is_inactive && <span className="badge" style={{ color: '#ffb836', borderColor: 'rgba(255,165,2,0.4)' }}>INATIVO</span>}
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                    {filteredRisks.length === 0 && <div style={{ color: 'var(--muted)', textAlign: 'center', padding: '30px' }}>Nenhum risco processado no critério.</div>}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* TAB: MEMBROS DIRETOS */}
+                        {activeTab === 'Membros Diretos' && (
+                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '12px' }}>
+                                <table className="dark-table">
+                                    <thead>
+                                        <tr><th>Grupo Admin</th><th>Peso/Score</th><th>Membros Explícitos</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {Object.entries(directMembers).map(([dn, data]) => (
+                                            <tr key={dn}>
+                                                <td style={{ fontWeight: 800, color: nodeColor('group') }}>{data.group_cn}</td>
+                                                <td>{data.group_weight}</td>
+                                                <td>
+                                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                                        {data.members && data.members.map((m, idx) => (
+                                                            <span key={idx} style={{ background: 'rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px' }}>
+                                                                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', borderRadius: '50%', background: nodeColor(m.type), color: 'white', fontSize: '10px', fontWeight: 'bold' }}>
+                                                                    {nodeInitial(m.type)}
+                                                                </span>
+                                                                {m.sAMAccountName || m.cn}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {/* TAB: INATIVOS */}
+                        {activeTab === 'Contas Inativas' && (
+                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '12px' }}>
+                                <table className="dark-table">
+                                    <thead><tr><th>Conta</th><th>Logon</th><th>Dias Ocioso</th><th>Status AD</th><th>Caminho Indireto Admin</th></tr></thead>
+                                    <tbody>
+                                        {inactiveUsers.map((u, i) => (
+                                            <tr key={i} style={{ borderLeft: u.has_priv_path ? '3px solid var(--severity-alto)' : 'none' }}>
+                                                <td style={{ fontWeight: 600 }}>{u.user}</td>
+                                                <td>{u.last_logon ? new Date(u.last_logon).toLocaleDateString() : 'Nunca'}</td>
+                                                <td style={{ color: '#ffb836', fontWeight: 'bold' }}>{Math.floor(u.inactive_minutes / 1440)} dias</td>
+                                                <td>{u.account_disabled ? <span className="badge badge-med">DESABILITADA</span> : <span className="badge" style={{ color: 'var(--severity-baixo)', borderColor: 'var(--severity-baixo)' }}>ATIVA</span>}</td>
+                                                <td>
+                                                    {u.has_priv_path ? (
+                                                        <span className="badge badge-high">{u.priv_group} (Score: {u.score})</span>
+                                                    ) : <span style={{ color: 'var(--muted)' }}>Nenhum</span>}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </>
+                )}
+
+                {/* Render Modal / Drawer */}
+                <Drawer risk={selectedRisk} onClose={() => setSelectedRisk(null)} />
+            </React.Fragment>
+        );
+    }
+
+    const container = document.getElementById('adaudit-dashboard-root');
+    const root = createRoot(container);
+    root.render(<ModernRadarApp />);
+    {% endverbatim %}
+</script>
+{% endblock %}

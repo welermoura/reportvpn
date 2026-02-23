@@ -35,12 +35,12 @@ class Command(BaseCommand):
         )
 
         sec_task, created = PeriodicTask.objects.get_or_create(
-            name='Coleta de Eventos de Segurança (30 min)',
+            name='Coleta de Eventos (IPS/AV/Web/AppControl)',
             defaults={
                 'task': 'security_events.tasks.fetch_security_events_task',
                 'interval': schedule_30m,
                 'enabled': True,
-                'description': 'Coleta automática de eventos (IPS, AV, Web) do FortiAnalyzer a cada 30 minutos'
+                'description': 'Coleta automática de eventos (IPS, AV, Web Filter, App Control) do FortiAnalyzer a cada 30 minutos'
             }
         )
         if created:

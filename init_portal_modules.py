@@ -66,6 +66,26 @@ modules = [
         'order': 6,
         'is_active': True,
         'color': 'text-emerald-500'
+    },
+    {
+        'title': 'App Control',
+        'slug': 'app-control',
+        'icon': 'fa-solid fa-mobile-screen',
+        'description': 'Controle e Auditoria de Aplicações Internas.',
+        'url_name': 'security_events:app-control',
+        'order': 7,
+        'is_active': True,
+        'color': 'text-orange-500'
+    },
+    {
+        'title': 'Auditoria AD',
+        'slug': 'ad-audit',
+        'icon': 'fa-solid fa-users-viewfinder',
+        'description': 'Auditoria de Logins do Active Directory.',
+        'url_name': 'security_events:ad-audit',
+        'order': 8,
+        'is_active': False,
+        'color': 'text-gray-400'
     }
 ]
 
