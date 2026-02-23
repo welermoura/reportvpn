@@ -5,9 +5,9 @@ from .models import SecurityEvent, ADAuthEvent
 
 @admin.register(SecurityEvent)
 class SecurityEventAdmin(admin.ModelAdmin):
-    list_display = ('timestamp', 'event_type', 'severity', 'src_ip', 'dst_ip', 'username', 'action')
-    list_filter = ('event_type', 'severity', 'date', 'action')
-    search_fields = ('src_ip', 'dst_ip', 'username', 'attack_name', 'virus_name', 'url')
+    list_display = ('timestamp', 'event_type', 'severity', 'username', 'src_ip', 'dst_ip', 'action')
+    list_filter = ('event_type', 'severity', 'date', 'action', 'src_country')
+    search_fields = ('src_ip', 'dst_ip', 'username', 'attack_name', 'virus_name', 'url', 'ad_display_name', 'user_department')
     date_hierarchy = 'timestamp'
     readonly_fields = ('event_id', 'created_at', 'raw_log')
     

@@ -28,6 +28,18 @@ def fetch_vpn_logs_task(self):
         fa_client = FortiAnalyzerClient()
         ad_client = ActiveDirectoryClient()
 
+        # Load Config once
+        from integrations.models import FortiAnalyzerConfig
+        try:
+            config = FortiAnalyzerConfig.load()
+            if not config.is_enabled:
+                logger.info("Coleta via API (Polling) do FortiAnalyzer desativada nas configurações.")
+                return "Disabled"
+            trusted_countries_list = [c.strip().upper() for c in config.trusted_countries.split(',')]
+        except:
+            trusted_countries_list = []
+            config = None
+
         # Mapeamento estático leve para os países mais comuns
         COUNTRY_MAP = {
             'brazil': 'BR', 'united states': 'US', 'argentina': 'AR', 

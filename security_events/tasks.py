@@ -36,6 +36,13 @@ def fetch_security_events_task(self, target_subtype=None):
         fa_client = FortiAnalyzerClient()
         ad_client = ActiveDirectoryClient()
 
+        # Load Config once
+        from integrations.models import FortiAnalyzerConfig
+        config = FortiAnalyzerConfig.load()
+        if not config.is_enabled:
+            logger.info("Coleta via API (Polling) do FortiAnalyzer (Security Events) desativada nas configurações.")
+            return "Disabled"
+
         # Configurações de busca - focado apenas no dado recente (crons rodam a cada 30min)
         # Ajustado para 6 horas pelo fuso horário ser potencialmente distorcido entre FA e Django
         hours_ago = 6

@@ -17,6 +17,12 @@ class SyslogUDPHandler(socketserver.BaseRequestHandler):
         print(data[:200]) # Primeiros 200 caracteres
         
         try:
+            from integrations.models import SyslogConfig
+            config = SyslogConfig.load()
+            if not config.is_enabled:
+                # Se desativado, ignoramos o processamento mas o socket continua aberto no container
+                return
+
             # Assumindo que o maior emissor é o Fortigate (Padrão KV)
             parsed_data = parse_fortinet_syslog(data)
             

@@ -21,6 +21,7 @@ class FortiAnalyzerConfig(SingletonModel):
     api_token = models.CharField(max_length=512, help_text="Token de API gerado no FortiAnalyzer")
     verify_ssl = models.BooleanField(default=False, help_text="Verificar certificado SSL?")
     trusted_countries = models.TextField(default="BR", help_text="Códigos de países confiáveis, separados por vírgula (ex: BR,US)")
+    is_enabled = models.BooleanField(default=True, help_text="Ativar a coleta ativa (Polling) via API do FortiAnalyzer?")
     
     def __str__(self):
         return "Configuração do FortiAnalyzer"
@@ -43,3 +44,14 @@ class ActiveDirectoryConfig(SingletonModel):
     class Meta:
         verbose_name = "Configuração Active Directory"
         verbose_name_plural = "Configuração Active Directory"
+
+class SyslogConfig(SingletonModel):
+    is_enabled = models.BooleanField(default=False, help_text="Ativar a recepção passiva de logs via Syslog UDP?")
+    port = models.IntegerField(default=5140, help_text="Porta UDP para escuta (Padrão 5140)")
+    
+    def __str__(self):
+        return "Configuração do Syslog Receiver"
+
+    class Meta:
+        verbose_name = "Configuração Syslog Receiver"
+        verbose_name_plural = "Configuração Syslog Receiver"

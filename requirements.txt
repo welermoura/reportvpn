@@ -24,3 +24,4 @@ pyodbc>=5.0
 # Security
 cryptography>=41.0
 openpyxl
+django-jazzmin==3.0.1

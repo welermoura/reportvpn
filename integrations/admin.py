@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import FortiAnalyzerConfig, ActiveDirectoryConfig
+from .models import FortiAnalyzerConfig, ActiveDirectoryConfig, SyslogConfig
 
 class SingletonModelAdmin(admin.ModelAdmin):
     """
@@ -21,7 +21,16 @@ class FortiAnalyzerConfigAdmin(SingletonModelAdmin):
             'fields': ('host', 'port', 'adom', 'verify_ssl')
         }),
         ('Autenticação', {
-            'fields': ('api_token', 'trusted_countries')
+            'fields': ('api_token', 'trusted_countries', 'is_enabled')
+        }),
+    )
+
+@admin.register(SyslogConfig)
+class SyslogConfigAdmin(SingletonModelAdmin):
+    list_display = ('is_enabled', 'port')
+    fieldsets = (
+        ('Controle', {
+            'fields': ('is_enabled', 'port')
         }),
     )
 
