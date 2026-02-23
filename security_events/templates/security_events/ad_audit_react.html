@@ -668,6 +668,7 @@
 
         const [activeTab, setActiveTab] = useState('Riscos');
         const [searchQ, setSearchQ] = useState('');
+        const [page, setPage] = useState(1);
         const [selectedRisk, setSelectedRisk] = useState(null);
 
         const fetchData = async () => {
@@ -719,6 +720,33 @@
         // Filters
         const filteredRisks = findings.filter(f =>
             (!searchQ || f.user.toLowerCase().includes(searchQ.toLowerCase()) || f.priv_group.toLowerCase().includes(searchQ.toLowerCase()))
+        );
+
+        const totalPages = Math.ceil((filteredRisks.length || 0) / 50) || 1;
+        const totalCount = filteredRisks.length || 0;
+        const paginatedRisks = filteredRisks.slice((page - 1) * 50, page * 50);
+
+        const clearFilters = () => {
+            setSearchQ('');
+            setPage(1);
+        };
+
+        const handleExport = (type) => {
+            if (type === 'pdf') { window.print(); return; }
+            alert('A exportação em Excel para Radar AD ainda será implementada no backend.');
+        };
+
+        const Pagination = () => (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '0 0 12px 12px', flexWrap: 'wrap', gap: '10px', marginTop: '-10px' }}>
+                <span style={{ color: '#858796', fontSize: '0.85rem' }}>Página {page} de {totalPages} — {totalCount.toLocaleString('pt-BR')} registros</span>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <button onClick={() => setPage(1)} disabled={page === 1} style={{ padding: '4px 8px', background: page === 1 ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}>⏮</button>
+                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '4px 10px', background: page === 1 ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}>◀</button>
+                    <span style={{ padding: '4px 14px', background: 'rgba(78,115,223,0.3)', border: '1px solid rgba(78,115,223,0.5)', color: 'white', borderRadius: '4px', minWidth: '80px', textAlign: 'center', fontSize: '0.85rem' }}>{page} / {totalPages}</span>
+                    <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: '4px 10px', background: page === totalPages ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1 }}>▶</button>
+                    <button onClick={() => setPage(totalPages)} disabled={page === totalPages} style={{ padding: '4px 8px', background: page === totalPages ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1 }}>⏭</button>
+                </div>
+            </div>
         );
 
         return (
@@ -776,7 +804,7 @@
                                 if (t === 'Contas Inativas') count = inactiveUsers.length;
 
                                 return (
-                                    <button key={t} className={`tab-btn ${activeTab === t ? 'active' : ''}`} onClick={() => setActiveTab(t)}>
+                                    <button key={t} className={`tab-btn ${activeTab === t ? 'active' : ''}`} onClick={() => { setActiveTab(t); setPage(1); }}>
                                         {t} <span className="tab-count">{count}</span>
                                     </button>
                                 )
@@ -786,11 +814,16 @@
                         {/* TAB: RISCOS (GRAFO BFS) */}
                         {activeTab === 'Riscos' && (
                             <div>
-                                <div className="toolbar">
-                                    <input className="input" placeholder="Buscar Caminho (Ex: Domain Admins)..." value={searchQ} onChange={e => setSearchQ(e.target.value)} />
+                                <div className="toolbar" style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '15px 20px', borderRadius: '12px 12px 0 0', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#858796', letterSpacing: '0.05em', marginRight: '5px' }}>FILTROS:</span>
+                                    <input className="input" placeholder="Buscar Caminho (Ex: Domain Admins)..." value={searchQ} onChange={e => { setSearchQ(e.target.value); setPage(1); }} style={{ maxWidth: '300px' }} />
+                                    <div style={{ flexGrow: 1 }}></div>
+                                    <button className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => handleExport('pdf')}>📄 PDF</button>
+                                    <button className="btn btn-success btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => handleExport('csv')}>📊 Excel</button>
+                                    <button className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={clearFilters}>🧹 Limpar</button>
                                 </div>
-                                <div className="risk-list">
-                                    {filteredRisks.map((f, i) => {
+                                <div className="risk-list" style={{ borderRadius: '0', borderLeft: '1px solid rgba(255,255,255,0.05)', borderRight: '1px solid rgba(255,255,255,0.05)', padding: '20px', background: 'rgba(255,255,255,0.01)' }}>
+                                    {paginatedRisks.map((f, i) => {
                                         const alto = isAlto(f.impact_label);
                                         return (
                                             <div key={i} className={`risk-card ${alto ? 'risk-card-alto' : ''}`} onClick={() => setSelectedRisk(f)}>
@@ -816,8 +849,9 @@
                                             </div>
                                         )
                                     })}
-                                    {filteredRisks.length === 0 && <div style={{ color: 'var(--muted)', textAlign: 'center', padding: '30px' }}>Nenhum risco processado no critério.</div>}
+                                    {paginatedRisks.length === 0 && <div style={{ color: 'var(--muted)', textAlign: 'center', padding: '30px' }}>Nenhum risco processado no critério.</div>}
                                 </div>
+                                <Pagination />
                             </div>
                         )}
 

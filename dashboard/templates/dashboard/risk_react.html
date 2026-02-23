@@ -438,20 +438,29 @@
         const [loading, setLoading] = useState(true);
         const [showCharts, setShowCharts] = useState(true);
         const [selectedUser, setSelectedUser] = useState(null);
+        const [page, setPage] = useState(1);
+        const [totalPages, setTotalPages] = useState(1);
+        const [totalCount, setTotalCount] = useState(0);
         const [filters, setFilters] = useState({ user: '', level: '' });
 
         const fetchData = useCallback(async () => {
             try {
-                const search = new URLSearchParams(filters).toString();
+                const params = new URLSearchParams(filters);
+                params.append('page', page);
+                const search = params.toString();
+
                 const [sRes, stRes] = await Promise.all([
                     fetch(`/api/user-risk-scores/?${search}`),
                     fetch(`/api/risk-stats/?${search}`)
                 ]);
-                setScores(await sRes.json());
+                const scoresData = await sRes.json();
+                setScores(scoresData.results || scoresData);
+                setTotalCount(scoresData.count || 0);
+                setTotalPages(Math.ceil((scoresData.count || 0) / 50) || 1);
                 setStats(await stRes.json());
                 setLoading(false);
             } catch (err) { console.error(err); }
-        }, [filters]);
+        }, [filters, page]);
 
         const handleExport = (format) => {
             const search = new URLSearchParams(filters).toString();
@@ -460,7 +469,21 @@
 
         const clearFilters = () => {
             setFilters({ user: '', level: '' });
+            setPage(1);
         };
+
+        const Pagination = () => (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,0.05)', flexWrap: 'wrap', gap: '10px' }}>
+                <span style={{ color: '#858796', fontSize: '0.85rem' }}>Página {page} de {totalPages} — {totalCount.toLocaleString('pt-BR')} registros</span>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <button onClick={() => setPage(1)} disabled={page === 1} style={{ padding: '4px 8px', background: page === 1 ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}>⏮</button>
+                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '4px 10px', background: page === 1 ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}>◀</button>
+                    <span style={{ padding: '4px 14px', background: 'rgba(78,115,223,0.3)', border: '1px solid rgba(78,115,223,0.5)', color: 'white', borderRadius: '4px', minWidth: '80px', textAlign: 'center', fontSize: '0.85rem' }}>{page} / {totalPages}</span>
+                    <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: '4px 10px', background: page === totalPages ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1 }}>▶</button>
+                    <button onClick={() => setPage(totalPages)} disabled={page === totalPages} style={{ padding: '4px 8px', background: page === totalPages ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1 }}>⏭</button>
+                </div>
+            </div>
+        );
 
         useEffect(() => {
             fetchData();
@@ -571,6 +594,7 @@
                             </tbody>
                         </table>
                     </div>
+                    <Pagination />
                 </div>
 
                 {selectedUser && <RiskModal user={selectedUser} onClose={() => setSelectedUser(null)} />}

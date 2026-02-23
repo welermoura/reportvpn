@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
 from django.db.models import Sum, Count, Max, Q, Subquery, OuterRef, F, Case, When, Value, IntegerField
 from django.db import models
 from django.http import JsonResponse
@@ -21,6 +22,11 @@ from .serializers import (
     VPNLogSerializer, 
     RiskEventSerializer
 )
+
+class DashboardPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 200
 
 class VPNLogViewSet(viewsets.ModelViewSet):
     queryset = VPNLog.objects.all()
@@ -138,26 +144,25 @@ class VPNFailureViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for VPN Failures — com limite de 500 registros mais recentes"""
     serializer_class = VPNFailureSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = DashboardPagination
 
     def get_queryset(self):
-        # Limitar a 500 registros mais recentes para evitar timeout com 3.17M de registros
-        queryset = VPNFailure.objects.order_by('-timestamp')[:500]
+        # Limitar a 500 registros mais recentes (se for remover, usar paginação segura)
+        queryset = VPNFailure.objects.all().order_by('-timestamp')
         user = self.request.query_params.get('user')
         ip = self.request.query_params.get('ip')
         if user or ip:
-            # Quando filtrado, buscar sem o limit fixo mas com filtro
-            queryset = VPNFailure.objects.order_by('-timestamp')
             if user:
                 queryset = queryset.filter(user__icontains=user)
             if ip:
                 queryset = queryset.filter(source_ip__icontains=ip)
-            queryset = queryset[:500]
         return queryset
 
 class UserRiskScoreViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet para Score de Risco — serializer leve na lista, completo no detalhe"""
     serializer_class = UserRiskScoreSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = DashboardPagination
 
     def get_serializer_class(self):
         # Usa serializer completo (com events) apenas no detalhe individual

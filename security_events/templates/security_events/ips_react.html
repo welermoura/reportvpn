@@ -555,15 +555,9 @@
         const [loading, setLoading] = useState(true);
         const [showCharts, setShowCharts] = useState(true);
         const [selectedLog, setSelectedLog] = useState(null);
-
-
-        const getHealthiestToday = () => {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        };
+        const [page, setPage] = useState(1);
+        const [totalPages, setTotalPages] = useState(1);
+        const [totalCount, setTotalCount] = useState(0);
 
         const [filters, setFilters] = useState({
             search: '', severity: '', start_date: '', ordering: '-timestamp'
@@ -571,14 +565,14 @@
 
         const fetchData = useCallback(async () => {
             try {
-                // Prepare API params
                 const params = new URLSearchParams();
                 if (filters.search) params.append('search', filters.search);
                 if (filters.severity) params.append('severity', filters.severity);
                 if (filters.start_date) {
                     params.append('start_date', filters.start_date);
-                    params.append('end_date', filters.start_date); // Same day for daily view
+                    params.append('end_date', filters.start_date);
                 }
+                params.append('page', page);
 
                 const [lRes, sRes] = await Promise.all([
                     fetch(`/api/security-events/ips/?${params.toString()}`),
@@ -586,11 +580,13 @@
                 ]);
 
                 const logData = await lRes.json();
-                setLogs(logData.results || []); // Pagination
+                setLogs(logData.results || []);
+                setTotalCount(logData.count || 0);
+                setTotalPages(Math.ceil((logData.count || 0) / 50) || 1);
                 setStats(await sRes.json());
                 setLoading(false);
             } catch (err) { console.error(err); }
-        }, [filters]);
+        }, [filters, page]);
 
         useEffect(() => {
             fetchData();
@@ -607,11 +603,30 @@
             }
         };
 
-        const clearFilters = () => {
-            setFilters({
-                search: '', severity: '', start_date: '', ordering: '-timestamp'
-            });
+        const clearFilters = () => { setFilters({ search: '', severity: '', start_date: '', ordering: '-timestamp' }); setPage(1); };
+
+        const handleExport = (type) => {
+            const params = new URLSearchParams();
+            params.append('event_type', 'ips');
+            if (filters.search) params.append('search', filters.search);
+            if (filters.severity) params.append('severity', filters.severity);
+            if (filters.start_date) { params.append('start_date', filters.start_date); params.append('end_date', filters.start_date); }
+            const url = type === 'pdf' ? '/security/export/pdf/' : '/security/export/csv/';
+            window.location.href = `${url}?${params.toString()}`;
         };
+
+        const Pagination = () => (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,0.05)', flexWrap: 'wrap', gap: '10px' }}>
+                <span style={{ color: '#858796', fontSize: '0.85rem' }}>Página {page} de {totalPages} — {totalCount.toLocaleString('pt-BR')} registros</span>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <button onClick={() => setPage(1)} disabled={page === 1} style={{ padding: '4px 8px', background: page === 1 ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}>⏮</button>
+                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '4px 10px', background: page === 1 ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}>◀</button>
+                    <span style={{ padding: '4px 14px', background: 'rgba(78,115,223,0.3)', border: '1px solid rgba(78,115,223,0.5)', color: 'white', borderRadius: '4px', minWidth: '80px', textAlign: 'center', fontSize: '0.85rem' }}>{page} / {totalPages}</span>
+                    <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: '4px 10px', background: page === totalPages ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1 }}>▶</button>
+                    <button onClick={() => setPage(totalPages)} disabled={page === totalPages} style={{ padding: '4px 8px', background: page === totalPages ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1 }}>⏭</button>
+                </div>
+            </div>
+        );
 
         return (
             <div style={{ padding: '0px' }}>
@@ -684,8 +699,8 @@
 
                         <div style={{ flexGrow: 1 }}></div>
 
-                        <button className="btn btn-primary btn-sm" onClick={() => { }}>📄 PDF</button>
-                        <button className="btn btn-success btn-sm" onClick={() => { }}>📊 Excel</button>
+                        <button className="btn btn-primary btn-sm" onClick={() => handleExport('pdf')}>📄 PDF</button>
+                        <button className="btn btn-success btn-sm" onClick={() => handleExport('csv')}>📊 Excel</button>
                         <button className="btn btn-secondary btn-sm" onClick={clearFilters}>🧹 Limpar</button>
                     </div>
 

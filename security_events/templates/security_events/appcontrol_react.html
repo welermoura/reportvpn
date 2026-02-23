@@ -403,6 +403,7 @@
         const [loading, setLoading] = useState(true);
         const [page, setPage] = useState(1);
         const [totalPages, setTotalPages] = useState(1);
+        const [totalCount, setTotalCount] = useState(0);
         const [showCharts, setShowCharts] = useState(true);
         const [selectedEvent, setSelectedEvent] = useState(null);
 
@@ -453,7 +454,8 @@
 
                 const eventsData = await eventsRes.json();
                 setEvents(eventsData.results || []);
-                setTotalPages(Math.ceil((eventsData.count || 0) / 50));
+                setTotalCount(eventsData.count || 0);
+                setTotalPages(Math.ceil((eventsData.count || 0) / 50) || 1);
 
                 if (statsRes.ok) setStats(await statsRes.json());
             } catch (err) {
@@ -475,6 +477,26 @@
             });
             setPage(1);
         };
+
+        const handleExport = (type) => {
+            if (type === 'pdf') { window.print(); return; }
+            const activeFilters = Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''));
+            const params = new URLSearchParams(activeFilters);
+            window.open(`/api/security-events/app-control/?${params.toString()}&format=csv`, '_blank');
+        };
+
+        const Pagination = () => (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,0.05)', flexWrap: 'wrap', gap: '10px' }}>
+                <span style={{ color: '#858796', fontSize: '0.85rem' }}>Página {page} de {totalPages} — {totalCount.toLocaleString('pt-BR')} registros</span>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <button onClick={() => setPage(1)} disabled={page === 1} style={{ padding: '4px 8px', background: page === 1 ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}>⏮</button>
+                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: '4px 10px', background: page === 1 ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}>◀</button>
+                    <span style={{ padding: '4px 14px', background: 'rgba(78,115,223,0.3)', border: '1px solid rgba(78,115,223,0.5)', color: 'white', borderRadius: '4px', minWidth: '80px', textAlign: 'center', fontSize: '0.85rem' }}>{page} / {totalPages}</span>
+                    <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: '4px 10px', background: page === totalPages ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1 }}>▶</button>
+                    <button onClick={() => setPage(totalPages)} disabled={page === totalPages} style={{ padding: '4px 8px', background: page === totalPages ? 'rgba(255,255,255,0.05)' : 'rgba(78,115,223,0.2)', border: '1px solid rgba(78,115,223,0.4)', color: 'white', borderRadius: '4px', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1 }}>⏭</button>
+                </div>
+            </div>
+        );
 
         return (
             <div style={{ padding: '0px' }}>
@@ -535,9 +557,9 @@
 
                         <div style={{ flexGrow: 1 }}></div>
 
-                        <button className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={clearFilters}>
-                            🧹 Limpar
-                        </button>
+                        <button className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => handleExport('pdf')}>📄 PDF</button>
+                        <button className="btn btn-success btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => handleExport('csv')}>📊 Excel</button>
+                        <button className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={clearFilters}>🧹 Limpar</button>
                     </div>
 
                     <div style={{ padding: '0 15px 15px 15px', overflowX: 'auto' }}>
@@ -612,24 +634,15 @@
                         </table>
                     </div>
 
-                    {/* Pagination */}
-                    <div style={{ padding: '15px', borderTop: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ color: '#858796', fontSize: '0.9rem' }}>
-                            Página {page} de {totalPages}
-                        </div>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <button className="btn btn-secondary btn-sm" onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1}>
-                                <i className="fas fa-chevron-left"></i>
-                            </button>
-                            <button className="btn btn-secondary btn-sm" onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages}>
-                                <i className="fas fa-chevron-right"></i>
-                            </button>
-                        </div>
+                        </table>
                     </div>
-                </div>
 
-                {selectedEvent && <AppControlDetailsModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />}
-            </div>
+                    <Pagination />
+                </div >
+
+            { selectedEvent && <AppControlDetailsModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+    }
+            </div >
         );
     }
 
