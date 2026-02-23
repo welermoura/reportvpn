@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'integrations.apps.IntegrationsConfig',
     'vpn_logs.apps.VpnLogsConfig',
     'dashboard.apps.DashboardConfig',
+    'log_receiver.apps.LogReceiverConfig',
 ]
 
 MIDDLEWARE = [
