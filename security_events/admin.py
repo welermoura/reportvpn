@@ -1,6 +1,6 @@
 """Security Events Admin"""
 from django.contrib import admin
-from .models import SecurityEvent
+from .models import SecurityEvent, ADAuthEvent
 
 
 @admin.register(SecurityEvent)
@@ -38,3 +38,11 @@ class SecurityEventAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+@admin.register(ADAuthEvent)
+class ADAuthEventAdmin(admin.ModelAdmin):
+    list_display = ('timestamp', 'username', 'status', 'workstation', 'src_ip', 'event_id')
+    list_filter = ('status', 'event_id')
+    search_fields = ('username', 'workstation', 'src_ip', 'message')
+    date_hierarchy = 'timestamp'
+    readonly_fields = ('created_at',)

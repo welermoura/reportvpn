@@ -1,7 +1,7 @@
 from urllib.parse import unquote
 import json
 from rest_framework import serializers
-from security_events.models import SecurityEvent
+from security_events.models import SecurityEvent, ADAuthEvent
 
 
 class SecurityEventSerializer(serializers.ModelSerializer):
@@ -22,6 +22,7 @@ class SecurityEventSerializer(serializers.ModelSerializer):
             'attack_name', 'attack_id', 'ad_display_name', 'ad_title', 'user_department',
             'cve',
             'virus_name', 'file_name', 'file_hash',
+            'app_name', 'app_category', 'app_risk', 'bytes_in', 'bytes_out',
             'details'
         ]
     
@@ -29,7 +30,7 @@ class SecurityEventSerializer(serializers.ModelSerializer):
         """Return user-friendly action display"""
         if obj.action in ['block', 'blocked']:
             return 'Bloqueado'
-        elif obj.action == 'passthrough':
+        elif obj.action in ['passthrough', 'pass']:
             return 'Permitido'
         return obj.action or 'N/A'
 
@@ -82,3 +83,50 @@ class SecurityEventSerializer(serializers.ModelSerializer):
             })
             
         return details
+
+
+class ADAuthEventSerializer(serializers.ModelSerializer):
+    """Serializer for ADAuthEvent model"""
+    
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    
+    class Meta:
+        model = ADAuthEvent
+        fields = [
+            'id', 'username', 'workstation', 'src_ip', 'status', 'status_display',
+            'event_id', 'message', 'ad_department', 'ad_title', 'ad_display_name',
+            'timestamp', 'created_at'
+        ]
+
+# =========================================================
+# RADAR AD (Postura Ldap)
+# =========================================================
+
+from security_events.models import ADUser, ADGroup, ADRiskSnapshot, ADMemberOf
+
+class ADGroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ADGroup
+        fields = ['id', 'cn', 'sid', 'is_privileged', 'weight', 'last_seen']
+
+class ADUserSerializer(serializers.ModelSerializer):
+    groups = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ADUser
+        fields = [
+            'id', 'username', 'sid', 'display_name', 'department', 'title',
+            'last_logon', 'pwd_last_set', 'is_inactive', 'is_disabled', 
+            'is_privileged', 'last_seen', 'groups'
+        ]
+
+    def get_groups(self, obj):
+        memberships = obj.group_memberships.all()
+        return [m.group.cn for m in memberships if m.group]
+
+
+class ADRiskSnapshotSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ADRiskSnapshot
+        fields = '__all__'
+
