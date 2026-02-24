@@ -398,13 +398,17 @@ def _process_system_alert(parsed_data, source_ip):
         msg_val = parsed_data.get('msg', '')
         if not interface and msg_val:
             import re
-            # Padrão 1: Prefixo explícito (interface/intf/monitor/member)
-            intf_match = re.search(r'(?:interface|intf|monitor|member|port):\s*([a-zA-Z0-9_\-\.]+)', msg_val, re.I)
+            # Padrão 1: Prefixo explícito (interface/intf/monitor/member/port)
+            # Captura formatos complexos como "Lan_Gremio (internal2)" ou "internal3(Absolutatelecom)"
+            intf_match = re.search(r'(?:interface|intf|monitor|member|port):\s*([^,;"]+)', msg_val, re.I)
             if intf_match:
                 interface = intf_match.group(1).strip()
+                # Limpa IDs chatos como "Lan_Gremio;600" -> "Lan_Gremio"
+                if ';' in interface:
+                    interface = interface.split(';')[0].strip()
             else:
-                # Padrão 2: Nome seguido de status (ex: "wan1 status is down" ou "internal3 is down")
-                intf_match = re.search(r'\s([a-zA-Z0-9_\-\.]{2,})\s+(?:status|is|may|changed)', msg_val, re.I)
+                # Padrão 2: Nome seguido de status
+                intf_match = re.search(r'\s([a-zA-Z0-9_\-\.\s\(\)]+?)\s+(?:status|is|may|changed)', msg_val, re.I)
                 if intf_match:
                     interface = intf_match.group(1).strip()
 
@@ -418,13 +422,11 @@ def _process_system_alert(parsed_data, source_ip):
         # Tenta pegar a mensagem mais descritiva possível
         desc = parsed_data.get('msg') or parsed_data.get('logdesc') or "Mudança de estado no link"
         
-        # Se temos o nome da interface mas ele NÃO está no texto da mensagem, vamos adicioná-lo
+        # Formata o alerta final
         if interface:
             interface_clean = str(interface).strip()
-            if interface_clean.lower() not in desc.lower():
-                alert = f"{prefix} ({interface_clean}): {desc}"
-            else:
-                alert = f"{prefix}: {desc}"
+            # Se a interface já tem parênteses ou é composta, usamos ela direto
+            alert = f"{prefix} ({interface_clean}): {desc}"
         else:
             alert = f"{prefix}: {desc}"
 
