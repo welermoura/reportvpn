@@ -293,11 +293,11 @@
         return (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px', marginBottom: '30px' }}>
                 <div className="chart-box" style={{ height: '400px' }}>
-                    <div className="chart-title">Top 20 Categorias Bloqueadas</div>
+                    <div className="chart-title">Top 10 Categorias Bloqueadas</div>
                     <div style={{ height: '340px' }}><canvas ref={catRef}></canvas></div>
                 </div>
                 <div className="chart-box" style={{ height: '400px' }}>
-                    <div className="chart-title">Top 20 Sites Bloqueados</div>
+                    <div className="chart-title">Top 10 Sites Bloqueados</div>
                     <div style={{ height: '340px' }}><canvas ref={siteRef}></canvas></div>
                 </div>
             </div>
@@ -444,7 +444,7 @@
         };
 
         const [filters, setFilters] = useState({
-            username: '', category: '', action: '', department: '', url: '',
+            username: '', category: '', action: '', department: '', url: '', src_ip: '',
             start_date: getTodayDate(), end_date: getTodayDate()
         });
 
@@ -502,7 +502,7 @@
 
         const clearFilters = () => {
             setFilters({
-                username: '', category: '', action: '', department: '', url: '',
+                username: '', category: '', action: '', department: '', url: '', src_ip: '',
                 start_date: getTodayDate(), end_date: getTodayDate()
             });
             setPage(1);
@@ -570,6 +570,11 @@
                         <input
                             type="text" className="filter-input" placeholder="Site / URL..."
                             value={filters.url} onChange={(e) => handleFilterChange('url', e.target.value)}
+                        />
+                        <input
+                            type="text" className="filter-input" placeholder="IP de Origem..."
+                            value={filters.src_ip} onChange={(e) => handleFilterChange('src_ip', e.target.value)}
+                            style={{ maxWidth: '160px' }}
                         />
                         <select
                             className="filter-input" style={{ width: '180px' }}

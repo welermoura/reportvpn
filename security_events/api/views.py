@@ -69,6 +69,10 @@ class WebFilterViewSet(viewsets.ReadOnlyModelViewSet):
         if department_q:
             queryset = queryset.filter(user_department__icontains=department_q)
 
+        src_ip_q = self.request.query_params.get('src_ip', None)
+        if src_ip_q:
+            queryset = queryset.filter(src_ip__icontains=src_ip_q)
+
         # Date filtering
         start_date = self.request.query_params.get('start_date', None)
         end_date = self.request.query_params.get('end_date', None)
@@ -96,7 +100,7 @@ class WebFilterViewSet(viewsets.ReadOnlyModelViewSet):
             action__in=['block', 'blocked']
         ).values('category').annotate(
             count=Count('id')
-        ).order_by('-count')[:20]
+        ).order_by('-count')[:10]
         
         # Top Sites (Blocked)
         # Extract domain from URL or use as is if simple
@@ -104,7 +108,7 @@ class WebFilterViewSet(viewsets.ReadOnlyModelViewSet):
             action__in=['block', 'blocked']
         ).values('url').annotate(
             count=Count('id')
-        ).order_by('-count')[:20]
+        ).order_by('-count')[:10]
         
         return Response({
             'total_events': total_events,
@@ -291,7 +295,7 @@ class AppControlViewSet(viewsets.ReadOnlyModelViewSet):
         # Top Apps
         top_apps = queryset.exclude(app_name='').values('app_name').annotate(
              count=Count('id')
-        ).order_by('-count')[:20]
+        ).order_by('-count')[:10]
 
         # Top Users
         top_users = queryset.exclude(username='').values('username').annotate(
@@ -301,7 +305,7 @@ class AppControlViewSet(viewsets.ReadOnlyModelViewSet):
         # Top Categories
         top_categories = queryset.exclude(app_category='').values('app_category').annotate(
             count=Count('id')
-        ).order_by('-count')[:20]
+        ).order_by('-count')[:10]
 
         return Response({
             'total_events': total_events,
