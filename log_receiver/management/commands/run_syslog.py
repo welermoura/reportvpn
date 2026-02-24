@@ -391,20 +391,20 @@ def _process_system_alert(parsed_data, source_ip):
         logger.info(f"ALERTA DETECTADO (LINK NOVO): context={is_health_context} fail={is_failure} recov={is_recovery} status={status_val}")
         
         # Tenta pegar a interface (campo comum em logs de rede)
-        interface = parsed_data.get('interface') or parsed_data.get('intf') or parsed_data.get('member')
+        interface = parsed_data.get('interface') or parsed_data.get('intf') or \
+                    parsed_data.get('member') or parsed_data.get('devname_vdom')
         
         # Se não achou em campo dedicado, tenta extrair da mensagem (ex: "Link Monitor: wan2 status is down")
         msg_val = parsed_data.get('msg', '')
         if not interface and msg_val:
             import re
-            # Procura por padrões complexos de interface (ex: "ADSL-WJ;600 (internal3)" ou "wan2")
-            # Tenta pegar o que está antes do parêntese ou o nome simples
-            intf_match = re.search(r'(interface|intf|monitor):\s*([^,;]+(?:;[^,;\s]+)?)', msg_val, re.I)
+            # Padrão 1: Prefixo explícito (interface/intf/monitor/member)
+            intf_match = re.search(r'(?:interface|intf|monitor|member|port):\s*([a-zA-Z0-9_\-\.]+)', msg_val, re.I)
             if intf_match:
-                interface = intf_match.group(2).strip()
+                interface = intf_match.group(1).strip()
             else:
-                # Tenta pegar qualquer palavra que siga padrões comuns de interface se não achou com o prefixo
-                intf_match = re.search(r'\s([a-zA-Z0-9_\-]+(?:;[a-zA-Z0-9_\-]+)?)\s+(?:status|is|may)', msg_val, re.I)
+                # Padrão 2: Nome seguido de status (ex: "wan1 status is down" ou "internal3 is down")
+                intf_match = re.search(r'\s([a-zA-Z0-9_\-\.]{2,})\s+(?:status|is|may|changed)', msg_val, re.I)
                 if intf_match:
                     interface = intf_match.group(1).strip()
 
