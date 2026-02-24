@@ -14,23 +14,23 @@ logger = logging.getLogger(__name__)
 #  Filas e configurações globais
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Fila principal: raw (ip, data_str) — recepção ultra-rápida
-_raw_queue = queue.Queue(maxsize=20000)
+# Fila principal: raw (ip, data_str) — Aumentada para 200k
+_raw_queue = queue.Queue(maxsize=200000)
 
 # Fila de dispositivos (baixo volume pós-throttle)
-_device_queue = queue.Queue(maxsize=500)
+_device_queue = queue.Queue(maxsize=2000)
 
 # Throttle: 1 update/min por device_id
 _device_last_seen: dict = {}
 _device_throttle_lock = threading.Lock()
 DEVICE_THROTTLE_SECONDS = 60
 
-# Número de workers de processamento
-NUM_WORKERS = 8
+# Número de workers de processamento (Aumentado para 16)
+NUM_WORKERS = 16
 
 # Tamanho do batch para bulk_create de SecurityEvents
-BATCH_SIZE = 50
-BATCH_FLUSH_INTERVAL = 2.0  # segundos máximo antes de flush mesmo sem completar o batch
+BATCH_SIZE = 100
+BATCH_FLUSH_INTERVAL = 1.0  # Flush mais agressivo
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -82,7 +82,9 @@ def _log_processor_worker(worker_id: int):
         if not batch_buffer:
             return
         try:
-            db.connections.close_all()
+            # SÓ fecha se o banco reclamar ou periodicamente (menos agressivo que close_all literal)
+            # db.connections.close_all() 
+            
             # MSSQL não suporta ignore_conflicts — deduplica via query prévia
             ids_no_batch = [obj.event_id for obj in batch_buffer]
             ja_existentes = set(
@@ -92,9 +94,10 @@ def _log_processor_worker(worker_id: int):
             novos = [obj for obj in batch_buffer if obj.event_id not in ja_existentes]
             if novos:
                 SecurityEvent.objects.bulk_create(novos)
-                logger.debug(f"[W{worker_id}] bulk_create: {len(novos)} novos | {len(batch_buffer)-len(novos)} ignorados")
+                # logger.debug(f"[W{worker_id}] bulk_create: {len(novos)}")
         except Exception as e:
             logger.error(f"[W{worker_id}] bulk_create failed: {e}")
+            db.connections.close_all() # Fecha aqui se deu erro
             # Fallback: salva um a um
             for obj in batch_buffer:
                 try:
