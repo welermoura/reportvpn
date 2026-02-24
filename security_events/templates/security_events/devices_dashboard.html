@@ -290,6 +290,27 @@
                                 </div>
                             </div>
                         </div>
+
+                        {/* Alerta de Sistema */}
+                        {device.alert_message && (
+                            <div style={{
+                                background: 'rgba(231,74,59,0.12)',
+                                border: '1px solid rgba(231,74,59,0.3)',
+                                borderRadius: '8px',
+                                padding: '12px 16px',
+                                margin: '20px 0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '14px'
+                            }}>
+                                <i className="fa-solid fa-triangle-exclamation" style={{ color: '#e74a3b', fontSize: '1.2rem' }}></i>
+                                <div>
+                                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#e74a3b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 2 }}>Alerta de Sistema</div>
+                                    <div style={{ fontSize: '0.9rem', color: 'white', fontWeight: 500 }}>{device.alert_message}</div>
+                                    <div style={{ fontSize: '0.72rem', color: '#858796', marginTop: 4 }}>Detectado em: {new Date(device.alert_time).toLocaleString('pt-BR')}</div>
+                                </div>
+                            </div>
+                        )}
                         <button onClick={onClose} style={{
                             background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)',
                             color: '#858796', borderRadius: '8px', padding: '6px 12px', cursor: 'pointer', fontSize: '1rem'
@@ -450,8 +471,15 @@
                                     <div className="device-icon" style={{ background: device.is_authorized ? 'linear-gradient(135deg,rgba(78,115,223,0.2),rgba(54,185,204,0.1))' : 'linear-gradient(135deg,rgba(231,74,59,0.2),rgba(246,194,62,0.1))', border: `1px solid ${device.is_authorized ? 'rgba(78,115,223,0.3)' : 'rgba(231,74,59,0.3)'}` }}>
                                         <i className={`fa-solid ${device.is_authorized ? 'fa-shield-halved' : 'fa-triangle-exclamation'}`} style={{ fontSize: '1.3rem', color: device.is_authorized ? '#4e73df' : '#e74a3b' }}></i>
                                     </div>
-                                    <div style={{ fontWeight: 700, fontSize: '1rem', color: 'white', marginBottom: 4 }}>
-                                        {device.hostname || device.device_id}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                        <div style={{ fontWeight: 700, fontSize: '1rem', color: 'white', marginBottom: 4 }}>
+                                            {device.hostname || device.device_id}
+                                        </div>
+                                        {device.alert_message && (
+                                            <div title={device.alert_message} style={{ color: '#e74a3b', fontSize: '0.9rem', animation: 'pulse 1.5s infinite' }}>
+                                                <i className="fa-solid fa-triangle-exclamation"></i>
+                                            </div>
+                                        )}
                                     </div>
                                     <div style={{ fontSize: '0.78rem', color: '#858796', fontFamily: 'monospace', marginBottom: 12 }}>
                                         {device.device_id}

@@ -157,6 +157,10 @@ def _log_processor_worker(worker_id: int):
                     if se:
                         batch_buffer.append(se)
 
+                # --- System Alerts ---
+                elif log_type == 'event' and (subtype in ['system', 'link']):
+                    _process_system_alert(parsed)
+
             except Exception as e:
                 logger.error(f"[W{worker_id}] parse error from {ip}: {e}")
             finally:
@@ -327,6 +331,35 @@ def _save_vpn_log(parsed_data):
             if vpn_log.start_time:
                 vpn_log.duration = int((ts - vpn_log.start_time).total_seconds())
             vpn_log.save()
+
+
+def _process_system_alert(parsed_data):
+    """Detecta alertas críticos de sistema (CPU, Memória, Link) e atualiza o KnownDevice."""
+    devid = parsed_data.get('devid')
+    if not devid:
+        return
+
+    msg = parsed_data.get('msg', '').lower()
+    alert = None
+
+    # Lógica de detecção de strings comuns de alarmes Fortigate
+    if 'cpu' in msg and ('limit' in msg or 'high' in msg or 'exhaustion' in msg):
+        alert = f"CPU Alta: {parsed_data.get('msg')}"
+    elif 'mem' in msg and ('limit' in msg or 'high' in msg or 'exhaustion' in msg):
+        alert = f"Memória Alta: {parsed_data.get('msg')}"
+    elif 'conserve' in msg:
+        alert = f"Conserve Mode: {parsed_data.get('msg')}"
+    elif 'link' in msg and ('down' in msg or 'fail' in msg or 'alarm' in msg):
+        alert = f"Link Down/Alarm: {parsed_data.get('msg')}"
+
+    if alert:
+        from integrations.models import KnownDevice
+        from django.utils import timezone
+        # Atualiza diretamente via queryset para ser atômico e rápido
+        KnownDevice.objects.filter(device_id=devid).update(
+            last_alert_message=alert,
+            last_alert_time=timezone.now()
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -644,6 +644,7 @@ def devices_api(request):
         .filter(timestamp__gte=since_24h)
         .values('src_ip', 'event_type')
         .annotate(total=Count('id'))
+        .order_by()
     )
     # Mapeia: {ip: {event_type: count}}
     se_map: dict = {}
@@ -659,6 +660,7 @@ def devices_api(request):
         .filter(start_time__gte=since_24h)
         .values('source_ip')
         .annotate(total=Count('id'))
+        .order_by()
     )
     vpn_map = {r['source_ip']: r['total'] for r in vpn_counts}
 
@@ -674,6 +676,8 @@ def devices_api(request):
             'device_type':  dev.device_type,
             'last_seen':    dev.last_seen.isoformat() if dev.last_seen else None,
             'is_authorized': dev.is_authorized,
+            'alert_message': dev.last_alert_message,
+            'alert_time':    dev.last_alert_time.isoformat() if dev.last_alert_time else None,
             'log_counts': {
                 'vpn':        vpn_map.get(ip, 0),
                 'ips':        se.get('ips', 0),

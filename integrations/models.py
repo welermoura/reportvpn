@@ -110,6 +110,8 @@ class KnownDevice(models.Model):
     device_type = models.CharField(max_length=50, default="fortigate", help_text="Fabricante/Tipo detectado")
     last_seen = models.DateTimeField(auto_now=True)
     is_authorized = models.BooleanField(default=True, help_text="Indica se este dispositivo é uma fonte confiável")
+    last_alert_message = models.CharField(max_length=500, blank=True, null=True, help_text="Último alerta de sistema (CPU/Memória/Link)")
+    last_alert_time = models.DateTimeField(blank=True, null=True)
     
     def __str__(self):
         return f"{self.hostname or self.device_id} ({self.ip_address})"
