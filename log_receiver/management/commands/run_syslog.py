@@ -320,10 +320,25 @@ def _save_vpn_log(parsed_data):
 
     if action in ['tunnel-up', 'ssl-new-session']:
         if not VPNLog.objects.filter(session_id=session_id).exists():
+            # Enriquecimento AD
+            ad_info = {}
+            if username and username not in ['unknown', 'N/A']:
+                try:
+                    from integrations.ad import ActiveDirectoryClient
+                    ad_client = ActiveDirectoryClient()
+                    clean_user = username.split('\\')[-1]
+                    ad_info = ad_client.get_user_info(clean_user) or {}
+                except Exception as e:
+                    logger.error(f"Erro ao enriquecer VPNLog com AD: {e}")
+
             VPNLog.objects.create(
                 session_id=session_id, user=username,
                 source_ip=source_ip, start_time=ts,
-                status=action, raw_data=parsed_data
+                status=action, raw_data=parsed_data,
+                ad_department=ad_info.get('department'),
+                ad_email=ad_info.get('email'),
+                ad_title=ad_info.get('title'),
+                ad_display_name=ad_info.get('display_name')
             )
     elif action in ['tunnel-down', 'ssl-exit']:
         vpn_log = VPNLog.objects.filter(session_id=session_id).first()
