@@ -277,8 +277,8 @@
                     {/* Header */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                            <div className="device-icon" style={{ width: 56, height: 56, marginBottom: 0 }}>
-                                🔒
+                            <div className="device-icon" style={{ width: 56, height: 56, marginBottom: 0, background: device.is_authorized ? 'linear-gradient(135deg,rgba(78,115,223,0.25),rgba(54,185,204,0.12))' : 'linear-gradient(135deg,rgba(231,74,59,0.25),rgba(246,194,62,0.12))', border: `1px solid ${device.is_authorized ? 'rgba(78,115,223,0.4)' : 'rgba(231,74,59,0.4)'}` }}>
+                                <i className={`fa-solid ${device.is_authorized ? 'fa-shield-halved' : 'fa-triangle-exclamation'}`} style={{ fontSize: '1.5rem', color: device.is_authorized ? '#4e73df' : '#e74a3b' }}></i>
                             </div>
                             <div>
                                 <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white' }}>
@@ -447,7 +447,9 @@
                                     className={`device-card ${!device.is_authorized ? 'unauthorized' : ''}`}
                                     onClick={() => setSelected(device)}
                                 >
-                                    <div className="device-icon">🔒</div>
+                                    <div className="device-icon" style={{ background: device.is_authorized ? 'linear-gradient(135deg,rgba(78,115,223,0.2),rgba(54,185,204,0.1))' : 'linear-gradient(135deg,rgba(231,74,59,0.2),rgba(246,194,62,0.1))', border: `1px solid ${device.is_authorized ? 'rgba(78,115,223,0.3)' : 'rgba(231,74,59,0.3)'}` }}>
+                                        <i className={`fa-solid ${device.is_authorized ? 'fa-shield-halved' : 'fa-triangle-exclamation'}`} style={{ fontSize: '1.3rem', color: device.is_authorized ? '#4e73df' : '#e74a3b' }}></i>
+                                    </div>
                                     <div style={{ fontWeight: 700, fontSize: '1rem', color: 'white', marginBottom: 4 }}>
                                         {device.hostname || device.device_id}
                                     </div>
