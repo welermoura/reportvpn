@@ -56,6 +56,16 @@
         height: 3px;
         background: linear-gradient(90deg, #4e73df, #36b9cc);
         border-radius: 12px 12px 0 0;
+        transition: all 0.3s ease;
+    }
+
+    .device-card.warning::before {
+        background: #f6c23e !important;
+    }
+
+    .device-card.critical::before {
+        background: #e74a3b !important;
+        box-shadow: 0 0 15px rgba(231, 74, 59, 0.4);
     }
 
     .device-card.unauthorized::before {
@@ -67,12 +77,43 @@
         height: 52px;
         border-radius: 12px;
         background: linear-gradient(135deg, rgba(78, 115, 223, 0.2), rgba(54, 185, 204, 0.1));
-        border: 1px solid rgba(78, 115, 223, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.08);
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 1.4rem;
         margin-bottom: 14px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .device-icon::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        /* Linha de risco no topo mais grossa */
+        background: #4e73df;
+        transition: all 0.3s ease;
+        z-index: 2;
+    }
+
+    .device-card.warning .device-icon {
+        border-color: rgba(246, 194, 62, 0.4);
+    }
+
+    .device-card.warning .device-icon::before {
+        background: #f6c23e !important;
+    }
+
+    .device-card.critical .device-icon {
+        border-color: rgba(231, 74, 59, 0.4);
+    }
+
+    .device-card.critical .device-icon::before {
+        background: #e74a3b !important;
     }
 
     .status-dot {
@@ -222,16 +263,57 @@
         background: rgba(15, 23, 42, 0.6);
         border: 1px solid rgba(255, 255, 255, 0.1);
         color: #fff;
-        padding: 8px 14px;
-        border-radius: 8px;
+        padding: 10px 16px;
+        border-radius: 10px;
         font-family: 'Inter', sans-serif;
-        font-size: 0.9rem;
+        font-size: 0.95rem;
         outline: none;
-        width: 280px;
+        width: 320px;
+        transition: all 0.3s ease;
     }
 
     .search-box:focus {
         border-color: #4e73df;
+        background: rgba(15, 23, 42, 0.8);
+        box-shadow: 0 0 0 4px rgba(78, 115, 223, 0.15);
+    }
+
+    .filter-btn {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: #858796;
+        padding: 8px 16px;
+        border-radius: 10px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .filter-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+    }
+
+    .filter-btn.active {
+        background: rgba(78, 115, 223, 0.15);
+        border-color: #4e73df;
+        color: #4e73df;
+    }
+
+    .filter-btn.active.warning {
+        background: rgba(246, 194, 62, 0.15);
+        border-color: #f6c23e;
+        color: #f6c23e;
+    }
+
+    .filter-btn.active.critical {
+        background: rgba(231, 74, 59, 0.15);
+        border-color: #e74a3b;
+        color: #e74a3b;
     }
 </style>
 
@@ -413,6 +495,7 @@
         const [loading, setLoading] = useState(true);
         const [selected, setSelected] = useState(null);
         const [search, setSearch] = useState('');
+        const [statusFilter, setStatusFilter] = useState('total'); // total, alert, critical, healthy
 
         const fetchData = useCallback(async () => {
             try {
@@ -432,15 +515,20 @@
             return () => clearInterval(t);
         }, []);
 
-        const filtered = devices.filter(d =>
-            (d.hostname || '').toLowerCase().includes(search.toLowerCase()) ||
-            (d.device_id || '').toLowerCase().includes(search.toLowerCase()) ||
-            (d.ip_address || '').includes(search)
-        );
+        const filtered = devices.filter(d => {
+            const matchesSearch = (d.hostname || '').toLowerCase().includes(search.toLowerCase()) ||
+                (d.device_id || '').toLowerCase().includes(search.toLowerCase()) ||
+                (d.ip_address || '').includes(search);
 
-        const online = devices.filter(d => statusInfo(d.last_seen).cls === 'online').length;
-        const recent = devices.filter(d => statusInfo(d.last_seen).cls === 'recent').length;
-        const offline = devices.filter(d => statusInfo(d.last_seen).cls === 'offline').length;
+            if (statusFilter === 'alert') return matchesSearch && d.health_score === 1;
+            if (statusFilter === 'critical') return matchesSearch && d.health_score === 2;
+            if (statusFilter === 'healthy') return matchesSearch && d.health_score === 0;
+            return matchesSearch;
+        });
+
+        const alertCount = devices.filter(d => d.health_score === 1).length;
+        const criticalCount = devices.filter(d => d.health_score === 2).length;
+        const healthyCount = devices.filter(d => d.health_score === 0).length;
 
         return (
             <div style={{ padding: '0', fontFamily: "'Inter', sans-serif" }}>
@@ -458,12 +546,16 @@
                 {/* KPI Cards */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '24px' }}>
                     {[
-                        { label: 'Total de Devices', value: devices.length, color: '#4e73df', icon: '📡' },
-                        { label: 'Ativos (< 5 min)', value: online, color: '#1cc88a', icon: '🟢' },
-                        { label: 'Recentes (< 1h)', value: recent, color: '#f6c23e', icon: '🟡' },
-                        { label: 'Inativos', value: offline, color: '#858796', icon: '⚫' },
+                        { key: 'total', label: 'Total de Devices', value: devices.length, color: '#4e73df', icon: '📡' },
+                        { key: 'healthy', label: 'Saudáveis', value: healthyCount, color: '#1cc88a', icon: '🟢' },
+                        { key: 'alert', label: 'Alertas', value: alertCount, color: '#f6c23e', icon: '🟡', cls: 'warning' },
+                        { key: 'critical', label: 'Críticos', value: criticalCount, color: '#e74a3b', icon: '🔴', cls: 'critical' },
                     ].map((kpi, i) => (
-                        <div key={i} className="premium-card" style={{ padding: '20px 24px' }}>
+                        <div key={i}
+                            className={`premium-card filter-btn ${statusFilter === kpi.key ? 'active ' + (kpi.cls || '') : ''}`}
+                            style={{ padding: '20px 24px', cursor: 'pointer', textAlign: 'left', display: 'block' }}
+                            onClick={() => setStatusFilter(kpi.key)}
+                        >
                             <div style={{ fontSize: '0.8rem', color: '#858796', marginBottom: 6 }}>{kpi.icon} {kpi.label}</div>
                             <div style={{ fontSize: '2rem', fontWeight: 700, color: kpi.color }}>{kpi.value}</div>
                         </div>
@@ -492,13 +584,22 @@
                         {filtered.map(device => {
                             const st = statusInfo(device.last_seen);
                             const totalLogs = LOG_TYPES.reduce((s, t) => s + (device.log_counts?.[t.key] || 0), 0);
+                            const hCls = device.health_score === 2 ? 'critical' : (device.health_score === 1 ? 'warning' : '');
+
                             return (
                                 <div key={device.device_id}
-                                    className={`device-card ${!device.is_authorized ? 'unauthorized' : ''}`}
+                                    className={`device-card ${hCls} ${!device.is_authorized ? 'unauthorized' : ''}`}
                                     onClick={() => setSelected(device)}
                                 >
-                                    <div className="device-icon" style={{ background: device.is_authorized ? 'linear-gradient(135deg,rgba(78,115,223,0.2),rgba(54,185,204,0.1))' : 'linear-gradient(135deg,rgba(231,74,59,0.2),rgba(246,194,62,0.1))', border: `1px solid ${device.is_authorized ? 'rgba(78,115,223,0.3)' : 'rgba(231,74,59,0.3)'}` }}>
-                                        <i className={`fa-solid ${device.is_authorized ? 'fa-shield-halved' : 'fa-triangle-exclamation'}`} style={{ fontSize: '1.3rem', color: device.is_authorized ? '#4e73df' : '#e74a3b' }}></i>
+                                    <div className="device-icon" style={{
+                                        background: device.health_score === 2 ? 'linear-gradient(135deg,rgba(231,74,59,0.2),rgba(239,68,68,0.1))' :
+                                            (device.health_score === 1 ? 'linear-gradient(135deg,rgba(246,194,62,0.2),rgba(249,115,22,0.1))' :
+                                                'linear-gradient(135deg,rgba(78,115,223,0.2),rgba(54,185,204,0.1))'),
+                                        border: `1px solid ${device.health_score === 2 ? 'rgba(231,74,59,0.4)' : (device.health_score === 1 ? 'rgba(246,194,62,0.4)' : 'rgba(78,115,223,0.3)')}`
+                                    }}>
+                                        <i className={`fa-solid ${device.health_score === 2 ? 'fa-biohazard' : (device.health_score === 1 ? 'fa-triangle-exclamation' : (device.is_authorized ? 'fa-shield-halved' : 'fa-triangle-exclamation'))}`}
+                                            style={{ fontSize: '1.3rem', color: device.health_score === 2 ? '#e74a3b' : (device.health_score === 1 ? '#f6c23e' : '#4e73df') }}>
+                                        </i>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                         <div style={{ fontWeight: 700, fontSize: '1rem', color: 'white', marginBottom: 4 }}>

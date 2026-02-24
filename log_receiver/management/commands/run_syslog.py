@@ -358,13 +358,46 @@ def _process_system_alert(parsed_data):
         update_fields['conserve_mode'] = True
         update_fields['memory_status'] = 'alto'
     
-    # Detecção de Link/SD-WAN (Muito mais agressiva)
-    elif any(x in raw_content for x in ['link', 'health-check', 'sla', 'sdwan', 'interface', 'wan']) and \
-         any(x in raw_content for x in ['down', 'fail', 'alarm', 'dead', 'latency', 'expired']):
+    # Detecção de Link/SD-WAN (Restrito a Health Checks)
+    # Buscamos o contexto nos campos principais para evitar falsos positivos
+    msg_and_desc = (parsed_data.get('msg', '') + " " + parsed_data.get('logdesc', '')).lower()
+    is_health_context = any(x in msg_and_desc for x in ['health-check', 'sla', 'sdwan', 'link-monitor']) or parsed_data.get('subtype') == 'sdwan'
+    is_failure = any(x in raw_content for x in ['down', 'fail', 'alarm', 'dead', 'latency', 'expired', 'removed'])
+    
+    if is_health_context and is_failure:
+        logger.info(f"ALERTA DETECTADO (LINK): msg_and_desc='{msg_and_desc}'")
         
+        # Tenta pegar a interface (campo comum em logs de rede)
+        interface = parsed_data.get('interface') or parsed_data.get('intf') or parsed_data.get('member')
+        
+        # Se não achou em campo dedicado, tenta extrair da mensagem (ex: "Link Monitor: wan2 status is down")
+        msg_val = parsed_data.get('msg', '')
+        if not interface and msg_val:
+            import re
+            # Procura por padrões complexos de interface (ex: "ADSL-WJ;600 (internal3)" ou "wan2")
+            # Tenta pegar o que está antes do parêntese ou o nome simples
+            intf_match = re.search(r'(interface|intf|monitor):\s*([^,;]+(?:;[^,;\s]+)?)', msg_val, re.I)
+            if intf_match:
+                interface = intf_match.group(2).strip()
+            else:
+                # Tenta pegar qualquer palavra que siga padrões comuns de interface se não achou com o prefixo
+                intf_match = re.search(r'\s([a-zA-Z0-9_\-]+(?:;[a-zA-Z0-9_\-]+)?)\s+(?:status|is|may)', msg_val, re.I)
+                if intf_match:
+                    interface = intf_match.group(1).strip()
+
         # Tenta pegar a mensagem mais descritiva possível
         desc = parsed_data.get('msg') or parsed_data.get('logdesc') or "Falha de conectividade detectada"
-        alert = f"Link Down/Alarm: {desc}"
+        
+        # Se temos o nome da interface mas ele NÃO está no texto da mensagem, vamos adicioná-lo
+        if interface:
+            interface_clean = str(interface).strip()
+            if interface_clean.lower() not in desc.lower():
+                alert = f"Link Down ({interface_clean}): {desc}"
+            else:
+                alert = f"Link Down: {desc}"
+        else:
+            alert = f"Link Down/Alarm: {desc}"
+            
         update_fields['link_status'] = 'alarme'
 
     if alert or update_fields:

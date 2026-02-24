@@ -684,6 +684,9 @@ def devices_api(request):
                 'link': dev.link_status,
                 'conserve': dev.conserve_mode,
             },
+            'health_score': 2 if dev.conserve_mode else (
+                1 if (dev.cpu_status == 'alto' or dev.memory_status == 'alto' or dev.link_status == 'alarme') else 0
+            ),
             'log_counts': {
                 'vpn':        vpn_map.get(ip, 0),
                 'ips':        se.get('ips', 0),
