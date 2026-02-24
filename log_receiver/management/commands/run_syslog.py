@@ -1,11 +1,45 @@
 import logging
 import socketserver
 import threading
+import queue
+import time
 from django.core.management.base import BaseCommand
 from log_receiver.parsers.fortinet import parse_fortinet_syslog
 from vpn_logs.models import VPNFailure
 
 logger = logging.getLogger(__name__)
+
+# Fila thread-safe para escrita assincrona no banco
+_device_queue = queue.Queue(maxsize=1000)
+
+def _device_db_worker():
+    """Worker de background que persiste os dispositivos detectados no banco.
+    Roda em uma thread separada para nunca bloquear a recepção UDP."""
+    from django import db
+    while True:
+        try:
+            item = _device_queue.get(timeout=5)
+            if item is None:  # Sinal de shutdown
+                break
+            devid, devname, ip = item
+            db.connections.close_all()  # Garante conexão fresca
+            from integrations.models import KnownDevice
+            from django.utils import timezone
+            try:
+                KnownDevice.objects.update_or_create(
+                    device_id=devid,
+                    defaults={'hostname': devname, 'ip_address': ip, 'last_seen': timezone.now()}
+                )
+                logger.info(f"Device registered: {devid} ({ip})")
+            except Exception as e:
+                logger.warning(f"Device save failed for {devid}: {e}")
+            finally:
+                _device_queue.task_done()
+        except queue.Empty:
+            continue
+        except Exception as e:
+            logger.error(f"Device worker error: {e}")
+            time.sleep(1)
 
 class SyslogUDPHandler(socketserver.BaseRequestHandler):
     def handle(self):
@@ -153,43 +187,14 @@ class SyslogUDPHandler(socketserver.BaseRequestHandler):
             logger.error(f"Erro ao salvar syslog secevent: {e}")
 
     def record_device(self, devid, parsed_data, ip):
-        from integrations.models import KnownDevice
-        from django.utils import timezone
-        from django import db
-        
         if not devid:
             devid = f"UNKNOWN-{ip}"
-        
         devname = parsed_data.get('devname', f"Device at {ip}")
-        
-        # Fecha conexões antigas para garantir reconexão limpa (crítico para MSSQL)
-        db.connections.close_all()
-        
+        # Enfileira para escrita assíncrona (não bloqueia a thread UDP)
         try:
-            KnownDevice.objects.update_or_create(
-                device_id=devid,
-                defaults={
-                    'hostname': devname,
-                    'ip_address': ip,
-                    'last_seen': timezone.now()
-                }
-            )
-        except Exception as e:
-            # Log o erro mas não deixa o receiver cair
-            logger.warning(f"Could not register device {devid} ({ip}): {e}")
-            # Segunda tentativa após reset
-            try:
-                db.connections.close_all()
-                KnownDevice.objects.update_or_create(
-                    device_id=devid,
-                    defaults={
-                        'hostname': devname,
-                        'ip_address': ip,
-                        'last_seen': timezone.now()
-                    }
-                )
-            except Exception as e2:
-                logger.error(f"Device registration failed permanently for {devid}: {e2}")
+            _device_queue.put_nowait((devid, devname, ip))
+        except queue.Full:
+            logger.warning("Device queue is full, skipping registration")
 
     def process_vpn_log(self, parsed_data, source_emitter):
         from vpn_logs.models import VPNLog
@@ -249,6 +254,10 @@ class Command(BaseCommand):
         HOST, PORT = "0.0.0.0", 5140
         self.stdout.write(self.style.SUCCESS(f'Iniciando Syslog Receiver Passivo em {HOST}:{PORT}/UDP...'))
         print(f"LOG: Syslog Receiver started on {HOST}:{PORT}", flush=True)
+        
+        # Inicia o worker de escrita assincrona de dispositivos
+        worker = threading.Thread(target=_device_db_worker, daemon=True)
+        worker.start()
         
         # ThreadingUDPServer prevents blocking on multiple incoming logs
         with socketserver.ThreadingUDPServer((HOST, PORT), SyslogUDPHandler) as server:
