@@ -331,6 +331,35 @@ def _save_vpn_log(parsed_data):
                 except Exception as e:
                     logger.error(f"Erro ao enriquecer VPNLog com AD: {e}")
 
+            # Enriquecimento GeoIP (Nativo do FortiGate ou Mapeamento)
+            import urllib.parse
+            rem_country = urllib.parse.unquote(str(parsed_data.get('remcountry', '') or parsed_data.get('srccountry', '')).strip())
+            rem_city = urllib.parse.unquote(str(parsed_data.get('remcity', '') or parsed_data.get('srccity', '')).strip())
+            
+            # Limpeza de campos vazios/reservados
+            country_name = rem_country if rem_country.lower() not in ['reserved', 'n/a'] else ''
+            city = rem_city if rem_city.lower() not in ['reserved', 'n/a'] else ''
+            
+            # Mapeamento de código de país básico
+            COUNTRY_MAP = {
+                'brazil': 'BR', 'united states': 'US', 'argentina': 'AR', 
+                'mexico': 'MX', 'chile': 'CL', 'colombia': 'CO', 'peru': 'PE',
+                'paraguay': 'PY', 'uruguay': 'UY', 'canada': 'CA', 'germany': 'DE',
+                'france': 'FR', 'united kingdom': 'GB', 'spain': 'ES', 'portugal': 'PT'
+            }
+            country_code = COUNTRY_MAP.get(country_name.lower(), '')
+
+            # Detecção de suspeito
+            is_suspicious = False
+            try:
+                from integrations.models import FortiAnalyzerConfig
+                fa_config = FortiAnalyzerConfig.load()
+                trusted = [c.strip().upper() for c in fa_config.trusted_countries.split(',')]
+                if country_code and country_code.upper() not in trusted:
+                    is_suspicious = True
+            except Exception:
+                pass
+
             VPNLog.objects.create(
                 session_id=session_id, user=username,
                 source_ip=source_ip, start_time=ts,
@@ -338,7 +367,11 @@ def _save_vpn_log(parsed_data):
                 ad_department=ad_info.get('department'),
                 ad_email=ad_info.get('email'),
                 ad_title=ad_info.get('title'),
-                ad_display_name=ad_info.get('display_name')
+                ad_display_name=ad_info.get('display_name'),
+                country_name=country_name,
+                country_code=country_code,
+                city=city,
+                is_suspicious=is_suspicious
             )
     elif action in ['tunnel-down', 'ssl-exit']:
         vpn_log = VPNLog.objects.filter(session_id=session_id).first()
