@@ -402,13 +402,11 @@ def _process_system_alert(parsed_data, source_ip):
         msg_val = parsed_data.get('msg', '')
         if not interface and msg_val:
             import re
-            intf_match = re.search(r'(?:interface|intf|monitor|member|port):\s*([^,;"]+)', msg_val, re.I)
+            intf_match = re.search(r'(?:interface|intf|monitor|member|port):\s*([^,"]+)', msg_val, re.I)
             if intf_match:
                 interface = intf_match.group(1).strip()
-                if ';' in interface:
-                    interface = interface.split(';')[0].strip()
             else:
-                intf_match = re.search(r'\s([a-zA-Z0-9_\-\.\s\(\)]+?)\s+(?:status|is|may|changed)', msg_val, re.I)
+                intf_match = re.search(r'\s([a-zA-Z0-9_\-\.\s\(\);]+?)\s+(?:status|is|may|changed)', msg_val, re.I)
                 if intf_match:
                     interface = intf_match.group(1).strip()
 
