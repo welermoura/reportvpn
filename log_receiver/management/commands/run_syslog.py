@@ -394,20 +394,20 @@ def _process_system_alert(parsed_data, source_ip):
         interface = parsed_data.get('interface') or parsed_data.get('intf') or \
                     parsed_data.get('member') or parsed_data.get('devname_vdom')
         
-        # Se não achou em campo dedicado, tenta extrair da mensagem (ex: "Link Monitor: wan2 status is down")
+        # Tenta pegar o nome do SLA/Health-Check como Alias
+        sla_name = parsed_data.get('health-check-name') or parsed_data.get('sla-name') or \
+                   parsed_data.get('service-name') or parsed_data.get('vlan')
+
+        # Se não achou em campo dedicado, tenta extrair da mensagem
         msg_val = parsed_data.get('msg', '')
         if not interface and msg_val:
             import re
-            # Padrão 1: Prefixo explícito (interface/intf/monitor/member/port)
-            # Captura formatos complexos como "Lan_Gremio (internal2)" ou "internal3(Absolutatelecom)"
             intf_match = re.search(r'(?:interface|intf|monitor|member|port):\s*([^,;"]+)', msg_val, re.I)
             if intf_match:
                 interface = intf_match.group(1).strip()
-                # Limpa IDs chatos como "Lan_Gremio;600" -> "Lan_Gremio"
                 if ';' in interface:
                     interface = interface.split(';')[0].strip()
             else:
-                # Padrão 2: Nome seguido de status
                 intf_match = re.search(r'\s([a-zA-Z0-9_\-\.\s\(\)]+?)\s+(?:status|is|may|changed)', msg_val, re.I)
                 if intf_match:
                     interface = intf_match.group(1).strip()
@@ -419,14 +419,15 @@ def _process_system_alert(parsed_data, source_ip):
             update_fields['link_status'] = 'normal'
             prefix = "Link UP"
 
-        # Tenta pegar a mensagem mais descritiva possível
         desc = parsed_data.get('msg') or parsed_data.get('logdesc') or "Mudança de estado no link"
         
-        # Formata o alerta final
-        if interface:
-            interface_clean = str(interface).strip()
-            # Se a interface já tem parênteses ou é composta, usamos ela direto
-            alert = f"{prefix} ({interface_clean}): {desc}"
+        # Formata o alerta final privilegiando o SLA Name se disponível
+        if sla_name and interface and str(sla_name).lower() != str(interface).lower():
+            alert = f"{prefix} {sla_name} ({interface}): {desc}"
+        elif interface:
+            alert = f"{prefix} ({interface}): {desc}"
+        elif sla_name:
+            alert = f"{prefix} ({sla_name}): {desc}"
         else:
             alert = f"{prefix}: {desc}"
 
