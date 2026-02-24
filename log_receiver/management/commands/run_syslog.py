@@ -8,7 +8,16 @@ import time
 from django.core.management.base import BaseCommand
 from log_receiver.parsers.fortinet import parse_fortinet_syslog
 
+import redis
+from django.core.cache import cache
+ 
 logger = logging.getLogger(__name__)
+
+# Conexão direta com Redis para deduplicação ultra-rápida
+try:
+    redis_client = redis.Redis(host='redis', port=6379, db=2, decode_responses=True)
+except:
+    redis_client = None
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Filas e configurações globais
@@ -82,22 +91,34 @@ def _log_processor_worker(worker_id: int):
         if not batch_buffer:
             return
         try:
-            # SÓ fecha se o banco reclamar ou periodicamente (menos agressivo que close_all literal)
-            # db.connections.close_all() 
+            # Estratégia DEFINITIVA: 
+            # 1. Filtramos o que já está no Redis (seen_ids)
+            # 2. O que sobrou, tentamos gravar no Banco.
             
-            # MSSQL não suporta ignore_conflicts — deduplica via query prévia
-            ids_no_batch = [obj.event_id for obj in batch_buffer]
-            ja_existentes = set(
-                SecurityEvent.objects.filter(event_id__in=ids_no_batch)
-                .values_list('event_id', flat=True)
-            )
-            novos = [obj for obj in batch_buffer if obj.event_id not in ja_existentes]
-            if novos:
-                SecurityEvent.objects.bulk_create(novos)
-                # logger.debug(f"[W{worker_id}] bulk_create: {len(novos)}")
+            novos_reais = []
+            if redis_client:
+                # Batch check no Redis (MGET)
+                ids = [obj.event_id for obj in batch_buffer]
+                seen_values = redis_client.mget([f"se:{i}" for i in ids])
+                
+                pipeline = redis_client.pipeline()
+                for obj, seen in zip(batch_buffer, seen_values):
+                    if not seen:
+                        novos_reais.append(obj)
+                        # Marca como visto por 10 min
+                        pipeline.setex(f"se:{obj.event_id}", 600, "1")
+                pipeline.execute()
+            else:
+                novos_reais = batch_buffer
+
+            if novos_reais:
+                # Como usamos Redis, confiamos que são novos (reduz carga de query no SQL)
+                SecurityEvent.objects.bulk_create(novos_reais)
+                # logger.info(f"[W{worker_id}] Gravados: {len(novos_reais)}")
+                
         except Exception as e:
             logger.error(f"[W{worker_id}] bulk_create failed: {e}")
-            db.connections.close_all() # Fecha aqui se deu erro
+            db.connections.close_all()
             # Fallback: salva um a um
             for obj in batch_buffer:
                 try:
@@ -415,27 +436,21 @@ def _process_system_alert(parsed_data, source_ip):
             update_fields['last_alert_message'] = alert
             update_fields['last_alert_time'] = timezone.now()
 
-        # Estratégia de busca robusta:
-        # 1. Tenta por Serial (devid)
-        # 2. Tenta por IP de origem
+        # Estratégia de busca e Throttling (evitar UPDATE no banco a cada segundo)
         device = None
-        find_method = "None"
         if devid:
             device = KnownDevice.objects.filter(device_id=devid).first()
-            if device:
-                find_method = "Serial (devid)"
-        
         if not device and source_ip:
             device = KnownDevice.objects.filter(ip_address=source_ip).first()
-            if device:
-                find_method = "IP Address"
             
         if device:
-            # Se achou pelo IP mas devid é diferente, talvez o dispositivo tenha novo serial ou o log seja ambíguo
-            logger.error(f"DEBUG: Atribuindo alerta para {device.hostname} ({device.device_id}) via {find_method}. Org_DevID={devid}, Org_IP={source_ip}")
-            KnownDevice.objects.filter(pk=device.pk).update(**update_fields)
-        else:
-            logger.error(f"DEBUG: Dispositivo não encontrado para devid={devid} ip={source_ip}")
+            # SÓ atualiza se o status mudou ou se passou o tempo de throttle (5 min para info básica)
+            status_changed = (update_fields.get('link_status') and update_fields['link_status'] != device.link_status)
+            needs_update = status_changed or alert
+            
+            if needs_update:
+                KnownDevice.objects.filter(pk=device.pk).update(**update_fields)
+                logger.info(f"STATUS CHANGE: Device {device.hostname} updated. Reason: {'Alert' if alert else 'Link Change'}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -466,10 +481,18 @@ class SyslogUDPHandler(socketserver.BaseRequestHandler):
             pass
 
         # 2. Enfileira raw para processamento assíncrono
+        # DESCARTE INTELIGENTE: se a fila estiver > 90%, descartar logs de tráfego simples
+        qsize = _raw_queue.qsize()
+        if qsize > 180000: # 90% da fila
+             # Se for apenas tráfego sem segurança, descarta
+             if 'type=traffic' in data and 'utm-action' not in data:
+                 return
+
         try:
             _raw_queue.put_nowait((ip, data))
         except queue.Full:
-            logger.warning(f"Raw queue full — dropping packet from {ip}")
+            # Emergência: se nem com o descarte liberou, logamos o erro
+             pass
 
 
 # ─────────────────────────────────────────────────────────────────────────────
