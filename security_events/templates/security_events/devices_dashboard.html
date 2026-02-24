@@ -1,0 +1,501 @@
+{% extends 'dashboard/base.html' %}
+
+{% block content %}
+<div id="devices-root"></div>
+
+<!-- React & Dependencies -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+    :root {
+        --glass-bg: rgba(25, 28, 41, 0.6);
+        --glass-border: rgba(255, 255, 255, 0.08);
+        --accent-blue: #4e73df;
+        --accent-green: #1cc88a;
+        --accent-orange: #f6c23e;
+        --accent-red: #e74a3b;
+        --text-secondary: #858796;
+    }
+
+    .premium-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(15px);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.4);
+        transition: all 0.3s ease;
+    }
+
+    .device-card {
+        background: rgba(25, 28, 41, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .device-card:hover {
+        border-color: rgba(78, 115, 223, 0.5);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 30px rgba(78, 115, 223, 0.2);
+    }
+
+    .device-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #4e73df, #36b9cc);
+        border-radius: 12px 12px 0 0;
+    }
+
+    .device-card.unauthorized::before {
+        background: linear-gradient(90deg, #e74a3b, #f6c23e);
+    }
+
+    .device-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(78, 115, 223, 0.2), rgba(54, 185, 204, 0.1));
+        border: 1px solid rgba(78, 115, 223, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        margin-bottom: 14px;
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 6px;
+    }
+
+    .status-dot.online {
+        background: #1cc88a;
+        box-shadow: 0 0 6px #1cc88a;
+    }
+
+    .status-dot.recent {
+        background: #f6c23e;
+        box-shadow: 0 0 6px #f6c23e;
+    }
+
+    .status-dot.offline {
+        background: #858796;
+    }
+
+    .badge-pill {
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 0.72rem;
+        font-weight: 600;
+    }
+
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.75);
+        backdrop-filter: blur(5px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal-box {
+        background: #1a1d2d;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 28px;
+        width: 750px;
+        max-width: 95%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    }
+
+    .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-top: 20px;
+    }
+
+    .detail-field {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        padding: 12px 14px;
+    }
+
+    .detail-field label {
+        display: block;
+        font-size: 0.72rem;
+        color: #858796;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+
+    .detail-field span {
+        font-weight: 500;
+        color: #d1d3e2;
+        font-size: 0.95rem;
+    }
+
+    .log-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
+    .log-bar-label {
+        width: 100px;
+        font-size: 0.8rem;
+        color: #858796;
+        text-align: right;
+    }
+
+    .log-bar-track {
+        flex: 1;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.07);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .log-bar-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.6s ease;
+    }
+
+    .log-bar-count {
+        min-width: 40px;
+        font-size: 0.8rem;
+        color: #858796;
+        text-align: right;
+    }
+
+    .pulse-live {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #1cc88a;
+        margin-right: 6px;
+        display: inline-block;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 1;
+            transform: scale(1)
+        }
+
+        50% {
+            opacity: 0.5;
+            transform: scale(1.3)
+        }
+    }
+
+    .search-box {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #fff;
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.9rem;
+        outline: none;
+        width: 280px;
+    }
+
+    .search-box:focus {
+        border-color: #4e73df;
+    }
+</style>
+
+<script type="text/babel">
+    {% verbatim %}
+    const { useState, useEffect, useCallback, useRef } = React;
+    const { createRoot } = ReactDOM;
+
+    const LOG_TYPES = [
+        { key: 'vpn', label: 'VPN', color: '#4e73df' },
+        { key: 'ips', label: 'IPS', color: '#e74a3b' },
+        { key: 'antivirus', label: 'Antivírus', color: '#f6c23e' },
+        { key: 'webfilter', label: 'Web Filter', color: '#36b9cc' },
+        { key: 'appcontrol', label: 'App Control', color: '#f97316' },
+    ];
+
+    function relativeTime(ts) {
+        if (!ts) return 'N/A';
+        const diff = (Date.now() - new Date(ts).getTime()) / 1000;
+        if (diff < 60) return 'agora mesmo';
+        if (diff < 3600) return `${Math.floor(diff / 60)}min atrás`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)}h atrás`;
+        return `${Math.floor(diff / 86400)}d atrás`;
+    }
+
+    function statusInfo(lastSeen) {
+        if (!lastSeen) return { cls: 'offline', label: 'Inativo' };
+        const diff = (Date.now() - new Date(lastSeen).getTime()) / 1000;
+        if (diff < 300) return { cls: 'online', label: 'Ativo' };
+        if (diff < 3600) return { cls: 'recent', label: 'Recente' };
+        return { cls: 'offline', label: 'Inativo' };
+    }
+
+    // ── Modal ───────────────────────────────────────────────────────────────
+    const DeviceModal = ({ device, onClose }) => {
+        if (!device) return null;
+        const st = statusInfo(device.last_seen);
+        const totalLogs = LOG_TYPES.reduce((s, t) => s + (device.log_counts?.[t.key] || 0), 0);
+
+        return (
+            <div className="modal-overlay" onClick={onClose}>
+                <div className="modal-box" onClick={e => e.stopPropagation()}>
+                    {/* Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <div className="device-icon" style={{ width: 56, height: 56, marginBottom: 0 }}>
+                                🔒
+                            </div>
+                            <div>
+                                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white' }}>
+                                    {device.hostname || device.device_id}
+                                </div>
+                                <div style={{ fontSize: '0.85rem', color: '#858796', marginTop: 2 }}>
+                                    <span className={`status-dot ${st.cls}`}></span>
+                                    {st.label} · {relativeTime(device.last_seen)}
+                                </div>
+                            </div>
+                        </div>
+                        <button onClick={onClose} style={{
+                            background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)',
+                            color: '#858796', borderRadius: '8px', padding: '6px 12px', cursor: 'pointer', fontSize: '1rem'
+                        }}>✕</button>
+                    </div>
+
+                    {/* Detalhes */}
+                    <div className="detail-grid">
+                        <div className="detail-field">
+                            <label>Serial / Device ID</label>
+                            <span style={{ fontFamily: 'monospace', color: '#60a5fa' }}>{device.device_id}</span>
+                        </div>
+                        <div className="detail-field">
+                            <label>Hostname</label>
+                            <span>{device.hostname || '—'}</span>
+                        </div>
+                        <div className="detail-field">
+                            <label>Último IP de Origem</label>
+                            <span style={{ fontFamily: 'monospace' }}>{device.ip_address}</span>
+                        </div>
+                        <div className="detail-field">
+                            <label>Tipo de Dispositivo</label>
+                            <span style={{ textTransform: 'capitalize' }}>{device.device_type}</span>
+                        </div>
+                        <div className="detail-field">
+                            <label>Último Log Recebido</label>
+                            <span>{device.last_seen ? new Date(device.last_seen).toLocaleString('pt-BR') : '—'}</span>
+                        </div>
+                        <div className="detail-field">
+                            <label>Status</label>
+                            <span className={`badge-pill`} style={{
+                                background: device.is_authorized ? 'rgba(28,200,138,0.15)' : 'rgba(231,74,59,0.15)',
+                                color: device.is_authorized ? '#1cc88a' : '#e74a3b',
+                                border: `1px solid ${device.is_authorized ? '#1cc88a44' : '#e74a3b44'}`
+                            }}>
+                                {device.is_authorized ? '✓ Autorizado' : '✗ Não Autorizado'}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Volume de logs por tipo */}
+                    <div style={{ marginTop: 24 }}>
+                        <div style={{ fontSize: '0.8rem', color: '#858796', textTransform: 'uppercase', marginBottom: 12, fontWeight: 600, letterSpacing: '0.5px' }}>
+                            Volume de Logs Recebidos (últimas 24h)
+                        </div>
+                        {LOG_TYPES.map(t => {
+                            const count = device.log_counts?.[t.key] || 0;
+                            const pct = totalLogs > 0 ? (count / totalLogs * 100) : 0;
+                            return (
+                                <div className="log-bar" key={t.key}>
+                                    <span className="log-bar-label">{t.label}</span>
+                                    <div className="log-bar-track">
+                                        <div className="log-bar-fill" style={{ width: `${pct}%`, background: t.color }}></div>
+                                    </div>
+                                    <span className="log-bar-count">{count.toLocaleString()}</span>
+                                </div>
+                            );
+                        })}
+                        <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#858796', marginTop: 6 }}>
+                            Total: {totalLogs.toLocaleString()} logs em 24h
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    // ── Dashboard principal ─────────────────────────────────────────────────
+    function DevicesDashboard() {
+        const [devices, setDevices] = useState([]);
+        const [loading, setLoading] = useState(true);
+        const [selected, setSelected] = useState(null);
+        const [search, setSearch] = useState('');
+
+        const fetchData = useCallback(async () => {
+            try {
+                const res = await fetch('/security/devices/api/');
+                const data = await res.json();
+                setDevices(data);
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setLoading(false);
+            }
+        }, []);
+
+        useEffect(() => {
+            fetchData();
+            const t = setInterval(fetchData, 30000);
+            return () => clearInterval(t);
+        }, []);
+
+        const filtered = devices.filter(d =>
+            (d.hostname || '').toLowerCase().includes(search.toLowerCase()) ||
+            (d.device_id || '').toLowerCase().includes(search.toLowerCase()) ||
+            (d.ip_address || '').includes(search)
+        );
+
+        const online = devices.filter(d => statusInfo(d.last_seen).cls === 'online').length;
+        const recent = devices.filter(d => statusInfo(d.last_seen).cls === 'recent').length;
+        const offline = devices.filter(d => statusInfo(d.last_seen).cls === 'offline').length;
+
+        return (
+            <div style={{ padding: '0', fontFamily: "'Inter', sans-serif" }}>
+                {/* Cabeçalho */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <h2 style={{ fontSize: '1.4rem', color: 'white', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span>📡</span> Inventário de Dispositivos Syslog
+                    </h2>
+                    <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.3)', padding: '6px 12px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <span className="pulse-live"></span>
+                        <span style={{ fontSize: '0.7rem', color: '#858796', fontWeight: 600 }}>LIVE • 30s</span>
+                    </div>
+                </div>
+
+                {/* KPI Cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                    {[
+                        { label: 'Total de Devices', value: devices.length, color: '#4e73df', icon: '📡' },
+                        { label: 'Ativos (< 5 min)', value: online, color: '#1cc88a', icon: '🟢' },
+                        { label: 'Recentes (< 1h)', value: recent, color: '#f6c23e', icon: '🟡' },
+                        { label: 'Inativos', value: offline, color: '#858796', icon: '⚫' },
+                    ].map((kpi, i) => (
+                        <div key={i} className="premium-card" style={{ padding: '20px 24px' }}>
+                            <div style={{ fontSize: '0.8rem', color: '#858796', marginBottom: 6 }}>{kpi.icon} {kpi.label}</div>
+                            <div style={{ fontSize: '2rem', fontWeight: 700, color: kpi.color }}>{kpi.value}</div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Busca */}
+                <div style={{ marginBottom: '20px' }}>
+                    <input
+                        className="search-box"
+                        placeholder="🔍  Buscar por hostname, serial ou IP..."
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                    />
+                </div>
+
+                {/* Grid de Devices */}
+                {loading ? (
+                    <div style={{ textAlign: 'center', padding: '60px', color: '#858796' }}>Carregando dispositivos...</div>
+                ) : filtered.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '60px', color: '#858796' }}>
+                        Nenhum dispositivo {search ? 'encontrado para "' + search + '"' : 'registrado ainda. Aguardando logs do FortiGate.'}
+                    </div>
+                ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+                        {filtered.map(device => {
+                            const st = statusInfo(device.last_seen);
+                            const totalLogs = LOG_TYPES.reduce((s, t) => s + (device.log_counts?.[t.key] || 0), 0);
+                            return (
+                                <div key={device.device_id}
+                                    className={`device-card ${!device.is_authorized ? 'unauthorized' : ''}`}
+                                    onClick={() => setSelected(device)}
+                                >
+                                    <div className="device-icon">🔒</div>
+                                    <div style={{ fontWeight: 700, fontSize: '1rem', color: 'white', marginBottom: 4 }}>
+                                        {device.hostname || device.device_id}
+                                    </div>
+                                    <div style={{ fontSize: '0.78rem', color: '#858796', fontFamily: 'monospace', marginBottom: 12 }}>
+                                        {device.device_id}
+                                    </div>
+
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                        <div style={{ fontSize: '0.82rem', color: '#d1d3e2' }}>
+                                            <span style={{ color: '#858796' }}>IP: </span>
+                                            <span style={{ fontFamily: 'monospace' }}>{device.ip_address}</span>
+                                        </div>
+                                        <span className={`badge-pill`} style={{
+                                            background: st.cls === 'online' ? 'rgba(28,200,138,0.15)' : st.cls === 'recent' ? 'rgba(246,194,62,0.15)' : 'rgba(133,135,150,0.15)',
+                                            color: st.cls === 'online' ? '#1cc88a' : st.cls === 'recent' ? '#f6c23e' : '#858796',
+                                            border: `1px solid ${st.cls === 'online' ? '#1cc88a44' : st.cls === 'recent' ? '#f6c23e44' : '#85879644'}`,
+                                        }}>
+                                            <span className={`status-dot ${st.cls}`}></span>
+                                            {st.label}
+                                        </span>
+                                    </div>
+
+                                    {/* Mini barras de tipo de log */}
+                                    <div style={{ display: 'flex', gap: '4px', height: '4px', borderRadius: '2px', overflow: 'hidden', marginBottom: 10 }}>
+                                        {LOG_TYPES.map(t => {
+                                            const count = device.log_counts?.[t.key] || 0;
+                                            const pct = totalLogs > 0 ? (count / totalLogs * 100) : 0;
+                                            return <div key={t.key} style={{ width: `${pct}%`, background: t.color, minWidth: count > 0 ? '4px' : '0' }}></div>;
+                                        })}
+                                    </div>
+
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#858796' }}>
+                                        <span>🕒 {relativeTime(device.last_seen)}</span>
+                                        <span>{totalLogs.toLocaleString()} logs/24h</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {selected && <DeviceModal device={selected} onClose={() => setSelected(null)} />}
+            </div>
+        );
+    }
+
+    const root = createRoot(document.getElementById('devices-root'));
+    root.render(<DevicesDashboard />);
+    {% endverbatim %}
+</script>
+{% endblock %}

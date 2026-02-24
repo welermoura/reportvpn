@@ -7,7 +7,8 @@ from django.utils import timezone
 from datetime import timedelta
 from .models import SecurityEvent
 import csv
-from django.http import HttpResponse
+import json
+from django.http import HttpResponse, JsonResponse
 from django.template.loader import get_template
 from io import BytesIO
 from dashboard.utils import export_to_xlsx
@@ -615,3 +616,71 @@ def export_webfilter_pdf(request):
         return HttpResponse(f"Erro ao gerar PDF: {str(e)}", status=500)
     
     return HttpResponse("Erro ao gerar PDF", status=500)
+
+
+# ─── Módulo de Dispositivos Syslog ─────────────────────────────────────────
+
+@login_required
+def devices_dashboard(request):
+    """Renderiza a dashboard de Dispositivos Syslog."""
+    return render(request, 'security_events/devices_dashboard.html')
+
+
+@login_required
+def devices_api(request):
+    """
+    API JSON que retorna todos os KnownDevices com contagem de logs
+    por tipo referentes às últimas 24h.
+    """
+    from integrations.models import KnownDevice
+    from django.utils import timezone as dj_tz
+    from datetime import timedelta
+
+    since_24h = dj_tz.now() - timedelta(hours=24)
+
+    # Contagens de SecurityEvent por tipo e src_ip nas últimas 24h
+    se_counts = (
+        SecurityEvent.objects
+        .filter(timestamp__gte=since_24h)
+        .values('src_ip', 'event_type')
+        .annotate(total=Count('id'))
+    )
+    # Mapeia: {ip: {event_type: count}}
+    se_map: dict = {}
+    for row in se_counts:
+        ip = row['src_ip']
+        et = row['event_type']
+        se_map.setdefault(ip, {})[et] = row['total']
+
+    # Contagens VPN por src_ip
+    from vpn_logs.models import VPNLog, VPNFailure
+    vpn_counts = (
+        VPNLog.objects
+        .filter(start_time__gte=since_24h)
+        .values('source_ip')
+        .annotate(total=Count('id'))
+    )
+    vpn_map = {r['source_ip']: r['total'] for r in vpn_counts}
+
+    devices = KnownDevice.objects.all().order_by('-last_seen')
+    result = []
+    for dev in devices:
+        ip = dev.ip_address
+        se = se_map.get(ip, {})
+        result.append({
+            'device_id':    dev.device_id,
+            'hostname':     dev.hostname or '',
+            'ip_address':   ip,
+            'device_type':  dev.device_type,
+            'last_seen':    dev.last_seen.isoformat() if dev.last_seen else None,
+            'is_authorized': dev.is_authorized,
+            'log_counts': {
+                'vpn':        vpn_map.get(ip, 0),
+                'ips':        se.get('ips', 0),
+                'antivirus':  se.get('antivirus', 0),
+                'webfilter':  se.get('webfilter', 0),
+                'appcontrol': se.get('app-control', 0),
+            }
+        })
+
+    return JsonResponse(result, safe=False)
