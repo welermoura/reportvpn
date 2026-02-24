@@ -678,6 +678,12 @@ def devices_api(request):
             'is_authorized': dev.is_authorized,
             'alert_message': dev.last_alert_message,
             'alert_time':    dev.last_alert_time.isoformat() if dev.last_alert_time else None,
+            'hw_status': {
+                'cpu': dev.cpu_status,
+                'memory': dev.memory_status,
+                'link': dev.link_status,
+                'conserve': dev.conserve_mode,
+            },
             'log_counts': {
                 'vpn':        vpn_map.get(ip, 0),
                 'ips':        se.get('ips', 0),

@@ -317,8 +317,37 @@
                         }}>✕</button>
                     </div>
 
-                    {/* Detalhes */}
-                    <div className="detail-grid">
+                    {/* Monitoramento Detalhado de Hardware */}
+                    <div style={{ marginTop: 24 }}>
+                        <div style={{ fontSize: '0.8rem', color: '#858796', textTransform: 'uppercase', marginBottom: 12, fontWeight: 600, letterSpacing: '0.5px' }}>
+                            Saúde do Sistema (Monitorado)
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
+                            {[
+                                { label: 'CPU', value: device.hw_status?.cpu || 'normal', icon: 'fa-microchip' },
+                                { label: 'Memória', value: device.hw_status?.memory || 'normal', icon: 'fa-memory' },
+                                { label: 'Links', value: device.hw_status?.link || 'normal', icon: 'fa-network-wired' },
+                                { label: 'Conserve', value: device.hw_status?.conserve ? 'ATIVO' : 'Inativo', icon: 'fa-snowflake' }
+                            ].map((item, idx) => {
+                                const isBad = item.value.toLowerCase() !== 'normal' && item.value.toLowerCase() !== 'inativo';
+                                return (
+                                    <div key={idx} style={{
+                                        background: isBad ? 'rgba(231,74,59,0.08)' : 'rgba(255,255,255,0.03)',
+                                        border: `1px solid ${isBad ? 'rgba(231,74,59,0.3)' : 'rgba(255,255,255,0.06)'}`,
+                                        borderRadius: '8px',
+                                        padding: '12px',
+                                        textAlign: 'center'
+                                    }}>
+                                        <i className={`fa-solid ${item.icon}`} style={{ color: isBad ? '#e74a3b' : '#1cc88a', fontSize: '1.2rem', marginBottom: 8 }}></i>
+                                        <div style={{ fontSize: '0.7rem', color: '#858796', textTransform: 'uppercase', marginBottom: 2 }}>{item.label}</div>
+                                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: isBad ? '#e74a3b' : 'white' }}>{item.value.toUpperCase()}</div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px', marginTop: '24px' }}>
                         <div className="detail-field">
                             <label>Serial / Device ID</label>
                             <span style={{ fontFamily: 'monospace', color: '#60a5fa' }}>{device.device_id}</span>

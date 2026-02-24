@@ -113,6 +113,12 @@ class KnownDevice(models.Model):
     last_alert_message = models.CharField(max_length=500, blank=True, null=True, help_text="Último alerta de sistema (CPU/Memória/Link)")
     last_alert_time = models.DateTimeField(blank=True, null=True)
     
+    # Status Detalhado de Hardware
+    cpu_status = models.CharField(max_length=50, default="normal", help_text="Estado da CPU (normal/alto)")
+    memory_status = models.CharField(max_length=50, default="normal", help_text="Estado da Memória (normal/alto)")
+    link_status = models.CharField(max_length=50, default="normal", help_text="Estado dos Links (normal/alarme)")
+    conserve_mode = models.BooleanField(default=False, help_text="Indica se o dispositivo está em Conserve Mode")
+    
     def __str__(self):
         return f"{self.hostname or self.device_id} ({self.ip_address})"
 

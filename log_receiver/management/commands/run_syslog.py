@@ -340,26 +340,35 @@ def _process_system_alert(parsed_data):
         return
 
     msg = parsed_data.get('msg', '').lower()
+    
+    update_fields = {}
     alert = None
 
     # Lógica de detecção de strings comuns de alarmes Fortigate
     if 'cpu' in msg and ('limit' in msg or 'high' in msg or 'exhaustion' in msg):
         alert = f"CPU Alta: {parsed_data.get('msg')}"
+        update_fields['cpu_status'] = 'alto'
     elif 'mem' in msg and ('limit' in msg or 'high' in msg or 'exhaustion' in msg):
         alert = f"Memória Alta: {parsed_data.get('msg')}"
+        update_fields['memory_status'] = 'alto'
     elif 'conserve' in msg:
         alert = f"Conserve Mode: {parsed_data.get('msg')}"
+        update_fields['conserve_mode'] = True
+        update_fields['memory_status'] = 'alto'
     elif 'link' in msg and ('down' in msg or 'fail' in msg or 'alarm' in msg):
         alert = f"Link Down/Alarm: {parsed_data.get('msg')}"
+        update_fields['link_status'] = 'alarme'
 
-    if alert:
+    if alert or update_fields:
         from integrations.models import KnownDevice
         from django.utils import timezone
+        
+        if alert:
+            update_fields['last_alert_message'] = alert
+            update_fields['last_alert_time'] = timezone.now()
+
         # Atualiza diretamente via queryset para ser atômico e rápido
-        KnownDevice.objects.filter(device_id=devid).update(
-            last_alert_message=alert,
-            last_alert_time=timezone.now()
-        )
+        KnownDevice.objects.filter(device_id=devid).update(**update_fields)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
