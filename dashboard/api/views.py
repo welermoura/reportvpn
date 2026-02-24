@@ -34,9 +34,13 @@ class VPNLogViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def list(self, request):
-        # 0. Initial Queryset for base filtering
-        # Inclui logs do FA (que tem tunneltype) e do Syslog (que podem não ter)
-        base_qs = VPNLog.objects.all()
+        # 0. Initial Queryset for base filtering - SSL VPN ONLY
+        # Filtramos por tunneltype/vpntype ou pela porta padrão de SSL VPN (se o log de syslog vier sem o campo explícito)
+        base_qs = VPNLog.objects.filter(
+            Q(raw_data__tunneltype__icontains='ssl') | 
+            Q(raw_data__vpntype__icontains='ssl') |
+            Q(raw_data__service__icontains='SSL')
+        )
         
         # Apply filters from query params
         user_q = request.query_params.get('user_q')
