@@ -10,7 +10,12 @@ from vpn_logs.models import VPNFailure
 logger = logging.getLogger(__name__)
 
 # Fila thread-safe para escrita assincrona no banco
-_device_queue = queue.Queue(maxsize=1000)
+_device_queue = queue.Queue(maxsize=500)
+
+# Throttle: re-registra cada device no máximo 1x por minuto
+_device_last_seen: dict = {}
+_device_throttle_lock = threading.Lock()
+DEVICE_THROTTLE_SECONDS = 60
 
 def _device_db_worker():
     """Worker de background que persiste os dispositivos detectados no banco.
@@ -304,6 +309,15 @@ class SyslogUDPHandler(socketserver.BaseRequestHandler):
         if not devid:
             devid = f"UNKNOWN-{ip}"
         devname = parsed_data.get('devname', f"Device at {ip}")
+
+        # Throttle: enfileira no máximo 1x por DEVICE_THROTTLE_SECONDS por device
+        with _device_throttle_lock:
+            last = _device_last_seen.get(devid, 0)
+            now  = time.time()
+            if now - last < DEVICE_THROTTLE_SECONDS:
+                return  # Mesmo device, passagem rápida — ignora
+            _device_last_seen[devid] = now
+
         try:
             _device_queue.put_nowait((devid, devname, ip))
         except queue.Full:
