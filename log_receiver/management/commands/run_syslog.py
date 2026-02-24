@@ -1,24 +1,4 @@
-"""
-Syslog Receiver — Arquitetura Pipeline para alta escala (80+ FortiGates).
-
-Fluxo:
-  [UDP socket]
-      │ enqueue_raw (non-blocking, < 1µs)
-      ▼
-  _raw_queue  (maxsize=20000 raw strings)
-      │
-  [Worker Pool — 8 threads]
-      │ parse + route
-      ▼
-  [DB Writers]  — SecurityEvent, VPNLog, VPNFailure via bulk_create
-      │
-  [Device Throttle] — 1 update/min por device via _device_queue
-
-Capacidade estimada:
-  80 FortiGates × 20 pkt/s = 1600 pkt/s
-  Pool de 8 workers: 200 pkt/s por worker → ok para MSSQL (50-100 inserts/s por thread)
-"""
-
+import sys
 import logging
 import socketserver
 import threading
@@ -126,10 +106,9 @@ def _log_processor_worker(worker_id: int):
 
     while True:
         try:
-            # Coleta com timeout para garantir flush periódico
             try:
                 item = _raw_queue.get(timeout=BATCH_FLUSH_INTERVAL)
-                print(f"!!! WORKER {worker_id} GOT ITEM FROM {item[0]}")
+                logger.debug(f"[RECEPTOR] Item recebido de {item[0]}")
             except queue.Empty:
                 flush_batch()
                 continue
@@ -160,7 +139,7 @@ def _log_processor_worker(worker_id: int):
 
                 # --- System & SD-WAN Alerts ---
                 elif log_type == 'event' or log_type == 'sdwan' or subtype == 'sdwan':
-                    _process_system_alert(parsed)
+                    _process_system_alert(parsed, ip)
 
             except Exception as e:
                 logger.error(f"[W{worker_id}] parse error from {ip}: {e}")
@@ -334,11 +313,13 @@ def _save_vpn_log(parsed_data):
             vpn_log.save()
 
 
-def _process_system_alert(parsed_data):
+def _process_system_alert(parsed_data, source_ip):
     """Detecta alertas críticos de sistema (CPU, Memória, Link) e atualiza o KnownDevice."""
     devid = parsed_data.get('devid')
-    if not devid:
-        return
+    
+    # LOG VERBOSO PARA DIAGNÓSTICO
+    raw_str = " ".join([f"{k}={v}" for k,v in parsed_data.items()])
+    logger.error(f"DEBUG_SYS: ip={source_ip} devid={devid} data={raw_str[:300]}")
 
     # Captura todo o conteúdo do log para busca genérica (msg, logdesc, reason, status)
     raw_content = " ".join([str(v) for v in parsed_data.values()]).lower()
@@ -359,19 +340,31 @@ def _process_system_alert(parsed_data):
         update_fields['memory_status'] = 'alto'
     
     # Detecção de Link/SD-WAN (Restrito a Health Checks reais)
-    # Buscamos o contexto nos campos principais e EXCLUÍMOS portas de switch
+    # Buscamos o contexto nos campos principais e EXCLUÍMOS portas de switch e eventos de usuário
     msg_and_desc = (parsed_data.get('msg', '') + " " + parsed_data.get('logdesc', '')).lower()
     
     # Contexto de saúde: SD-WAN, SLA ou Health-Check
-    is_health_context = any(x in msg_and_desc for x in ['health-check', 'sla', 'sdwan']) or parsed_data.get('subtype') == 'sdwan'
+    # Exigimos termos específicos de monitoramento de link
+    is_health_context = any(x in msg_and_desc for x in ['health-check', 'sla', 'link-monitor', 'connection lost']) or \
+                        (parsed_data.get('subtype') == 'sdwan' and 'health-check' in msg_and_desc)
     
-    # Exclusão explícita de interfaces de switch
-    is_switch = any(x in msg_and_desc for x in ['switch port', 'fortiswitch', 'switch-port'])
+    # Exclusão explícita de interfaces de switch e eventos de autenticação/usuário
+    is_excluded = any(x in msg_and_desc for x in ['switch port', 'fortiswitch', 'switch-port', 'auth logon', 'user '])
     
-    is_failure = any(x in raw_content for x in ['down', 'fail', 'alarm', 'dead', 'latency', 'expired', 'removed'])
+    # Peça chave: se o log tem status=up ou success, ignoramos qualquer palavra de falha na mensagem
+    status_val = (parsed_data.get('status') or parsed_data.get('state') or '').lower()
+    is_up_msg = any(x in raw_content for x in [' up', 'up ', 'recovered', 'success', 'passed']) or status_val in ['up', 'success', 'passed']
     
-    if is_health_context and is_failure and not is_switch:
-        logger.info(f"ALERTA DETECTADO (LINK LEGÍTIMO): msg_and_desc='{msg_and_desc}'")
+    # Keywords de falha (latência só conta se não for um log de UP)
+    is_failure = any(x in raw_content for x in ['down', 'dead', 'fail', 'alarm'])
+    if 'latency' in raw_content and not is_up_msg:
+        is_failure = True
+    
+    # Decisão final de estado
+    is_recovery = is_up_msg and not is_failure
+    
+    if is_health_context and (is_failure or is_recovery) and not is_excluded:
+        logger.info(f"ALERTA DETECTADO (LINK NOVO): context={is_health_context} fail={is_failure} recov={is_recovery} status={status_val}")
         
         # Tenta pegar a interface (campo comum em logs de rede)
         interface = parsed_data.get('interface') or parsed_data.get('intf') or parsed_data.get('member')
@@ -391,20 +384,25 @@ def _process_system_alert(parsed_data):
                 if intf_match:
                     interface = intf_match.group(1).strip()
 
+        if is_failure:
+            update_fields['link_status'] = 'alarme'
+            prefix = "Link Down"
+        else:
+            update_fields['link_status'] = 'normal'
+            prefix = "Link UP"
+
         # Tenta pegar a mensagem mais descritiva possível
-        desc = parsed_data.get('msg') or parsed_data.get('logdesc') or "Falha de conectividade detectada"
+        desc = parsed_data.get('msg') or parsed_data.get('logdesc') or "Mudança de estado no link"
         
         # Se temos o nome da interface mas ele NÃO está no texto da mensagem, vamos adicioná-lo
         if interface:
             interface_clean = str(interface).strip()
             if interface_clean.lower() not in desc.lower():
-                alert = f"Link Down ({interface_clean}): {desc}"
+                alert = f"{prefix} ({interface_clean}): {desc}"
             else:
-                alert = f"Link Down: {desc}"
+                alert = f"{prefix}: {desc}"
         else:
-            alert = f"Link Down/Alarm: {desc}"
-            
-        update_fields['link_status'] = 'alarme'
+            alert = f"{prefix}: {desc}"
 
     if alert or update_fields:
         from integrations.models import KnownDevice
@@ -414,8 +412,27 @@ def _process_system_alert(parsed_data):
             update_fields['last_alert_message'] = alert
             update_fields['last_alert_time'] = timezone.now()
 
-        # Atualiza diretamente via queryset para ser atômico e rápido
-        KnownDevice.objects.filter(device_id=devid).update(**update_fields)
+        # Estratégia de busca robusta:
+        # 1. Tenta por Serial (devid)
+        # 2. Tenta por IP de origem
+        device = None
+        find_method = "None"
+        if devid:
+            device = KnownDevice.objects.filter(device_id=devid).first()
+            if device:
+                find_method = "Serial (devid)"
+        
+        if not device and source_ip:
+            device = KnownDevice.objects.filter(ip_address=source_ip).first()
+            if device:
+                find_method = "IP Address"
+            
+        if device:
+            # Se achou pelo IP mas devid é diferente, talvez o dispositivo tenha novo serial ou o log seja ambíguo
+            logger.error(f"DEBUG: Atribuindo alerta para {device.hostname} ({device.device_id}) via {find_method}. Org_DevID={devid}, Org_IP={source_ip}")
+            KnownDevice.objects.filter(pk=device.pk).update(**update_fields)
+        else:
+            logger.error(f"DEBUG: Dispositivo não encontrado para devid={devid} ip={source_ip}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -468,10 +485,10 @@ class Command(BaseCommand):
             f'device throttle={DEVICE_THROTTLE_SECONDS}s'
         ))
 
-        # Inicia worker de dispositivos (1 thread)
+        # 1. Inicia worker de dispositivos (1 thread)
         threading.Thread(target=_device_db_worker, daemon=True, name="device-worker").start()
 
-        # Inicia pool de workers de log
+        # 2. Inicia pool de workers de log
         for i in range(NUM_WORKERS):
             threading.Thread(
                 target=_log_processor_worker,
@@ -480,23 +497,19 @@ class Command(BaseCommand):
                 name=f"log-worker-{i}"
             ).start()
 
-        # Monitor de saúde (imprime stats a cada 60s)
+        # 3. Monitor de saúde (imprime stats a cada 60s)
         def _monitor():
             while True:
                 time.sleep(60)
                 logger.info(
-                    f"[MONITOR] raw_queue={_raw_queue.qsize()} "
-                    f"device_queue={_device_queue.qsize()} "
-                    f"known_devices={len(_device_last_seen)}"
+                    f"[MONITOR] raw_q={_raw_queue.qsize()} dev_q={_device_queue.qsize()} known={len(_device_last_seen)}"
                 )
         threading.Thread(target=_monitor, daemon=True, name="monitor").start()
 
-        # Servidor UDP — preempt_socket desativado para não bloquear no GIL
+        # 4. Servidor UDP
         socketserver.UDPServer.allow_reuse_address = True
         with socketserver.UDPServer((HOST, PORT), SyslogUDPHandler) as server:
-            self.stdout.write(self.style.SUCCESS(
-                f'Servidor UDP ouvindo em {HOST}:{PORT}'
-            ))
+            self.stdout.write(self.style.SUCCESS(f'Servidor UDP ouvindo em {HOST}:{PORT}'))
             try:
                 server.serve_forever()
             except KeyboardInterrupt:
