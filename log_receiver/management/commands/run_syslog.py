@@ -358,14 +358,20 @@ def _process_system_alert(parsed_data):
         update_fields['conserve_mode'] = True
         update_fields['memory_status'] = 'alto'
     
-    # Detecção de Link/SD-WAN (Restrito a Health Checks)
-    # Buscamos o contexto nos campos principais para evitar falsos positivos
+    # Detecção de Link/SD-WAN (Restrito a Health Checks reais)
+    # Buscamos o contexto nos campos principais e EXCLUÍMOS portas de switch
     msg_and_desc = (parsed_data.get('msg', '') + " " + parsed_data.get('logdesc', '')).lower()
-    is_health_context = any(x in msg_and_desc for x in ['health-check', 'sla', 'sdwan', 'link-monitor']) or parsed_data.get('subtype') == 'sdwan'
+    
+    # Contexto de saúde: SD-WAN, SLA ou Health-Check
+    is_health_context = any(x in msg_and_desc for x in ['health-check', 'sla', 'sdwan']) or parsed_data.get('subtype') == 'sdwan'
+    
+    # Exclusão explícita de interfaces de switch
+    is_switch = any(x in msg_and_desc for x in ['switch port', 'fortiswitch', 'switch-port'])
+    
     is_failure = any(x in raw_content for x in ['down', 'fail', 'alarm', 'dead', 'latency', 'expired', 'removed'])
     
-    if is_health_context and is_failure:
-        logger.info(f"ALERTA DETECTADO (LINK): msg_and_desc='{msg_and_desc}'")
+    if is_health_context and is_failure and not is_switch:
+        logger.info(f"ALERTA DETECTADO (LINK LEGÍTIMO): msg_and_desc='{msg_and_desc}'")
         
         # Tenta pegar a interface (campo comum em logs de rede)
         interface = parsed_data.get('interface') or parsed_data.get('intf') or parsed_data.get('member')
