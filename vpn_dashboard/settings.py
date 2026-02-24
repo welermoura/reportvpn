@@ -137,9 +137,10 @@ if db_config and db_config.get('setup_complete'):
                 'PASSWORD': db_config['password'],
                 'HOST': db_config['host'],
                 'PORT': db_config['port'],
+                'CONN_MAX_AGE': 0,  # Não reutiliza conexões (importante para processos long-running)
                 'OPTIONS': {
                     'driver': 'ODBC Driver 18 for SQL Server',
-                    'extra_params': 'TrustServerCertificate=yes',
+                    'extra_params': 'TrustServerCertificate=yes;LoginTimeout=30;ConnectRetryCount=3;ConnectRetryInterval=10',
                 },
             }
         }

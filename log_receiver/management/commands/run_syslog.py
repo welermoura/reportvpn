@@ -155,21 +155,41 @@ class SyslogUDPHandler(socketserver.BaseRequestHandler):
     def record_device(self, devid, parsed_data, ip):
         from integrations.models import KnownDevice
         from django.utils import timezone
+        from django import db
         
         if not devid:
             devid = f"UNKNOWN-{ip}"
         
         devname = parsed_data.get('devname', f"Device at {ip}")
         
-        # Update or create device inline
-        device, created = KnownDevice.objects.update_or_create(
-            device_id=devid,
-            defaults={
-                'hostname': devname,
-                'ip_address': ip,
-                'last_seen': timezone.now()
-            }
-        )
+        # Fecha conexões antigas para garantir reconexão limpa (crítico para MSSQL)
+        db.connections.close_all()
+        
+        try:
+            KnownDevice.objects.update_or_create(
+                device_id=devid,
+                defaults={
+                    'hostname': devname,
+                    'ip_address': ip,
+                    'last_seen': timezone.now()
+                }
+            )
+        except Exception as e:
+            # Log o erro mas não deixa o receiver cair
+            logger.warning(f"Could not register device {devid} ({ip}): {e}")
+            # Segunda tentativa após reset
+            try:
+                db.connections.close_all()
+                KnownDevice.objects.update_or_create(
+                    device_id=devid,
+                    defaults={
+                        'hostname': devname,
+                        'ip_address': ip,
+                        'last_seen': timezone.now()
+                    }
+                )
+            except Exception as e2:
+                logger.error(f"Device registration failed permanently for {devid}: {e2}")
 
     def process_vpn_log(self, parsed_data, source_emitter):
         from vpn_logs.models import VPNLog
