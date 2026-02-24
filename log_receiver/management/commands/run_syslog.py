@@ -103,10 +103,19 @@ def _log_processor_worker(worker_id: int):
             return
         try:
             db.connections.close_all()
-            SecurityEvent.objects.bulk_create(batch_buffer, ignore_conflicts=True)
+            # MSSQL não suporta ignore_conflicts — deduplica via query prévia
+            ids_no_batch = [obj.event_id for obj in batch_buffer]
+            ja_existentes = set(
+                SecurityEvent.objects.filter(event_id__in=ids_no_batch)
+                .values_list('event_id', flat=True)
+            )
+            novos = [obj for obj in batch_buffer if obj.event_id not in ja_existentes]
+            if novos:
+                SecurityEvent.objects.bulk_create(novos)
+                logger.debug(f"[W{worker_id}] bulk_create: {len(novos)} novos | {len(batch_buffer)-len(novos)} ignorados")
         except Exception as e:
             logger.error(f"[W{worker_id}] bulk_create failed: {e}")
-            # Tenta salvar um a um como fallback
+            # Fallback: salva um a um
             for obj in batch_buffer:
                 try:
                     obj.save()
