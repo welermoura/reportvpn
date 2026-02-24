@@ -157,8 +157,8 @@ def _log_processor_worker(worker_id: int):
                     if se:
                         batch_buffer.append(se)
 
-                # --- System Alerts ---
-                elif log_type == 'event' and (subtype in ['system', 'link']):
+                # --- System & SD-WAN Alerts ---
+                elif log_type == 'event' and (subtype in ['system', 'link', 'sdwan']):
                     _process_system_alert(parsed)
 
             except Exception as e:
@@ -355,7 +355,8 @@ def _process_system_alert(parsed_data):
         alert = f"Conserve Mode: {parsed_data.get('msg')}"
         update_fields['conserve_mode'] = True
         update_fields['memory_status'] = 'alto'
-    elif 'link' in msg and ('down' in msg or 'fail' in msg or 'alarm' in msg):
+    elif ('link' in msg or 'health-check' in msg or 'sla' in msg or 'internet' in msg) and \
+         ('down' in msg or 'fail' in msg or 'alarm' in msg or 'dead' in msg or 'latency' in msg):
         alert = f"Link Down/Alarm: {parsed_data.get('msg')}"
         update_fields['link_status'] = 'alarme'
 
