@@ -129,6 +129,7 @@ def _log_processor_worker(worker_id: int):
             # Coleta com timeout para garantir flush periódico
             try:
                 item = _raw_queue.get(timeout=BATCH_FLUSH_INTERVAL)
+                print(f"!!! WORKER {worker_id} GOT ITEM FROM {item[0]}")
             except queue.Empty:
                 flush_batch()
                 continue
@@ -158,7 +159,7 @@ def _log_processor_worker(worker_id: int):
                         batch_buffer.append(se)
 
                 # --- System & SD-WAN Alerts ---
-                elif log_type == 'event' and (subtype in ['system', 'link', 'sdwan']):
+                elif log_type == 'event' or log_type == 'sdwan' or subtype == 'sdwan':
                     _process_system_alert(parsed)
 
             except Exception as e:
@@ -339,25 +340,31 @@ def _process_system_alert(parsed_data):
     if not devid:
         return
 
-    msg = parsed_data.get('msg', '').lower()
+    # Captura todo o conteúdo do log para busca genérica (msg, logdesc, reason, status)
+    raw_content = " ".join([str(v) for v in parsed_data.values()]).lower()
     
     update_fields = {}
     alert = None
 
-    # Lógica de detecção de strings comuns de alarmes Fortigate
-    if 'cpu' in msg and ('limit' in msg or 'high' in msg or 'exhaustion' in msg):
-        alert = f"CPU Alta: {parsed_data.get('msg')}"
+    # Detecção de CPU/Memória
+    if 'cpu' in raw_content and ('limit' in raw_content or 'high' in raw_content or 'exhaustion' in raw_content):
+        alert = f"CPU Alta: {parsed_data.get('msg', 'Carga de CPU detectada')}"
         update_fields['cpu_status'] = 'alto'
-    elif 'mem' in msg and ('limit' in msg or 'high' in msg or 'exhaustion' in msg):
-        alert = f"Memória Alta: {parsed_data.get('msg')}"
+    elif ('mem' in raw_content or 'ram' in raw_content) and ('limit' in raw_content or 'high' in raw_content or 'exhaustion' in raw_content):
+        alert = f"Memória Alta: {parsed_data.get('msg', 'Carga de Memória detectada')}"
         update_fields['memory_status'] = 'alto'
-    elif 'conserve' in msg:
-        alert = f"Conserve Mode: {parsed_data.get('msg')}"
+    elif 'conserve' in raw_content:
+        alert = f"Conserve Mode: {parsed_data.get('msg', 'Entrou em Conserve Mode')}"
         update_fields['conserve_mode'] = True
         update_fields['memory_status'] = 'alto'
-    elif ('link' in msg or 'health-check' in msg or 'sla' in msg or 'internet' in msg) and \
-         ('down' in msg or 'fail' in msg or 'alarm' in msg or 'dead' in msg or 'latency' in msg):
-        alert = f"Link Down/Alarm: {parsed_data.get('msg')}"
+    
+    # Detecção de Link/SD-WAN (Muito mais agressiva)
+    elif any(x in raw_content for x in ['link', 'health-check', 'sla', 'sdwan', 'interface', 'wan']) and \
+         any(x in raw_content for x in ['down', 'fail', 'alarm', 'dead', 'latency', 'expired']):
+        
+        # Tenta pegar a mensagem mais descritiva possível
+        desc = parsed_data.get('msg') or parsed_data.get('logdesc') or "Falha de conectividade detectada"
+        alert = f"Link Down/Alarm: {desc}"
         update_fields['link_status'] = 'alarme'
 
     if alert or update_fields:
