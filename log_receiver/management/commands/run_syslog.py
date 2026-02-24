@@ -1,33 +1,72 @@
+"""
+Syslog Receiver — Arquitetura Pipeline para alta escala (80+ FortiGates).
+
+Fluxo:
+  [UDP socket]
+      │ enqueue_raw (non-blocking, < 1µs)
+      ▼
+  _raw_queue  (maxsize=20000 raw strings)
+      │
+  [Worker Pool — 8 threads]
+      │ parse + route
+      ▼
+  [DB Writers]  — SecurityEvent, VPNLog, VPNFailure via bulk_create
+      │
+  [Device Throttle] — 1 update/min por device via _device_queue
+
+Capacidade estimada:
+  80 FortiGates × 20 pkt/s = 1600 pkt/s
+  Pool de 8 workers: 200 pkt/s por worker → ok para MSSQL (50-100 inserts/s por thread)
+"""
+
 import logging
 import socketserver
 import threading
 import queue
 import time
+
 from django.core.management.base import BaseCommand
 from log_receiver.parsers.fortinet import parse_fortinet_syslog
-from vpn_logs.models import VPNFailure
 
 logger = logging.getLogger(__name__)
 
-# Fila thread-safe para escrita assincrona no banco
+# ─────────────────────────────────────────────────────────────────────────────
+#  Filas e configurações globais
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Fila principal: raw (ip, data_str) — recepção ultra-rápida
+_raw_queue = queue.Queue(maxsize=20000)
+
+# Fila de dispositivos (baixo volume pós-throttle)
 _device_queue = queue.Queue(maxsize=500)
 
-# Throttle: re-registra cada device no máximo 1x por minuto
+# Throttle: 1 update/min por device_id
 _device_last_seen: dict = {}
 _device_throttle_lock = threading.Lock()
 DEVICE_THROTTLE_SECONDS = 60
 
+# Número de workers de processamento
+NUM_WORKERS = 8
+
+# Tamanho do batch para bulk_create de SecurityEvents
+BATCH_SIZE = 50
+BATCH_FLUSH_INTERVAL = 2.0  # segundos máximo antes de flush mesmo sem completar o batch
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Workers
+# ─────────────────────────────────────────────────────────────────────────────
+
 def _device_db_worker():
-    """Worker de background que persiste os dispositivos detectados no banco.
-    Roda em uma thread separada para nunca bloquear a recepção UDP."""
+    """Persiste KnownDevice com retry — volume baixo graças ao throttle."""
     from django import db
     while True:
         try:
             item = _device_queue.get(timeout=5)
-            if item is None:  # Sinal de shutdown
+            if item is None:
                 break
             devid, devname, ip = item
-            db.connections.close_all()  # Garante conexão fresca
+            db.connections.close_all()
             from integrations.models import KnownDevice
             from django.utils import timezone
             try:
@@ -35,7 +74,6 @@ def _device_db_worker():
                     device_id=devid,
                     defaults={'hostname': devname, 'ip_address': ip, 'last_seen': timezone.now()}
                 )
-                logger.info(f"Device registered: {devid} ({ip})")
             except Exception as e:
                 logger.warning(f"Device save failed for {devid}: {e}")
             finally:
@@ -47,293 +85,273 @@ def _device_db_worker():
             time.sleep(1)
 
 
+def _log_processor_worker(worker_id: int):
+    """
+    Consome (ip, raw_str) da _raw_queue, parseia e grava no banco.
+    Cada worker tem sua própria conexão Django.
+    SecurityEvents são acumulados em micro-batch antes do flush.
+    """
+    from django import db
+    from security_events.models import SecurityEvent
+
+    batch_buffer: list = []
+    last_flush = time.time()
+
+    def flush_batch():
+        nonlocal batch_buffer, last_flush
+        if not batch_buffer:
+            return
+        try:
+            db.connections.close_all()
+            SecurityEvent.objects.bulk_create(batch_buffer, ignore_conflicts=True)
+        except Exception as e:
+            logger.error(f"[W{worker_id}] bulk_create failed: {e}")
+            # Tenta salvar um a um como fallback
+            for obj in batch_buffer:
+                try:
+                    obj.save()
+                except Exception:
+                    pass
+        batch_buffer = []
+        last_flush = time.time()
+
+    while True:
+        try:
+            # Coleta com timeout para garantir flush periódico
+            try:
+                item = _raw_queue.get(timeout=BATCH_FLUSH_INTERVAL)
+            except queue.Empty:
+                flush_batch()
+                continue
+
+            if item is None:
+                flush_batch()
+                break
+
+            ip, raw_data = item
+            try:
+                parsed = parse_fortinet_syslog(raw_data)
+                log_type = parsed.get('type', '')
+                subtype  = parsed.get('subtype', '')
+
+                # --- Eventos VPN ---
+                if log_type == 'event' and subtype == 'vpn':
+                    action = parsed.get('action', '')
+                    if action in ['negotiate-error', 'auth-failure', 'ssl-login-fail', 'ipsec-login-fail']:
+                        _save_vpn_failure(parsed, ip)
+                    elif action in ['tunnel-up', 'tunnel-down', 'ssl-new-session', 'ssl-exit']:
+                        _save_vpn_log(parsed)
+
+                # --- UTM events ---
+                elif log_type == 'utm' or (log_type == 'traffic' and parsed.get('utm-action')):
+                    se = _build_security_event(parsed, raw_data)
+                    if se:
+                        batch_buffer.append(se)
+
+            except Exception as e:
+                logger.error(f"[W{worker_id}] parse error from {ip}: {e}")
+            finally:
+                _raw_queue.task_done()
+
+            # Flush se cheio ou tempo expirou
+            if len(batch_buffer) >= BATCH_SIZE or (time.time() - last_flush) >= BATCH_FLUSH_INTERVAL:
+                flush_batch()
+
+        except Exception as e:
+            logger.error(f"[W{worker_id}] unhandled error: {e}")
+            time.sleep(0.5)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
-#  Funções auxiliares compartilhadas
+#  Funções de parse e construção de objetos
 # ─────────────────────────────────────────────────────────────────────────────
 
 def parse_fortinet_timestamp(parsed_data):
-    """
-    Extrai o timestamp do log FortiGate usando a fonte mais precisa disponível:
-    1. eventtime (nanoseconds epoch) com tz do log
-    2. date + time + tz
-    3. Agora (fallback)
-    """
+    """Timestamp usando eventtime (ns) → date+time+tz → agora."""
     from django.utils import timezone as dj_tz
     import datetime
 
-    # 1ª opção: eventtime em nanosegundos
     eventtime_ns = parsed_data.get('eventtime', '')
-    tz_str = parsed_data.get('tz', '-0300')  # FortiGate padrão Brasil
+    tz_str = parsed_data.get('tz', '-0300')
     try:
         if eventtime_ns and len(str(eventtime_ns)) > 15:
-            ts_seconds = int(eventtime_ns) / 1e9
-            dt = datetime.datetime.utcfromtimestamp(ts_seconds)
-            # Aplica offset de tz
-            sign = 1 if tz_str.startswith('+') else -1
-            h = int(tz_str[1:3]) if len(tz_str) >= 3 else 0
-            m = int(tz_str[3:5]) if len(tz_str) >= 5 else 0
-            offset = datetime.timezone(sign * datetime.timedelta(hours=h, minutes=m))
-            dt = dt.replace(tzinfo=datetime.timezone.utc).astimezone(offset)
-            return dj_tz.make_aware(dt.replace(tzinfo=None), dj_tz.get_current_timezone())
+            ts_sec = int(eventtime_ns) / 1e9
+            dt_utc = datetime.datetime.utcfromtimestamp(ts_sec).replace(tzinfo=datetime.timezone.utc)
+            return dj_tz.make_aware(dt_utc.astimezone(
+                dj_tz.get_current_timezone()
+            ).replace(tzinfo=None))
     except Exception:
         pass
 
-    # 2ª opção: date + time (local do FW)
     try:
         from dateutil.parser import parse as dateparse
-        ts_str = f"{parsed_data.get('date', '')} {parsed_data.get('time', '')}"
-        dt = dateparse(ts_str)
-        if dj_tz.is_naive(dt):
-            dt = dj_tz.make_aware(dt)  # Assume fuso do Django (America/Sao_Paulo)
-        return dt
+        dt = dateparse(f"{parsed_data.get('date', '')} {parsed_data.get('time', '')}")
+        return dj_tz.make_aware(dt) if dj_tz.is_naive(dt) else dt
     except Exception:
-        pass
-
-    return dj_tz.now()
+        return dj_tz.now()
 
 
 def map_severity(level_str):
     level = level_str.lower()
-    if level in ('critical', 'alert', 'emergency'):
-        return 'critical'
-    elif level == 'error':
-        return 'high'
-    elif level in ('warning', 'warn'):
-        return 'medium'
-    elif level == 'notice':
-        return 'low'
-    return 'info'
+    return {
+        'critical': 'critical', 'alert': 'critical', 'emergency': 'critical',
+        'error': 'high',
+        'warning': 'medium', 'warn': 'medium',
+        'notice': 'low',
+    }.get(level, 'info')
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Handler UDP principal
-# ─────────────────────────────────────────────────────────────────────────────
-
-class SyslogUDPHandler(socketserver.BaseRequestHandler):
-    def handle(self):
-        data = bytes.decode(self.request[0].strip(), 'utf-8', errors='ignore')
-        client_address = self.client_address[0]
-
-        try:
-            # --- DETECÇÃO DE DISPOSITIVOS (sempre, mesmo com Syslog desativado) ---
-            parsed_data = parse_fortinet_syslog(data)
-            devid = parsed_data.get('devid', parsed_data.get('device_id', ''))
-            self.record_device(devid, parsed_data, client_address)
-
-            from integrations.models import SyslogConfig
-            config = SyslogConfig.load()
-            if not config.is_enabled:
-                return
-
-            # --- ROTEADOR DE PARSERS E MODELS ---
-            log_type = parsed_data.get('type', '')
-            subtype  = parsed_data.get('subtype', '')
-
-            # 1. Eventos VPN
-            if log_type == 'event' and subtype == 'vpn':
-                action = parsed_data.get('action', '')
-                if action in ['negotiate-error', 'auth-failure', 'ssl-login-fail', 'ipsec-login-fail']:
-                    self.process_vpn_failure(parsed_data, client_address)
-                elif action in ['tunnel-up', 'tunnel-down', 'ssl-new-session', 'ssl-exit']:
-                    self.process_vpn_log(parsed_data, client_address)
-
-            # 2. UTM (IPS, Antivírus, WebFilter, AppControl)
-            elif log_type == 'utm':
-                self.process_security_event(parsed_data, client_address)
-
-            # 3. Traffic logs com UTM embutido (FortiOS envia assim às vezes)
-            elif log_type == 'traffic' and parsed_data.get('utm-action', ''):
-                self.process_security_event(parsed_data, client_address)
-
-        except Exception as e:
-            logger.error(f"Error parsing syslog from {client_address}: {e}", exc_info=True)
-
-    # ─── Handlers específicos ───────────────────────────────────────────────
-
-    def process_vpn_failure(self, parsed_data, source_emitter):
-        from vpn_logs.models import VPNFailure
-
-        username  = parsed_data.get('user', 'unknown')
-        source_ip = parsed_data.get('remip', parsed_data.get('srcip', '0.0.0.0'))
-        reason    = parsed_data.get('reason', parsed_data.get('action', ''))
-        timestamp = parse_fortinet_timestamp(parsed_data)
-
-        if not VPNFailure.objects.filter(
-            user=username, source_ip=source_ip,
-            timestamp=timestamp, reason=reason
-        ).exists():
-            VPNFailure.objects.create(
-                user=username,
-                source_ip=source_ip,
-                timestamp=timestamp,
-                reason=reason,
-                country_code='',
-                city='',
-                raw_data=parsed_data
-            )
-
-    def process_vpn_log(self, parsed_data, source_emitter):
-        from vpn_logs.models import VPNLog
-
-        session_id = parsed_data.get('sessionid', parsed_data.get('tunnelid', ''))
-        if not session_id:
-            return
-
-        username  = parsed_data.get('user', 'unknown')
-        source_ip = parsed_data.get('remip', parsed_data.get('srcip', '0.0.0.0'))
-        action    = parsed_data.get('action', '')
-        timestamp = parse_fortinet_timestamp(parsed_data)
-
-        if action in ['tunnel-up', 'ssl-new-session']:
-            if not VPNLog.objects.filter(session_id=session_id).exists():
-                VPNLog.objects.create(
-                    session_id=session_id,
-                    user=username,
-                    source_ip=source_ip,
-                    start_time=timestamp,
-                    status=action,
-                    raw_data=parsed_data
-                )
-        elif action in ['tunnel-down', 'ssl-exit']:
-            vpn_log = VPNLog.objects.filter(session_id=session_id).first()
-            if vpn_log:
-                vpn_log.end_time = timestamp
-                vpn_log.status   = action
-                try:
-                    vpn_log.bandwidth_out = int(parsed_data.get('sentbyte', 0))
-                    vpn_log.bandwidth_in  = int(parsed_data.get('rcvdbyte', 0))
-                    if vpn_log.start_time:
-                        vpn_log.duration = int((timestamp - vpn_log.start_time).total_seconds())
-                except Exception:
-                    pass
-                vpn_log.save()
-
-    def process_security_event(self, parsed_data, source_emitter):
-        """
-        Roteia e salva eventos UTM do FortiGate preenchendo TODOS os campos
-        específicos de cada subtype: IPS, Antivírus, WebFilter e AppControl.
-        """
-        from security_events.models import SecurityEvent
-        import hashlib, json, urllib.parse
-
-        # Mapeamento subtype FortiOS → choices do modelo
-        SUBTYPE_MAP = {
-            'webfilter':  'webfilter',
-            'app-ctrl':   'app-control',
-            'appctrl':    'app-control',
-            'ips':        'ips',
-            'virus':      'antivirus',
-            'dlp':        'webfilter',  # DLP vai para webfilter por enquanto
-        }
-
-        fa_subtype  = parsed_data.get('subtype', parsed_data.get('utm-action', ''))
-        mapped_type = SUBTYPE_MAP.get(fa_subtype)
-        if not mapped_type:
-            return
-
-        # Deduplicação por hash do log completo
-        log_str      = json.dumps(parsed_data, sort_keys=True)
-        event_id_raw = hashlib.md5(log_str.encode()).hexdigest()
-        if SecurityEvent.objects.filter(event_id=event_id_raw).exists():
-            return
-
-        src_ip    = parsed_data.get('srcip', '0.0.0.0')
-        dst_ip    = parsed_data.get('dstip', '0.0.0.0')
-        username  = parsed_data.get('user', '')
-        action    = parsed_data.get('action', '')
-        timestamp = parse_fortinet_timestamp(parsed_data)
-        severity  = map_severity(parsed_data.get('level', ''))
-
-        # ── Campos específicos por tipo ────────────────────────────────────
-        extra = {}
-
-        if mapped_type == 'ips':
-            extra = {
-                'attack_name': parsed_data.get('attack', parsed_data.get('attackname', '')),
-                'attack_id':   parsed_data.get('attackid', ''),
-                'cve':         parsed_data.get('cve', ''),
-                'src_port':    _int(parsed_data.get('srcport')),
-                'dst_port':    _int(parsed_data.get('dstport')),
-                'src_country': urllib.parse.unquote(parsed_data.get('srccountry', '')),
-            }
-
-        elif mapped_type == 'antivirus':
-            extra = {
-                'virus_name': parsed_data.get('virus', parsed_data.get('virusid', '')),
-                'file_name':  parsed_data.get('filename', parsed_data.get('fname', '')),
-                'file_hash':  parsed_data.get('checksum', ''),
-                'url':        urllib.parse.unquote(parsed_data.get('url', '')),
-                'src_port':   _int(parsed_data.get('srcport')),
-                'dst_port':   _int(parsed_data.get('dstport')),
-            }
-
-        elif mapped_type == 'webfilter':
-            extra = {
-                'url':        urllib.parse.unquote(parsed_data.get('url', '')),
-                'category':   urllib.parse.unquote(parsed_data.get('catdesc', parsed_data.get('category', ''))),
-                'src_port':   _int(parsed_data.get('srcport')),
-                'dst_port':   _int(parsed_data.get('dstport')),
-                'src_country': urllib.parse.unquote(parsed_data.get('srccountry', '')),
-            }
-
-        elif mapped_type == 'app-control':
-            extra = {
-                'app_name':     urllib.parse.unquote(parsed_data.get('app', parsed_data.get('appcat', ''))),
-                'app_category': urllib.parse.unquote(parsed_data.get('appcat', '')),
-                'app_risk':     parsed_data.get('apprisk', ''),
-                'bytes_in':     _int(parsed_data.get('rcvdbyte')),
-                'bytes_out':    _int(parsed_data.get('sentbyte')),
-                'src_port':     _int(parsed_data.get('srcport')),
-                'dst_port':     _int(parsed_data.get('dstport')),
-            }
-
-        try:
-            SecurityEvent.objects.create(
-                event_id=event_id_raw,
-                event_type=mapped_type,
-                severity=severity,
-                timestamp=timestamp,
-                date=timestamp.date(),
-                src_ip=src_ip,
-                dst_ip=dst_ip,
-                username=username,
-                action=action,
-                raw_log=log_str,
-                **extra
-            )
-            logger.info(f"SecurityEvent saved: {mapped_type} from {source_emitter}")
-        except Exception as e:
-            logger.error(f"Erro ao salvar SecurityEvent ({mapped_type}): {e}")
-
-    def record_device(self, devid, parsed_data, ip):
-        if not devid:
-            devid = f"UNKNOWN-{ip}"
-        devname = parsed_data.get('devname', f"Device at {ip}")
-
-        # Throttle: enfileira no máximo 1x por DEVICE_THROTTLE_SECONDS por device
-        with _device_throttle_lock:
-            last = _device_last_seen.get(devid, 0)
-            now  = time.time()
-            if now - last < DEVICE_THROTTLE_SECONDS:
-                return  # Mesmo device, passagem rápida — ignora
-            _device_last_seen[devid] = now
-
-        try:
-            _device_queue.put_nowait((devid, devname, ip))
-        except queue.Full:
-            logger.warning("Device queue is full, skipping registration")
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Helpers
-# ─────────────────────────────────────────────────────────────────────────────
 
 def _int(value, default=None):
-    """Converte para int com fallback seguro."""
     try:
         return int(value)
     except (TypeError, ValueError):
         return default
+
+
+def _build_security_event(parsed_data, raw_data):
+    """Constrói (sem salvar) um objeto SecurityEvent rico com todos os campos."""
+    import hashlib, json, urllib.parse
+    from security_events.models import SecurityEvent
+
+    SUBTYPE_MAP = {
+        'webfilter': 'webfilter', 'app-ctrl': 'app-control',
+        'appctrl': 'app-control', 'ips': 'ips',
+        'virus': 'antivirus', 'dlp': 'webfilter',
+    }
+    fa_subtype  = parsed_data.get('subtype', '')
+    mapped_type = SUBTYPE_MAP.get(fa_subtype)
+    if not mapped_type:
+        return None
+
+    log_str      = json.dumps(parsed_data, sort_keys=True)
+    event_id_raw = hashlib.md5(log_str.encode()).hexdigest()
+
+    if SecurityEvent.objects.filter(event_id=event_id_raw).exists():
+        return None
+
+    timestamp = parse_fortinet_timestamp(parsed_data)
+    src_ip    = parsed_data.get('srcip', '0.0.0.0')
+    dst_ip    = parsed_data.get('dstip', '0.0.0.0')
+    username  = parsed_data.get('user', '')
+    action    = parsed_data.get('action', '')
+    severity  = map_severity(parsed_data.get('level', ''))
+
+    kwargs = dict(
+        event_id=event_id_raw, event_type=mapped_type, severity=severity,
+        timestamp=timestamp, date=timestamp.date(),
+        src_ip=src_ip, dst_ip=dst_ip,
+        username=username, action=action, raw_log=log_str,
+        src_port=_int(parsed_data.get('srcport')),
+        dst_port=_int(parsed_data.get('dstport')),
+    )
+
+    if mapped_type == 'ips':
+        kwargs.update(
+            attack_name=parsed_data.get('attack', parsed_data.get('attackname', '')),
+            attack_id=parsed_data.get('attackid', ''),
+            cve=parsed_data.get('cve', ''),
+            src_country=urllib.parse.unquote(parsed_data.get('srccountry', '')),
+        )
+    elif mapped_type == 'antivirus':
+        kwargs.update(
+            virus_name=parsed_data.get('virus', ''),
+            file_name=parsed_data.get('filename', parsed_data.get('fname', '')),
+            file_hash=parsed_data.get('checksum', ''),
+            url=urllib.parse.unquote(parsed_data.get('url', '')),
+        )
+    elif mapped_type == 'webfilter':
+        kwargs.update(
+            url=urllib.parse.unquote(parsed_data.get('url', '')),
+            category=urllib.parse.unquote(parsed_data.get('catdesc', parsed_data.get('category', ''))),
+            src_country=urllib.parse.unquote(parsed_data.get('srccountry', '')),
+        )
+    elif mapped_type == 'app-control':
+        kwargs.update(
+            app_name=urllib.parse.unquote(parsed_data.get('app', '')),
+            app_category=urllib.parse.unquote(parsed_data.get('appcat', '')),
+            app_risk=parsed_data.get('apprisk', ''),
+            bytes_in=_int(parsed_data.get('rcvdbyte')),
+            bytes_out=_int(parsed_data.get('sentbyte')),
+        )
+
+    return SecurityEvent(**kwargs)
+
+
+def _save_vpn_failure(parsed_data, ip):
+    from vpn_logs.models import VPNFailure
+    username  = parsed_data.get('user', 'unknown')
+    source_ip = parsed_data.get('remip', parsed_data.get('srcip', ip))
+    reason    = parsed_data.get('reason', parsed_data.get('action', ''))
+    ts        = parse_fortinet_timestamp(parsed_data)
+    if not VPNFailure.objects.filter(user=username, source_ip=source_ip, timestamp=ts).exists():
+        VPNFailure.objects.create(
+            user=username, source_ip=source_ip,
+            timestamp=ts, reason=reason,
+            country_code='', city='', raw_data=parsed_data
+        )
+
+
+def _save_vpn_log(parsed_data):
+    from vpn_logs.models import VPNLog
+    session_id = parsed_data.get('sessionid', parsed_data.get('tunnelid', ''))
+    if not session_id:
+        return
+    username  = parsed_data.get('user', 'unknown')
+    source_ip = parsed_data.get('remip', parsed_data.get('srcip', '0.0.0.0'))
+    action    = parsed_data.get('action', '')
+    ts        = parse_fortinet_timestamp(parsed_data)
+
+    if action in ['tunnel-up', 'ssl-new-session']:
+        if not VPNLog.objects.filter(session_id=session_id).exists():
+            VPNLog.objects.create(
+                session_id=session_id, user=username,
+                source_ip=source_ip, start_time=ts,
+                status=action, raw_data=parsed_data
+            )
+    elif action in ['tunnel-down', 'ssl-exit']:
+        vpn_log = VPNLog.objects.filter(session_id=session_id).first()
+        if vpn_log:
+            vpn_log.end_time      = ts
+            vpn_log.status        = action
+            vpn_log.bandwidth_out = _int(parsed_data.get('sentbyte'), 0)
+            vpn_log.bandwidth_in  = _int(parsed_data.get('rcvdbyte'), 0)
+            if vpn_log.start_time:
+                vpn_log.duration = int((ts - vpn_log.start_time).total_seconds())
+            vpn_log.save()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Handler UDP — apenas enfileira, não processa
+# ─────────────────────────────────────────────────────────────────────────────
+
+class SyslogUDPHandler(socketserver.BaseRequestHandler):
+    def handle(self):
+        raw   = self.request[0]
+        ip    = self.client_address[0]
+        data  = raw.strip().decode('utf-8', errors='ignore')
+
+        # 1. Detectar device com throttle (baixíssimo custo)
+        try:
+            parsed_quick = parse_fortinet_syslog(data)
+            devid   = parsed_quick.get('devid', f'UNKNOWN-{ip}')
+            devname = parsed_quick.get('devname', f'Device at {ip}')
+            with _device_throttle_lock:
+                last = _device_last_seen.get(devid, 0)
+                now  = time.time()
+                if now - last >= DEVICE_THROTTLE_SECONDS:
+                    _device_last_seen[devid] = now
+                    try:
+                        _device_queue.put_nowait((devid, devname, ip))
+                    except queue.Full:
+                        pass
+        except Exception:
+            pass
+
+        # 2. Enfileira raw para processamento assíncrono
+        try:
+            _raw_queue.put_nowait((ip, data))
+        except queue.Full:
+            logger.warning(f"Raw queue full — dropping packet from {ip}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -341,21 +359,47 @@ def _int(value, default=None):
 # ─────────────────────────────────────────────────────────────────────────────
 
 class Command(BaseCommand):
-    help = 'Starts the UDP Syslog Receiver Daemon on port 5140'
+    help = 'Inicia o Syslog Receiver de alta performance (pipeline + worker pool)'
 
     def handle(self, *args, **options):
         HOST, PORT = "0.0.0.0", 5140
+
         self.stdout.write(self.style.SUCCESS(
-            f'Iniciando Syslog Receiver Passivo em {HOST}:{PORT}/UDP...'
+            f'Syslog Receiver iniciando em {HOST}:{PORT}/UDP | '
+            f'{NUM_WORKERS} workers | batch={BATCH_SIZE} | '
+            f'device throttle={DEVICE_THROTTLE_SECONDS}s'
         ))
-        print(f"LOG: Syslog Receiver started on {HOST}:{PORT}", flush=True)
 
-        # Inicia o worker de escrita assíncrona de dispositivos
-        worker = threading.Thread(target=_device_db_worker, daemon=True)
-        worker.start()
+        # Inicia worker de dispositivos (1 thread)
+        threading.Thread(target=_device_db_worker, daemon=True, name="device-worker").start()
 
-        with socketserver.ThreadingUDPServer((HOST, PORT), SyslogUDPHandler) as server:
+        # Inicia pool de workers de log
+        for i in range(NUM_WORKERS):
+            threading.Thread(
+                target=_log_processor_worker,
+                args=(i,),
+                daemon=True,
+                name=f"log-worker-{i}"
+            ).start()
+
+        # Monitor de saúde (imprime stats a cada 60s)
+        def _monitor():
+            while True:
+                time.sleep(60)
+                logger.info(
+                    f"[MONITOR] raw_queue={_raw_queue.qsize()} "
+                    f"device_queue={_device_queue.qsize()} "
+                    f"known_devices={len(_device_last_seen)}"
+                )
+        threading.Thread(target=_monitor, daemon=True, name="monitor").start()
+
+        # Servidor UDP — preempt_socket desativado para não bloquear no GIL
+        socketserver.UDPServer.allow_reuse_address = True
+        with socketserver.UDPServer((HOST, PORT), SyslogUDPHandler) as server:
+            self.stdout.write(self.style.SUCCESS(
+                f'Servidor UDP ouvindo em {HOST}:{PORT}'
+            ))
             try:
                 server.serve_forever()
             except KeyboardInterrupt:
-                self.stdout.write(self.style.WARNING('\nSaindo do Syslog Receiver...'))
+                self.stdout.write(self.style.WARNING('\nSaindo...'))
