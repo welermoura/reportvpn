@@ -34,11 +34,9 @@ class VPNLogViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def list(self, request):
-        # 0. Initial Queryset for base filtering - ONLY SSL VPN
-        base_qs = VPNLog.objects.filter(
-            Q(raw_data__tunneltype__startswith='ssl') | 
-            Q(raw_data__vpntype='ssl-vpn')
-        )
+        # 0. Initial Queryset for base filtering
+        # Inclui logs do FA (que tem tunneltype) e do Syslog (que podem não ter)
+        base_qs = VPNLog.objects.all()
         
         # Apply filters from query params
         user_q = request.query_params.get('user_q')
@@ -59,11 +57,9 @@ class VPNLogViewSet(viewsets.ModelViewSet):
             except ValueError:
                 pass
 
-        # 1. Latest Log Subquery (Strict SSL Only)
+        # 1. Latest Log Subquery
         latest_log_qs = VPNLog.objects.filter(
-            Q(user=OuterRef('user')),
-            Q(raw_data__tunneltype__startswith='ssl') | 
-            Q(raw_data__vpntype='ssl-vpn')
+            user=OuterRef('user')
         ).order_by('-start_time')
         
         # 2. Main aggregation query using the filtered base_qs
