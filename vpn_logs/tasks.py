@@ -1,5 +1,6 @@
 from celery import shared_task
 from django.utils import timezone
+from django.db.models import Q
 from django.core.cache import cache
 from dateutil.parser import parse
 from integrations.fortianalyzer import FortiAnalyzerClient

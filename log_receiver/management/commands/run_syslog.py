@@ -149,7 +149,7 @@ def _log_processor_worker(worker_id: int):
                     action = parsed.get('action', '')
                     if action in ['negotiate-error', 'auth-failure', 'ssl-login-fail', 'ipsec-login-fail']:
                         _save_vpn_failure(parsed, ip, ad_client)
-                    elif action in ['tunnel-up', 'tunnel-down', 'ssl-new-session', 'ssl-exit']:
+                    elif action in ['tunnel-up', 'tunnel-down', 'ssl-new-session', 'ssl-exit', 'ssl-login-successfully']:
                         _save_vpn_log(parsed)
 
                 # --- UTM events ---
@@ -397,11 +397,20 @@ def _save_vpn_log(parsed_data):
     if not session_id:
         return
     username  = parsed_data.get('user', 'unknown')
+    # Fallback para xauthuser se 'user' for genérico ou vazio
+    if username in ['unknown', 'N/A', ''] or not username:
+        username = parsed_data.get('xauthuser', username)
+
     source_ip = parsed_data.get('remip', parsed_data.get('srcip', '0.0.0.0'))
     action    = parsed_data.get('action', '')
     ts        = parse_fortinet_timestamp(parsed_data)
 
-    if action in ['tunnel-up', 'ssl-new-session']:
+    # Normalização CRÍTICA para o Dashboard Premium:
+    # Se for um log de SSL mas não tiver o campo tunneltype, nós injetamos
+    if 'ssl' in action.lower() and not parsed_data.get('tunneltype'):
+        parsed_data['tunneltype'] = 'ssl-tunnel'
+
+    if action in ['tunnel-up', 'ssl-new-session', 'ssl-login-successfully']:
         # Limpeza de sessões "zombie" (se o usuário já estava logado e o tunnel-down foi perdido)
         VPNLog.objects.filter(
             user=username, 
