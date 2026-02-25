@@ -43,9 +43,25 @@ class Command(BaseCommand):
                 'description': 'Coleta automática de eventos (IPS, AV, Web Filter, App Control) do FortiAnalyzer a cada 30 minutos'
             }
         )
+        # 3. VPN Midnight Consolidation (Daily at 23:59)
+        crontab_2359, created = CrontabSchedule.objects.get_or_create(
+            minute='59',
+            hour='23',
+            day_of_week='*',
+            day_of_month='*',
+            month_of_year='*',
+        )
+
+        cons_task, created = PeriodicTask.objects.get_or_create(
+            name='Consolidação Noturna VPN',
+            defaults={
+                'task': 'vpn_logs.tasks.consolidar_conexoes_virada_dia',
+                'crontab': crontab_2359,
+                'enabled': True,
+                'description': 'Garante que conexões que cruzam a meia-noite sejam particionadas corretamente para relatórios diários'
+            }
+        )
         if created:
-            self.stdout.write(self.style.SUCCESS(f"Created task: {sec_task.name}"))
-        else:
-            self.stdout.write(f"Task already exists: {sec_task.name}")
+            self.stdout.write(self.style.SUCCESS(f"Created task: {cons_task.name}"))
 
         self.stdout.write(self.style.SUCCESS("Standard tasks setup completed."))

@@ -600,7 +600,7 @@
                             <tbody>
                                 {loading && logs.length === 0 ? <tr><td colSpan="11" style={{ textAlign: 'center', padding: '40px' }}>Carregando...</td></tr> :
                                     logs.map(l => {
-                                        const active = l.latest_status === 'active';
+                                        const active = l.latest_status === 'active' || l.latest_status === 'tunnel-up';
                                         let dur = l.total_duration || 0;
 
                                         // Apenas roda o cronômetro ao vivo se o acesso for realmente do dia de hoje
