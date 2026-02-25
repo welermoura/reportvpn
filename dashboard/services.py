@@ -134,6 +134,8 @@ class RiskScoringService:
                         prev = last_travel.travel_details.get('previous', {})
                         curr = last_travel.travel_details.get('current', {})
                         hours = last_travel.travel_details.get('time_diff_hours', '?')
+                        dist = last_travel.travel_details.get('distance_km', '?')
+                        speed = last_travel.travel_details.get('speed_kmh', '?')
                         
                         # Formatação de tempo amigável (minutos se < 1h)
                         if isinstance(hours, (int, float)):
@@ -141,14 +143,18 @@ class RiskScoringService:
                         else:
                             time_str = f"{hours}h"
                             
-                        desc = f"Viagem Impossível: De {prev.get('city') or '?'}/{prev.get('code')} para {curr.get('city') or '?'}/{curr.get('code')} em {time_str}"
+                        desc = f"Viagem Impossível: De {prev.get('city') or '?'}/{prev.get('code')} para {curr.get('city') or '?'}/{curr.get('code')} em {time_str} ({dist}km a {speed}km/h)"
                     else:
                         # Reconstrução on-the-fly para logs antigos ou sem JSON
+                        # Garantir que buscamos um log com localização DIFERENTE para fazer sentido
                         prev_log = VPNLog.objects.filter(
                             user=u,
                             start_time__lt=last_travel.start_time,
                             country_code__isnull=False
-                        ).exclude(id=last_travel.id).order_by('-start_time').first()
+                        ).exclude(
+                            Q(id=last_travel.id) | 
+                            Q(city=last_travel.city, country_code=last_travel.country_code)
+                        ).order_by('-start_time').first()
 
                         if prev_log:
                             diff = last_travel.start_time - prev_log.start_time
@@ -158,7 +164,7 @@ class RiskScoringService:
                             desc = f"Viagem Impossível: De {prev_log.city or '?'}/{prev_log.country_code} para {last_travel.city or '?'}/{last_travel.country_code} em {time_str}"
                         else:
                             loc = f"{last_travel.city or '?'}/{last_travel.country_code or '?'}"
-                            desc = f"Viagem Impossível: Conexão suspeita em {loc}"
+                            desc = f"Viagem Impossível: Alerta em {loc}"
 
                 entry['events'].append({
                     'source': 'vpn',

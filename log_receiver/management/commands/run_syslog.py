@@ -248,7 +248,9 @@ def get_geoip_data(ip):
             res = {
                 'country': data.get('country'),
                 'city': data.get('city'),
-                'country_code': data.get('countryCode')
+                'country_code': data.get('countryCode'),
+                'lat': data.get('lat'),
+                'lon': data.get('lon')
             }
             if redis_client:
                 redis_client.setex(cache_key, 86400, json.dumps(res)) # 24h cache
@@ -374,6 +376,8 @@ def _save_vpn_failure(parsed_data, ip, ad_client=None):
                 city = gdata.get('city', '')
                 country_code = gdata.get('country_code', '')
                 country_name = gdata.get('country', '')
+                latitude = gdata.get('lat')
+                longitude = gdata.get('lon')
 
         VPNFailure.objects.create(
             user=username, 
@@ -383,6 +387,8 @@ def _save_vpn_failure(parsed_data, ip, ad_client=None):
             city=city,
             country_code=country_code,
             country_name=country_name,
+            latitude=latitude,
+            longitude=longitude,
             ad_department=ad_info.get('department'),
             ad_email=ad_info.get('email'),
             ad_title=ad_info.get('title'),
@@ -448,6 +454,8 @@ def _save_vpn_log(parsed_data):
                     country_name = gdata.get('country', '')
                     city = gdata.get('city', '')
                     country_code = gdata.get('country_code', '')
+                    latitude = gdata.get('lat')
+                    longitude = gdata.get('lon')
             
             # Mapeamento de código de país básico (se ainda não tiver do gdata)
             if not locals().get('country_code'):
@@ -487,6 +495,8 @@ def _save_vpn_log(parsed_data):
                     'country_name': country_name,
                     'country_code': country_code,
                     'city': city,
+                    'latitude': locals().get('latitude'),
+                    'longitude': locals().get('longitude'),
                     'is_suspicious': is_suspicious,
                     'last_activity': ts
                 }

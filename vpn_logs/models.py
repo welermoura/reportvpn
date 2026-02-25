@@ -25,11 +25,14 @@ class VPNLog(models.Model):
     city = models.CharField(max_length=100, null=True, blank=True, help_text="Cidade de origem")
     country_name = models.CharField(max_length=100, null=True, blank=True, help_text="Nome do país")
     country_code = models.CharField(max_length=10, null=True, blank=True, help_text="Código do país (ISO)")
+    latitude = models.FloatField(null=True, blank=True, help_text="Latitude do IP de origem")
+    longitude = models.FloatField(null=True, blank=True, help_text="Longitude do IP de origem")
 
     # Campos Calculados (Armazenados para performance)
     is_suspicious = models.BooleanField(default=False, db_index=True, help_text="Indica se o acesso é suspeito (país não confiável)")
     impossible_travel = models.BooleanField(default=False, db_index=True, help_text="Alerta de viagem impossível")
     travel_speed = models.FloatField(null=True, blank=True, help_text="Velocidade estimada (km/h) entre conexões")
+    distance_km = models.FloatField(null=True, blank=True, help_text="Distância calculada entre conexões (km)")
     travel_details = models.JSONField(null=True, blank=True, help_text="Contexto da viagem impossível (locais e tempos)")
 
     raw_data = models.JSONField(default=dict, help_text="Dados brutos do log")
@@ -64,51 +67,78 @@ class VPNLog(models.Model):
 
     def _check_impossible_travel(self):
         """
-        Verifica se a viagem desde o último login é factível.
-        Critério: Velocidade > 800 km/h (Avião comercial médio).
+        Calcula a distância entre este login e o anterior usando Haversine.
+        Considera impossível se a velocidade necessária exceder 800 km/h (Avião Comercial).
         """
-        if not self.user or not self.start_time or not self.country_code:
+        if not self.user or not self.start_time or not self.latitude or not self.longitude:
             return
 
-        # Buscar último login deste usuário (que tenha localização)
-        # Excluir o próprio ID se já salvo (update)
         previous_log = VPNLog.objects.filter(
             user=self.user,
             start_time__lt=self.start_time,
-            country_code__isnull=False
+            latitude__isnull=False,
+            longitude__isnull=False
         ).exclude(id=self.id).order_by('-start_time').first()
 
         if not previous_log:
             return
 
-        # Mudança drástica: agora permitimos cidade diferente no mesmo país se o tempo for muito curto
-        # (ex: SP para Vitória em 20 min)
-        if previous_log.country_code == self.country_code and previous_log.city == self.city:
+        # Mesma localização exata? Possível.
+        if previous_log.latitude == self.latitude and previous_log.longitude == self.longitude:
+            self.impossible_travel = False
             return
 
+        # Cálculo de Haversine (Distância em KM entre dois pontos)
+        import math
+        R = 6371.0 # Raio da Terra em KM
+        
+        lat1, lon1 = math.radians(previous_log.latitude), math.radians(previous_log.longitude)
+        lat2, lon2 = math.radians(self.latitude), math.radians(self.longitude)
+        
+        dlon = lon2 - lon1
+        dlat = lat2 - lat1
+        
+        a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        distance = R * c
+        
+        # Tempo entre conexões
         time_diff = (self.start_time - previous_log.start_time).total_seconds() / 3600.0 # Horas
         
-        # Limite: 1.5h para países diferentes, 1h para cidades diferentes no mesmo país
-        threshold = 1.5 if previous_log.country_code != self.country_code else 1.0
-        
-        if time_diff < threshold:
-            self.impossible_travel = True
-            self.travel_speed = 9999.0 # Placeholder
-            self.travel_details = {
-                'previous': {
-                    'city': previous_log.city,
-                    'country': previous_log.country_name,
-                    'code': previous_log.country_code,
-                    'time': previous_log.start_time.isoformat()
-                },
-                'current': {
-                    'city': self.city,
-                    'country': self.country_name,
-                    'code': self.country_code,
-                    'time': self.start_time.isoformat()
-                },
-                'time_diff_hours': round(time_diff, 2)
-            }
+        if time_diff > 0:
+            speed = distance / time_diff
+            self.travel_speed = round(speed, 2)
+            self.distance_km = round(distance, 2)
+            
+            # Limite: 800 km/h (Avião comercial médio)
+            if speed > 800:
+                self.impossible_travel = True
+                self.travel_details = {
+                    'previous': {
+                        'city': previous_log.city,
+                        'country': previous_log.country_name,
+                        'code': previous_log.country_code,
+                        'time': previous_log.start_time.isoformat(),
+                        'lat': previous_log.latitude,
+                        'lon': previous_log.longitude
+                    },
+                    'current': {
+                        'city': self.city,
+                        'country': self.country_name,
+                        'code': self.country_code,
+                        'time': self.start_time.isoformat(),
+                        'lat': self.latitude,
+                        'lon': self.longitude
+                    },
+                    'distance_km': self.distance_km,
+                    'speed_kmh': self.travel_speed,
+                    'time_diff_hours': round(time_diff, 2)
+                }
+            else:
+                self.impossible_travel = False
+                self.travel_details = None
+        else:
+            self.impossible_travel = False
 
     class Meta:
         verbose_name = "Log de VPN"
@@ -153,6 +183,8 @@ class VPNFailure(models.Model):
     city = models.CharField(max_length=100, null=True, blank=True)
     country_code = models.CharField(max_length=10, null=True, blank=True)
     country_name = models.CharField(max_length=100, null=True, blank=True)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
 
     # Campos enriquecidos do AD
     ad_department = models.CharField(max_length=255, null=True, blank=True, db_index=True)
