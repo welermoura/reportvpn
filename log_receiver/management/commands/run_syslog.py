@@ -156,7 +156,7 @@ def _log_processor_worker(worker_id: int):
                         _save_vpn_log(parsed)
 
                 # --- UTM events ---
-                elif log_type == 'utm' or (log_type == 'traffic' and parsed.get('utm-action')):
+                elif log_type in ['utm', 'ips', 'virus'] or (log_type == 'traffic' and parsed.get('utm-action')):
                     se = _build_security_event(parsed, raw_data)
                     if se:
                         batch_buffer.append(se)
@@ -273,7 +273,14 @@ def _build_security_event(parsed_data, raw_data):
         'virus': 'antivirus', 'dlp': 'webfilter',
     }
     fa_subtype  = parsed_data.get('subtype', '')
+    fa_type     = parsed_data.get('type', '')
+    
+    # Mapeamento prioritário por subtipo, fallback para o tipo principal
     mapped_type = SUBTYPE_MAP.get(fa_subtype)
+    if not mapped_type:
+        if fa_type == 'ips': mapped_type = 'ips'
+        elif fa_type == 'virus': mapped_type = 'antivirus'
+
     if not mapped_type:
         return None
 
