@@ -225,6 +225,43 @@ def _int(value, default=None):
         return default
 
 
+def get_geoip_data(ip):
+    """
+    Busca país e cidade de um IP público usando ip-api.com com cache no Redis (24h).
+    """
+    if not ip or ip.startswith(('10.', '172.16.', '192.168.', '127.', '0.0.0.0')):
+        return {}
+
+    cache_key = f"geoip:{ip}"
+    if redis_client:
+        cached = redis_client.get(cache_key)
+        if cached:
+            import json
+            try:
+                return json.loads(cached)
+            except:
+                pass
+
+    try:
+        import requests, json
+        # Usando ip-api (gratuito para demo)
+        r = requests.get(f"http://ip-api.com/json/{ip}", timeout=3)
+        data = r.json()
+        if data.get('status') == 'success':
+            res = {
+                'country': data.get('country'),
+                'city': data.get('city'),
+                'country_code': data.get('countryCode')
+            }
+            if redis_client:
+                redis_client.setex(cache_key, 86400, json.dumps(res)) # 24h cache
+            return res
+    except Exception as e:
+        logger.error(f"GeoIP Error for {ip}: {e}")
+    
+    return {}
+
+
 def _build_security_event(parsed_data, raw_data):
     """Constrói (sem salvar) um objeto SecurityEvent rico com todos os campos."""
     import hashlib, json, urllib.parse
@@ -340,14 +377,23 @@ def _save_vpn_log(parsed_data):
             country_name = rem_country if rem_country.lower() not in ['reserved', 'n/a'] else ''
             city = rem_city if rem_city.lower() not in ['reserved', 'n/a'] else ''
             
-            # Mapeamento de código de país básico
-            COUNTRY_MAP = {
-                'brazil': 'BR', 'united states': 'US', 'argentina': 'AR', 
-                'mexico': 'MX', 'chile': 'CL', 'colombia': 'CO', 'peru': 'PE',
-                'paraguay': 'PY', 'uruguay': 'UY', 'canada': 'CA', 'germany': 'DE',
-                'france': 'FR', 'united kingdom': 'GB', 'spain': 'ES', 'portugal': 'PT'
-            }
-            country_code = COUNTRY_MAP.get(country_name.lower(), '')
+            # Fallback Automático: Se o firewall não mandou a localização, nós descobrimos via API
+            if not country_name and source_ip:
+                gdata = get_geoip_data(source_ip)
+                if gdata:
+                    country_name = gdata.get('country', '')
+                    city = gdata.get('city', '')
+                    country_code = gdata.get('country_code', '')
+            
+            # Mapeamento de código de país básico (se ainda não tiver do gdata)
+            if not locals().get('country_code'):
+                COUNTRY_MAP = {
+                    'brazil': 'BR', 'united states': 'US', 'argentina': 'AR', 
+                    'mexico': 'MX', 'chile': 'CL', 'colombia': 'CO', 'peru': 'PE',
+                    'paraguay': 'PY', 'uruguay': 'UY', 'canada': 'CA', 'germany': 'DE',
+                    'france': 'FR', 'united kingdom': 'GB', 'spain': 'ES', 'portugal': 'PT'
+                }
+                country_code = COUNTRY_MAP.get(country_name.lower(), '')
 
             # Detecção de suspeito
             is_suspicious = False
