@@ -13,6 +13,7 @@ class VPNLog(models.Model):
     bandwidth_in = models.BigIntegerField(default=0, help_text="Bytes recebidos")
     bandwidth_out = models.BigIntegerField(default=0, help_text="Bytes enviados")
     status = models.CharField(max_length=50, help_text="Status da conexão (ex: tunnel-up, tunnel-down)")
+    last_activity = models.DateTimeField(null=True, blank=True, db_index=True, help_text="Carimbo de data/hora do último batimento cardíaco (heartbeat)")
     
     # Campos enriquecidos do AD
     ad_department = models.CharField(max_length=255, null=True, blank=True, db_index=True, help_text="Departamento do usuário (AD)")

@@ -61,7 +61,22 @@ class Command(BaseCommand):
                 'description': 'Garante que conexões que cruzam a meia-noite sejam particionadas corretamente para relatórios diários'
             }
         )
+        # 4. VPN Stale Sessions Cleanup (Every 5 minutes)
+        schedule_5m, created = IntervalSchedule.objects.get_or_create(
+            every=5,
+            period=IntervalSchedule.MINUTES,
+        )
+
+        stale_task, created = PeriodicTask.objects.get_or_create(
+            name='Limpeza de Sessões VPN Expiradas (Heartbeat)',
+            defaults={
+                'task': 'vpn_logs.tasks.close_stale_sessions_task',
+                'interval': schedule_5m,
+                'enabled': True,
+                'description': 'Fecha automaticamente sessões VPN sem atividade por mais de 12 minutos'
+            }
+        )
         if created:
-            self.stdout.write(self.style.SUCCESS(f"Created task: {cons_task.name}"))
+            self.stdout.write(self.style.SUCCESS(f"Created task: {stale_task.name}"))
 
         self.stdout.write(self.style.SUCCESS("Standard tasks setup completed."))

@@ -169,11 +169,14 @@ def fetch_vpn_logs_task(self):
                         offset_duration = int(possible_log.raw_data.get('_duration_offset', 0))
                         real_duration = duration - offset_duration
                         if real_duration < 0: real_duration = 0
-                        
                         if real_duration > (possible_log.duration or 0):
                             possible_log.duration = real_duration
                             possible_log.end_time = possible_log.start_time + datetime.timedelta(seconds=real_duration)
-                            possible_log.save(update_fields=['duration', 'end_time'])
+                            possible_log.last_activity = start_time
+                            possible_log.save(update_fields=['duration', 'end_time', 'last_activity'])
+                        elif start_time > (possible_log.last_activity or possible_log.start_time):
+                            possible_log.last_activity = start_time
+                            possible_log.save(update_fields=['last_activity'])
                         continue
                 
                 # Para tunnel-up e tunnel-down, usamos update_or_create para garantir unicidade
@@ -212,6 +215,7 @@ def fetch_vpn_logs_task(self):
                             'city': fa_city,
                             'country_name': country_name_val,
                             'country_code': country_code_val,
+                            'last_activity': start_time
                         }
                     )
                     if not created:
@@ -220,7 +224,11 @@ def fetch_vpn_logs_task(self):
                             log_entry.status = 'closed'
                             log_entry.duration = duration
                             log_entry.end_time = end_time
-                            log_entry.save(update_fields=['status', 'duration', 'end_time'])
+                            log_entry.last_activity = start_time
+                            log_entry.save(update_fields=['status', 'duration', 'end_time', 'last_activity'])
+                        elif start_time > (log_entry.last_activity or log_entry.start_time):
+                            log_entry.last_activity = start_time
+                            log_entry.save(update_fields=['last_activity'])
                     else:
                         count_new += 1
 
@@ -447,9 +455,55 @@ def consolidar_conexoes_virada_dia():
             city=log.city,
             country_name=log.country_name,
             country_code=log.country_code,
-            is_suspicious=log.is_suspicious
+            is_suspicious=log.is_suspicious,
+            last_activity=new_start
         )
         count += 1
         
     logger.info(f"Consolidação concluída. {count} sessões ativas foram particionadas para o novo dia.")
     return f"Consolidated {count} sessions"
+
+
+@shared_task(name='vpn_logs.tasks.close_stale_sessions_task')
+def close_stale_sessions_task():
+    """
+    Fecha sessões que não tiveram atividade (tunnel-stats ou tunnel-up) nos últimos 12 minutos.
+    Isso resolve o problema de usuários que desconectam e o Firewall não envia o log de tunnel-down.
+    """
+    logger.info("Iniciando verificação de sessões expiradas (Heartbeat timeout)...")
+    now = timezone.now()
+    timeout_threshold = now - datetime.timedelta(minutes=12)
+    
+    # Buscamos sessões ativas que não tiveram sinal de vida nos últimos 12 minutos
+    # Verificamos tanto last_activity quanto start_time (caso last_activity seja nulo)
+    stale_sessions = VPNLog.objects.filter(
+        status__in=['active', 'tunnel-up']
+    ).filter(
+        Q(last_activity__lt=timeout_threshold) | 
+        Q(last_activity__isnull=True, start_time__lt=timeout_threshold)
+    )
+    
+    count = stale_sessions.count()
+    if count > 0:
+        logger.warning(f"Encontradas {count} sessões expiradas. Fechando automaticamente.")
+        for session in stale_sessions:
+            # O horário de fim será o último sinal de vida conhecido
+            end_ts = session.last_activity if session.last_activity else (session.start_time + datetime.timedelta(seconds=session.duration or 0))
+            
+            # Garantir que end_ts não seja maior que agora
+            if end_ts > now:
+                end_ts = now
+                
+            session.status = 'closed'
+            session.end_time = end_ts
+            # Recalcular duração final
+            if session.start_time:
+                session.duration = int((end_ts - session.start_time).total_seconds())
+                
+            session.save(update_fields=['status', 'end_time', 'duration'])
+            
+        logger.info(f"Sucesso: {count} sessões 'zombie' foram encerradas por inatividade.")
+    else:
+        logger.info("Nenhuma sessão expirada encontrada.")
+        
+    return f"Closed {count} stale sessions"

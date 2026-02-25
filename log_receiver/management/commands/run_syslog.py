@@ -432,9 +432,21 @@ def _save_vpn_log(parsed_data):
                     'country_name': country_name,
                     'country_code': country_code,
                     'city': city,
-                    'is_suspicious': is_suspicious
+                    'is_suspicious': is_suspicious,
+                    'last_activity': ts
                 }
             )
+        else:
+            # Sessão já existe, apenas garantir que last_activity está preenchido
+            if not VPNLog.objects.filter(session_id=session_id, last_activity__isnull=False).exists():
+                VPNLog.objects.filter(session_id=session_id).update(last_activity=ts)
+
+    elif action == 'tunnel-stats':
+        # Heartbeat: Atualiza o sinal de vida da sessão
+        # Não usamos get_or_create aqui para não criar sessões sem tunnel-up via syslog
+        # (A sincronização via API tasks.py cuidará de criar se faltar)
+        VPNLog.objects.filter(session_id=session_id, status__in=['active', 'tunnel-up']).update(last_activity=ts)
+
     elif action in ['tunnel-down', 'ssl-exit']:
         vpn_log = VPNLog.objects.filter(session_id=session_id).first()
         if vpn_log:
