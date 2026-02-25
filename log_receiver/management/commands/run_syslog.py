@@ -426,8 +426,14 @@ def _save_vpn_log(parsed_data):
             vpn_log.status        = action
             vpn_log.bandwidth_out = _int(parsed_data.get('sentbyte'), 0)
             vpn_log.bandwidth_in  = _int(parsed_data.get('rcvdbyte'), 0)
-            if vpn_log.start_time:
+            
+            # Prioriza a duração enviada pelo Fortigate
+            forti_duration = _int(parsed_data.get('duration'))
+            if forti_duration is not None:
+                vpn_log.duration = forti_duration
+            elif vpn_log.start_time:
                 vpn_log.duration = int((ts - vpn_log.start_time).total_seconds())
+                
             vpn_log.save()
 
 

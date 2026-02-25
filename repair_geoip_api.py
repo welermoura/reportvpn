@@ -39,8 +39,7 @@ def repair_via_api():
             # Rate limit preventivo para API gratuita
             time.sleep(1.2)
             
-            if count >= 100: # Limite por rodada
-                break
+            # Sem limite fixo para esta rodada final
                 
         except Exception as e:
             print(f"Erro: {e}")

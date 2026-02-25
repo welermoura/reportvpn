@@ -635,7 +635,6 @@
                                                 <td style={{ fontSize: '0.75rem' }}>{l.latest_source_ip}</td>
                                                 <td>{l.latest_city || '-'}</td>
                                                 <td>{l.latest_country || l.latest_country_code || '-'}</td>
-                                                <td style={{ color: '#4e73df', fontWeight: 600 }}>{window.formatBytes(l.total_volume)}</td>
                                                 <td style={{ color: active ? '#1cc88a' : 'inherit' }}>{h}h {m}m</td>
                                                 <td style={{ paddingRight: '20px' }}>
                                                     <button style={{ background: 'rgba(255,255,255,0.05)', border: 'none', padding: '6px', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setSelectedUser(l)}>
