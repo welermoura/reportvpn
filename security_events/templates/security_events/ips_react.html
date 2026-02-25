@@ -560,7 +560,7 @@
         const [totalCount, setTotalCount] = useState(0);
 
         const [filters, setFilters] = useState({
-            search: '', severity: '', start_date: '', ordering: '-timestamp'
+            search: '', severity: '', start_date: '', end_date: '', ordering: '-timestamp'
         });
 
         const fetchData = useCallback(async () => {
@@ -570,7 +570,9 @@
                 if (filters.severity) params.append('severity', filters.severity);
                 if (filters.start_date) {
                     params.append('start_date', filters.start_date);
-                    params.append('end_date', filters.start_date);
+                }
+                if (filters.end_date) {
+                    params.append('end_date', filters.end_date);
                 }
                 params.append('page', page);
 
@@ -603,14 +605,15 @@
             }
         };
 
-        const clearFilters = () => { setFilters({ search: '', severity: '', start_date: '', ordering: '-timestamp' }); setPage(1); };
+        const clearFilters = () => { setFilters({ search: '', severity: '', start_date: '', end_date: '', ordering: '-timestamp' }); setPage(1); };
 
         const handleExport = (type) => {
             const params = new URLSearchParams();
             params.append('event_type', 'ips');
             if (filters.search) params.append('search', filters.search);
             if (filters.severity) params.append('severity', filters.severity);
-            if (filters.start_date) { params.append('start_date', filters.start_date); params.append('end_date', filters.start_date); }
+            if (filters.start_date) params.append('start_date', filters.start_date);
+            if (filters.end_date) params.append('end_date', filters.end_date);
             const url = type === 'pdf' ? '/security/export/pdf/' : '/security/export/csv/';
             window.location.href = `${url}?${params.toString()}`;
         };
@@ -694,7 +697,15 @@
                             className="filter-input"
                             value={filters.start_date}
                             onChange={e => setFilters({ ...filters, start_date: e.target.value })}
-                            style={{ colorScheme: 'dark' }}
+                            style={{ colorScheme: 'dark', width: '130px' }}
+                        />
+                        <span style={{ color: '#858796', fontSize: '0.8rem' }}>Até</span>
+                        <input
+                            type="date"
+                            className="filter-input"
+                            value={filters.end_date}
+                            onChange={e => setFilters({ ...filters, end_date: e.target.value })}
+                            style={{ colorScheme: 'dark', width: '130px' }}
                         />
 
                         <div style={{ flexGrow: 1 }}></div>

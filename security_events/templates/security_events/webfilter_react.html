@@ -594,7 +594,13 @@
                         <input
                             type="date" className="filter-input"
                             value={filters.start_date} onChange={(e) => handleFilterChange('start_date', e.target.value)}
-                            style={{ colorScheme: 'dark' }}
+                            style={{ colorScheme: 'dark', width: '130px' }}
+                        />
+                        <span style={{ color: '#858796', fontSize: '0.8rem' }}>Até</span>
+                        <input
+                            type="date" className="filter-input"
+                            value={filters.end_date} onChange={(e) => handleFilterChange('end_date', e.target.value)}
+                            style={{ colorScheme: 'dark', width: '130px' }}
                         />
 
                         <div style={{ flexGrow: 1 }}></div>
