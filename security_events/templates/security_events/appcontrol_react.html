@@ -356,9 +356,19 @@
                                     }}>{event.app_category || '-'}</span>
                                 </div>
                             </div>
-                            {(event.raw_data?.hostname || event.raw_data?.url) && (
+                            {event.url && (
                                 <div>
                                     <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>URL / Website</label>
+                                    <div style={{ fontSize: '0.85rem', color: '#4e73df', wordBreak: 'break-all', textDecoration: 'underline' }}>
+                                        <a href={event.url.startsWith('http') ? event.url : `http://${event.url}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>
+                                            {event.url}
+                                        </a>
+                                    </div>
+                                </div>
+                            )}
+                            {(!event.url && (event.raw_data?.hostname || event.raw_data?.url)) && (
+                                <div>
+                                    <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>URL / Website (Raw)</label>
                                     <div style={{ fontSize: '0.85rem', color: '#4e73df', wordBreak: 'break-all', textDecoration: 'underline' }}>
                                         {event.raw_data?.hostname || event.raw_data?.url}
                                     </div>
