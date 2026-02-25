@@ -356,6 +356,15 @@ def _save_vpn_log(parsed_data):
     ts        = parse_fortinet_timestamp(parsed_data)
 
     if action in ['tunnel-up', 'ssl-new-session']:
+        # Limpeza de sessões "zombie" (se o usuário já estava logado e o tunnel-down foi perdido)
+        VPNLog.objects.filter(
+            user=username, 
+            status__in=['active', 'tunnel-up']
+        ).exclude(session_id=session_id).update(
+            status='closed', 
+            end_time=ts
+        )
+
         if not VPNLog.objects.filter(session_id=session_id).exists():
             # Enriquecimento AD
             ad_info = {}
