@@ -30,6 +30,7 @@ class VPNLog(models.Model):
     is_suspicious = models.BooleanField(default=False, db_index=True, help_text="Indica se o acesso é suspeito (país não confiável)")
     impossible_travel = models.BooleanField(default=False, db_index=True, help_text="Alerta de viagem impossível")
     travel_speed = models.FloatField(null=True, blank=True, help_text="Velocidade estimada (km/h) entre conexões")
+    travel_details = models.JSONField(null=True, blank=True, help_text="Contexto da viagem impossível (locais e tempos)")
 
     raw_data = models.JSONField(default=dict, help_text="Dados brutos do log")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -95,6 +96,21 @@ class VPNLog(models.Model):
              # Permitir fronteiras ou casos específicos seria a evolução ideal
             self.impossible_travel = True
             self.travel_speed = 9999.0 # Placeholder para "Instantâneo"
+            self.travel_details = {
+                'previous': {
+                    'city': previous_log.city,
+                    'country': previous_log.country_name,
+                    'code': previous_log.country_code,
+                    'time': previous_log.start_time.isoformat()
+                },
+                'current': {
+                    'city': self.city,
+                    'country': self.country_name,
+                    'code': self.country_code,
+                    'time': self.start_time.isoformat()
+                },
+                'time_diff_hours': round(time_diff, 2)
+            }
 
     class Meta:
         verbose_name = "Log de VPN"

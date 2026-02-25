@@ -120,10 +120,25 @@ class RiskScoringService:
                 weight = 40 * item['impossible']
                 entry = get_user_entry(u)
                 entry['score'] += weight
+                
+                # Buscar o detalhe da viagem impossível mais recente para este usuário no período
+                last_travel = VPNLog.objects.filter(
+                    user=u, 
+                    impossible_travel=True, 
+                    start_time__gte=start_date
+                ).exclude(travel_details__isnull=True).order_by('-start_time').first()
+                
+                desc = f"VPN: {item['impossible']} alertas de viagem impossível"
+                if last_travel and last_travel.travel_details:
+                    prev = last_travel.travel_details.get('previous', {})
+                    curr = last_travel.travel_details.get('current', {})
+                    hours = last_travel.travel_details.get('time_diff_hours', '?')
+                    desc = f"Viagem Impossível: De {prev.get('city') or '?'}/{prev.get('code')} para {curr.get('city') or '?'}/{curr.get('code')} em {hours}h"
+
                 entry['events'].append({
                     'source': 'vpn',
                     'weight': weight,
-                    'desc': f"VPN: {item['impossible']} alertas de viagem impossível",
+                    'desc': desc,
                     'ts': timezone.now()
                 })
 
