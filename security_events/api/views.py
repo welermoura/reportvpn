@@ -78,10 +78,9 @@ class WebFilterViewSet(viewsets.ReadOnlyModelViewSet):
         end_date = self.request.query_params.get('end_date', None)
 
         if start_date:
-            queryset = queryset.filter(timestamp__gte=start_date)
+            queryset = queryset.filter(date__gte=start_date)
         if end_date:
-            # Append max time to include the entire end date
-            queryset = queryset.filter(timestamp__lte=f"{end_date} 23:59:59")
+            queryset = queryset.filter(date__lte=end_date)
         
         return queryset.select_related().order_by('-timestamp')
 
@@ -157,9 +156,9 @@ class IPSViewSet(viewsets.ReadOnlyModelViewSet):
         end_date = self.request.query_params.get('end_date', None)
 
         if start_date:
-            queryset = queryset.filter(timestamp__gte=start_date)
+            queryset = queryset.filter(date__gte=start_date)
         if end_date:
-            queryset = queryset.filter(timestamp__lte=f"{end_date} 23:59:59")
+            queryset = queryset.filter(date__lte=end_date)
         
         return queryset.select_related().order_by('-timestamp')
 
@@ -222,9 +221,9 @@ class AntivirusViewSet(viewsets.ReadOnlyModelViewSet):
         end_date = self.request.query_params.get('end_date')
         
         if start_date:
-            queryset = queryset.filter(timestamp__gte=start_date)
+            queryset = queryset.filter(date__gte=start_date)
         if end_date:
-            queryset = queryset.filter(timestamp__lte=f"{end_date} 23:59:59")
+            queryset = queryset.filter(date__lte=end_date)
             
         return queryset.select_related().order_by('-timestamp')
 
@@ -280,9 +279,9 @@ class AppControlViewSet(viewsets.ReadOnlyModelViewSet):
         end_date = self.request.query_params.get('end_date')
         
         if start_date:
-            queryset = queryset.filter(timestamp__gte=start_date)
+            queryset = queryset.filter(date__gte=start_date)
         if end_date:
-            queryset = queryset.filter(timestamp__lte=f"{end_date} 23:59:59")
+            queryset = queryset.filter(date__lte=end_date)
             
         return queryset.select_related().order_by('-timestamp')
 
@@ -333,9 +332,9 @@ class ADAuthEventViewSet(viewsets.ModelViewSet):
         end_date = self.request.query_params.get('end_date')
         
         if start_date:
-            queryset = queryset.filter(timestamp__gte=start_date)
+            queryset = queryset.filter(timestamp__date__gte=start_date)
         if end_date:
-            queryset = queryset.filter(timestamp__lte=f"{end_date} 23:59:59")
+            queryset = queryset.filter(timestamp__date__lte=end_date)
             
         return queryset.order_by('-timestamp')
 
