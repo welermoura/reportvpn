@@ -415,18 +415,25 @@ def _save_vpn_log(parsed_data):
             except Exception:
                 pass
 
-            VPNLog.objects.create(
-                session_id=session_id, user=username,
-                source_ip=source_ip, start_time=ts,
-                status=action, raw_data=parsed_data,
-                ad_department=ad_info.get('department'),
-                ad_email=ad_info.get('email'),
-                ad_title=ad_info.get('title'),
-                ad_display_name=ad_info.get('display_name'),
-                country_name=country_name,
-                country_code=country_code,
-                city=city,
-                is_suspicious=is_suspicious
+            # Usamos get_or_create para garantir que não criamos duplicatas por race condition
+            # com a tarefa de polling (tasks.py)
+            VPNLog.objects.get_or_create(
+                session_id=session_id,
+                defaults={
+                    'user': username,
+                    'source_ip': source_ip,
+                    'start_time': ts,
+                    'status': action,
+                    'raw_data': parsed_data,
+                    'ad_department': ad_info.get('department'),
+                    'ad_email': ad_info.get('email'),
+                    'ad_title': ad_info.get('title'),
+                    'ad_display_name': ad_info.get('display_name'),
+                    'country_name': country_name,
+                    'country_code': country_code,
+                    'city': city,
+                    'is_suspicious': is_suspicious
+                }
             )
     elif action in ['tunnel-down', 'ssl-exit']:
         vpn_log = VPNLog.objects.filter(session_id=session_id).first()

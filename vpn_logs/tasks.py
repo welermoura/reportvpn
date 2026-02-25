@@ -155,64 +155,78 @@ def fetch_vpn_logs_task(self):
                 elif action == 'tunnel-stats':
                     status = 'active' # Intermediate stat means it's still active or was active recently
 
-                if existing_log:
-                    # Se for uma sessão consolidada na virada do dia, ela terá um offset p/ subtrair os dados acumulados de ontem
-                    offset_duration = int(existing_log.raw_data.get('_duration_offset', 0))
-                    offset_rcvd = int(existing_log.raw_data.get('_rcvd_offset', 0))
-                    offset_sent = int(existing_log.raw_data.get('_sent_offset', 0))
-
-                    real_duration = duration - offset_duration
-                    if real_duration < 0: real_duration = 0
-                    
-                    real_rcvd = int(log.get('rcvdbyte', 0)) - offset_rcvd
-                    if real_rcvd < 0: real_rcvd = 0
-                        
-                    real_sent = int(log.get('sentbyte', 0)) - offset_sent
-                    if real_sent < 0: real_sent = 0
-
-                    if action == 'tunnel-stats':
-                        # Para eventos intermediários, usamos a duração real
-                        if real_duration > (existing_log.duration or 0):
-                            existing_log.duration = real_duration
-                            existing_log.end_time = existing_log.start_time + datetime.timedelta(seconds=real_duration)
-                            existing_log.save(update_fields=['duration', 'end_time'])
-                        # Não precisamos processar bandwidth aqui (normalmente tunnel-stats vem com bytes zerados ou acumulados)
-                        continue
-
-                    # Lógica original para tunnel-up / tunnel-down (com offsets)
-                    # Session already exists, update if the new event provides more duration or closes the session
-                    existing_duration = existing_log.duration or 0
-                    if real_duration > existing_duration or (real_duration == existing_duration and status == 'closed' and existing_log.status != 'closed'):
-                        existing_log.duration = real_duration
-                        existing_log.end_time = existing_log.start_time + datetime.timedelta(seconds=real_duration)
-                        existing_log.bandwidth_in = real_rcvd
-                        existing_log.bandwidth_out = real_sent
-                        if status == 'closed':
-                            existing_log.status = 'closed'
-                        existing_log.bypass_suspicious_check = True
-                        existing_log.save(update_fields=['duration', 'end_time', 'bandwidth_in', 'bandwidth_out', 'status'])
-                    continue
-                else:
+                if action == 'tunnel-stats':
                     # Nenhuma sessão encontrada por session_id; tentar associar tunnel-stats a uma sessão ativa
-                    if action == 'tunnel-stats':
-                        possible_log = None
-                        # Busca por IP ou por Usuário (caso o IP venha zerado no log de estatística)
-                        if source_ip and source_ip != '0.0.0.0':
-                            possible_log = VPNLog.objects.filter(source_ip=source_ip, status='active', start_time__lte=start_time).order_by('-start_time').first()
-                        
-                        if not possible_log and username and username not in ['unknown', 'N/A']:
-                            possible_log = VPNLog.objects.filter(user=username, status='active', start_time__lte=start_time).order_by('-start_time').first()
+                    possible_log = None
+                    # Busca por IP ou por Usuário (caso o IP venha zerado no log de estatística)
+                    if source_ip and source_ip != '0.0.0.0':
+                        possible_log = VPNLog.objects.filter(source_ip=source_ip, status='active', start_time__lte=start_time).order_by('-start_time').first()
+                    
+                    if not possible_log and username and username not in ['unknown', 'N/A']:
+                        possible_log = VPNLog.objects.filter(user=username, status='active', start_time__lte=start_time).order_by('-start_time').first()
 
-                        if possible_log:
-                            offset_duration = int(possible_log.raw_data.get('_duration_offset', 0))
-                            real_duration = duration - offset_duration
-                            if real_duration < 0: real_duration = 0
-                            
-                            if real_duration > (possible_log.duration or 0):
-                                possible_log.duration = real_duration
-                                possible_log.end_time = possible_log.start_time + datetime.timedelta(seconds=real_duration)
-                                possible_log.save(update_fields=['duration', 'end_time'])
-                            continue
+                    if possible_log:
+                        offset_duration = int(possible_log.raw_data.get('_duration_offset', 0))
+                        real_duration = duration - offset_duration
+                        if real_duration < 0: real_duration = 0
+                        
+                        if real_duration > (possible_log.duration or 0):
+                            possible_log.duration = real_duration
+                            possible_log.end_time = possible_log.start_time + datetime.timedelta(seconds=real_duration)
+                            possible_log.save(update_fields=['duration', 'end_time'])
+                        continue
+                
+                # Para tunnel-up e tunnel-down, usamos update_or_create para garantir unicidade
+                # e evitar race conditions com o receptor de syslog
+                try:
+                    # Enriquecimento AD (apenas se for novo)
+                    ad_info = {}
+                    if username and username not in ['unknown', 'N/A']:
+                        clean_user = username.split('\\')[-1]
+                        ad_info = ad_client.get_user_info(clean_user) or {}
+
+                    # Enriquecimento Geográfico
+                    import urllib.parse
+                    fa_country = urllib.parse.unquote(str(log.get('srccountry', '') or log.get('remcountry', '')).strip())
+                    fa_city = urllib.parse.unquote(str(log.get('srccity', '') or log.get('remcity', '')).strip())
+                    country_name_val = fa_country if fa_country.lower() not in ['reserved', 'n/a'] else ''
+                    country_code_val = COUNTRY_MAP.get(country_name_val.lower(), '')
+                    
+                    log_entry, created = VPNLog.objects.update_or_create(
+                        session_id=session_id,
+                        defaults={
+                            'user': username,
+                            'source_ip': source_ip,
+                            'start_time': start_time,
+                            'start_date': start_time.date(),
+                            'end_time': end_time,
+                            'duration': duration,
+                            'bandwidth_in': int(log.get('rcvdbyte', 0)),
+                            'bandwidth_out': int(log.get('sentbyte', 0)),
+                            'status': status,
+                            'raw_data': log,
+                            'ad_department': ad_info.get('department'),
+                            'ad_email': ad_info.get('email'),
+                            'ad_title': ad_info.get('title'),
+                            'ad_display_name': ad_info.get('display_name'),
+                            'city': fa_city,
+                            'country_name': country_name_val,
+                            'country_code': country_code_val,
+                        }
+                    )
+                    if not created:
+                        # Se já existia, mas o novo evento é um tunnel-down, atualizamos o status
+                        if status == 'closed' and log_entry.status != 'closed':
+                            log_entry.status = 'closed'
+                            log_entry.duration = duration
+                            log_entry.end_time = end_time
+                            log_entry.save(update_fields=['status', 'duration', 'end_time'])
+                    else:
+                        count_new += 1
+
+                except Exception as e:
+                    logger.error(f"Erro ao processar log vpn {session_id}: {e}")
+                    continue
 
                 # Below is the logic for NEW sessions exclusively
                 # Enrich with AD
