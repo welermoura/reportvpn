@@ -71,6 +71,9 @@ class VPNLog(models.Model):
         Considera impossível se a velocidade necessária exceder 800 km/h (Avião Comercial).
         """
         if not self.user or not self.start_time or not self.latitude or not self.longitude:
+            # Se não há dados suficientes para provar que é impossível, assumimos que é possível
+            # Isso evita falsos positivos de detecções antigas ou falhas de GeoIP.
+            self.impossible_travel = False
             return
 
         previous_log = VPNLog.objects.filter(
