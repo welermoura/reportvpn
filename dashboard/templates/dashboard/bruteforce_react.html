@@ -539,7 +539,12 @@
             if (filters.user) params.append('user', filters.user);
             if (filters.ip) params.append('ip', filters.ip);
             if (filters.start_date) params.append('start_date', filters.start_date);
-            window.open(`/api/vpn-failures/?${params.toString()}&format=csv`, '_blank');
+
+            if (type === 'pdf') {
+                window.open(`/export/bruteforce/pdf/?${params.toString()}`, '_blank');
+            } else {
+                window.open(`/api/vpn-failures/?${params.toString()}&format=csv`, '_blank');
+            }
         };
 
         const Pagination = () => (
@@ -567,32 +572,7 @@
                     </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '25px' }}>
-                    <div className="premium-card" style={{ padding: '20px', borderLeft: '4px solid #4e73df' }}>
-                        <div style={{ fontSize: '0.8rem', color: '#858796', fontWeight: 700, textTransform: 'uppercase', marginBottom: '5px' }}>
-                            Total de Eventos
-                        </div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 700, color: 'white' }}>
-                            {totalCount.toLocaleString('pt-BR')}
-                        </div>
-                    </div>
-                    <div className="premium-card" style={{ padding: '20px', borderLeft: '4px solid #e74a3b' }}>
-                        <div style={{ fontSize: '0.8rem', color: '#858796', fontWeight: 700, textTransform: 'uppercase', marginBottom: '5px' }}>
-                            Críticos
-                        </div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#e74a3b' }}>
-                            {totalCount.toLocaleString('pt-BR')}
-                        </div>
-                    </div>
-                    <div className="premium-card" style={{ padding: '20px', borderLeft: '4px solid #f6c23e' }}>
-                        <div style={{ fontSize: '0.8rem', color: '#858796', fontWeight: 700, textTransform: 'uppercase', marginBottom: '5px' }}>
-                            Altos
-                        </div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#f6c23e' }}>
-                            0
-                        </div>
-                    </div>
-                </div>
+                {/* Summary cards removed from here */}
 
                 <div className="premium-card" style={{ marginBottom: '20px', padding: '10px 20px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }} onClick={() => setShowCharts(!showCharts)}>
                     <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>📊 Visualizar Métricas de Ataque</span>
@@ -600,7 +580,37 @@
                 </div>
 
                 {showCharts && stats && (
-                    <StatsCharts data={stats} onFilterChange={(newFilters) => setFilters(f => ({ ...f, ...newFilters }))} />
+                    <React.Fragment>
+                        <StatsCharts data={stats} onFilterChange={(newFilters) => setFilters(f => ({ ...f, ...newFilters }))} />
+
+                        {/* Resumo Financeiro/Quantitativo movido para cá */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+                            <div className="premium-card" style={{ padding: '20px', borderLeft: '4px solid #4e73df' }}>
+                                <div style={{ fontSize: '0.8rem', color: '#858796', fontWeight: 700, textTransform: 'uppercase', marginBottom: '5px' }}>
+                                    Total de Eventos
+                                </div>
+                                <div style={{ fontSize: '1.8rem', fontWeight: 700, color: 'white' }}>
+                                    {totalCount.toLocaleString('pt-BR')}
+                                </div>
+                            </div>
+                            <div className="premium-card" style={{ padding: '20px', borderLeft: '4px solid #e74a3b' }}>
+                                <div style={{ fontSize: '0.8rem', color: '#858796', fontWeight: 700, textTransform: 'uppercase', marginBottom: '5px' }}>
+                                    Críticos
+                                </div>
+                                <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#e74a3b' }}>
+                                    {totalCount.toLocaleString('pt-BR')}
+                                </div>
+                            </div>
+                            <div className="premium-card" style={{ padding: '20px', borderLeft: '4px solid #f6c23e' }}>
+                                <div style={{ fontSize: '0.8rem', color: '#858796', fontWeight: 700, textTransform: 'uppercase', marginBottom: '5px' }}>
+                                    Altos
+                                </div>
+                                <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#f6c23e' }}>
+                                    0
+                                </div>
+                            </div>
+                        </div>
+                    </React.Fragment>
                 )}
 
                 <div className="premium-card" style={{ padding: '0', overflow: 'hidden', marginBottom: '20px' }}>
@@ -611,7 +621,8 @@
                         <input type="text" className="filter-input" placeholder="IP de Origem..." value={filters.ip} onChange={e => setFilters({ ...filters, ip: e.target.value })} />
                         <input type="date" className="filter-input" value={filters.start_date} onChange={e => { setFilters({ ...filters, start_date: e.target.value }); setPage(1); }} style={{ colorScheme: 'dark' }} />
                         <div style={{ flexGrow: 1 }}></div>
-                        <button className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={() => handleExport('csv')}>📊 Excel</button>
+                        <button className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '5px', background: '#4e73df' }} onClick={() => handleExport('pdf')}>📄 PDF</button>
+                        <button className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '5px', background: '#1cc88a', border: 'none' }} onClick={() => handleExport('csv')}>📊 Excel</button>
                         <button className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={clearFilters}>🧹 Limpar</button>
                     </div>
 

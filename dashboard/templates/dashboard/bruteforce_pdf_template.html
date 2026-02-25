@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page {
+            size: A4;
+            margin: 1cm;
+        }
+
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 10px;
+            color: #333;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e74a3b;
+            padding-bottom: 10px;
+        }
+
+        .header h1 {
+            color: #e74a3b;
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .meta-info {
+            text-align: right;
+            font-size: 8px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 5px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f4f4f4;
+            font-weight: bold;
+            color: #000;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .badge {
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-size: 8px;
+            font-weight: bold;
+        }
+
+        .badge-red {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>Relatório de Segurança: Tentativas de Força Bruta</h1>
+    </div>
+
+    <div class="meta-info">
+        Gerado em: {% now "d/m/Y H:i" %}<br>
+        Filtros: {{ filter_desc|default:"Todos os registros" }}
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th width="15%">Data/Hora</th>
+                <th width="20%">Usuário Alvo</th>
+                <th width="15%">Departamento</th>
+                <th width="15%">IP Origem</th>
+                <th width="20%">Localização</th>
+                <th width="15%">Motivo</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for failure in failures %}
+            <tr>
+                <td>{{ failure.timestamp|date:"d/m/Y H:i" }}</td>
+                <td>
+                    <b>{{ failure.ad_display_name|default:failure.user }}</b><br>
+                    <small>{{ failure.user }}</small>
+                </td>
+                <td>{{ failure.ad_department|default:"-" }}</td>
+                <td>{{ failure.source_ip }}</td>
+                <td>{{ failure.city|default:"" }}{% if failure.city and failure.country_code %}, {% endif %}{{
+                    failure.country_code|default:"-" }}</td>
+                <td>
+                    <span class="badge badge-red">{{ failure.reason|default:"auth-failure" }}</span>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" align="center">Nenhuma falha de login detectada no período.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+
+</html>

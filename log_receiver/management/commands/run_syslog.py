@@ -148,7 +148,7 @@ def _log_processor_worker(worker_id: int):
                 if log_type == 'event' and subtype == 'vpn':
                     action = parsed.get('action', '')
                     if action in ['negotiate-error', 'auth-failure', 'ssl-login-fail', 'ipsec-login-fail']:
-                        _save_vpn_failure(parsed, ip)
+                        _save_vpn_failure(parsed, ip, ad_client)
                     elif action in ['tunnel-up', 'tunnel-down', 'ssl-new-session', 'ssl-exit']:
                         _save_vpn_log(parsed)
 
@@ -346,17 +346,48 @@ def _build_security_event(parsed_data, raw_data, ad_client=None):
     return SecurityEvent(**kwargs)
 
 
-def _save_vpn_failure(parsed_data, ip):
+def _save_vpn_failure(parsed_data, ip, ad_client=None):
     from vpn_logs.models import VPNFailure
     username  = parsed_data.get('user', 'unknown')
     source_ip = parsed_data.get('remip', parsed_data.get('srcip', ip))
     reason    = parsed_data.get('reason', parsed_data.get('action', ''))
     ts        = parse_fortinet_timestamp(parsed_data)
+    
     if not VPNFailure.objects.filter(user=username, source_ip=source_ip, timestamp=ts).exists():
+        # Enriquecimento AD
+        ad_info = {}
+        if username and username not in ['unknown', 'N/A'] and ad_client:
+            try:
+                clean_user = username.split('\\')[-1]
+                ad_info = ad_client.get_user_info(clean_user) or {}
+            except Exception as e:
+                logger.error(f"Erro ao enriquecer VPNFailure com AD: {e}")
+
+        # Enriquecimento GeoIP
+        city = ''
+        country_code = ''
+        country_name = ''
+        
+        if source_ip and source_ip != '0.0.0.0':
+            gdata = get_geoip_data(source_ip)
+            if gdata:
+                city = gdata.get('city', '')
+                country_code = gdata.get('country_code', '')
+                country_name = gdata.get('country', '')
+
         VPNFailure.objects.create(
-            user=username, source_ip=source_ip,
-            timestamp=ts, reason=reason,
-            country_code='', city='', raw_data=parsed_data
+            user=username, 
+            source_ip=source_ip,
+            timestamp=ts, 
+            reason=reason,
+            city=city,
+            country_code=country_code,
+            country_name=country_name,
+            ad_department=ad_info.get('department'),
+            ad_email=ad_info.get('email'),
+            ad_title=ad_info.get('title'),
+            ad_display_name=ad_info.get('display_name'),
+            raw_data=parsed_data
         )
 
 

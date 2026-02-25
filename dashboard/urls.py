@@ -23,5 +23,6 @@ urlpatterns = [
     path('security/risk/', views.UserRiskScoreListView.as_view(), name='risk_dashboard'),
     path('api/', include(router.urls)),
     path('export/pdf/', views.export_logs_pdf, name='export_pdf'),
+    path('export/bruteforce/pdf/', views.export_bruteforce_pdf, name='export_bruteforce_pdf'),
     path('export/xlsx/', views.export_logs_xlsx, name='export_xlsx'),
 ]

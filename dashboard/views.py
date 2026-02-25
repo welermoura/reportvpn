@@ -254,6 +254,57 @@ def export_logs_pdf(request):
     return HttpResponse("Erro ao gerar PDF", status=500)
 
 @login_required
+def export_bruteforce_pdf(request):
+    from vpn_logs.models import VPNFailure
+    
+    queryset = VPNFailure.objects.all()
+    
+    # 1. Date Filter
+    date_str = request.GET.get('date')
+    if date_str:
+        queryset = queryset.filter(timestamp__date=date_str)
+    
+    # 2. Filters
+    user_q = request.GET.get('user')
+    if user_q:
+        queryset = queryset.filter(user__icontains=user_q)
+
+    ip_q = request.GET.get('ip')
+    if ip_q:
+        queryset = queryset.filter(source_ip__icontains=ip_q)
+    
+    failures = queryset.order_by('-timestamp')[:1000] # Limite razoável para PDF
+
+    # Prepare context
+    filter_desc = []
+    if date_str: filter_desc.append(f"Data: {date_str}")
+    if user_q: filter_desc.append(f"Usuário: {user_q}")
+    if ip_q: filter_desc.append(f"IP: {ip_q}")
+    
+    context = {
+        'failures': failures,
+        'filter_desc': " | ".join(filter_desc) if filter_desc else "Todos os registros"
+    }
+
+    # Render PDF
+    template = get_template('dashboard/bruteforce_pdf_template.html')
+    html = template.render(context)
+    result = BytesIO()
+    
+    try:
+        from xhtml2pdf import pisa
+        pdf = pisa.pisaDocument(BytesIO(html.encode("UTF-8")), result)
+        if not pdf.err:
+            response = HttpResponse(result.getvalue(), content_type='application/pdf')
+            filename = f"bruteforce_report_{timezone.now().strftime('%Y%m%d_%H%M')}.pdf"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+    except Exception as e:
+        return HttpResponse(f"Erro ao gerar PDF: {str(e)}", status=500)
+    
+    return HttpResponse("Erro ao gerar PDF", status=500)
+
+@login_required
 def export_logs_xlsx(request):
     # SSL Only
     queryset = VPNLog.objects.filter(
@@ -445,9 +496,18 @@ def bruteforce_stats_api(request):
     if ip:
         queryset = queryset.filter(source_ip__icontains=ip)
 
-    # 1. Failures Over Time (Last 24 Hours)
-    last_24h = timezone.now() - timedelta(hours=24)
-    trend = queryset.filter(timestamp__gte=last_24h)\
+    start_date = request.GET.get('start_date')
+    if start_date:
+        try:
+            target_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').date()
+            time_filter = Q(timestamp__date=target_date)
+        except ValueError:
+            time_filter = Q(timestamp__gte=timezone.now() - timedelta(hours=24))
+    else:
+        time_filter = Q(timestamp__gte=timezone.now() - timedelta(hours=24))
+
+    # 1. Failures Over Time
+    trend = queryset.filter(time_filter)\
         .annotate(hour=TruncHour('timestamp'))\
         .values('hour')\
         .annotate(count=Count('id'))\
@@ -458,9 +518,14 @@ def bruteforce_stats_api(request):
         'data': [entry['count'] for entry in trend]
     }
 
-    # 2. Top Attackers (Source IP) — limitado às últimas 48h para performance
-    last_48h = timezone.now() - timedelta(hours=48)
-    top_ips = queryset.filter(timestamp__gte=last_48h).values('source_ip', 'country_code')\
+    # 2. Top Attackers (Source IP)
+    # Se houver filtro de data, mostrar o top daquele dia. Se não, últimas 48h.
+    if not start_date:
+        ip_filter = Q(timestamp__gte=timezone.now() - timedelta(hours=48))
+    else:
+        ip_filter = time_filter
+
+    top_ips = queryset.filter(ip_filter).values('source_ip', 'country_code')\
         .annotate(count=Count('id'))\
         .order_by('-count')[:5]
         
@@ -469,8 +534,8 @@ def bruteforce_stats_api(request):
         'data': [entry['count'] for entry in top_ips]
     }
 
-    # 3. Top Targets (Users) — últimas 48h para performance
-    top_users = queryset.filter(timestamp__gte=last_48h).values('user')\
+    # 3. Top Targets (Users)
+    top_users = queryset.filter(ip_filter).values('user')\
         .annotate(count=Count('id'))\
         .order_by('-count')[:5]
         

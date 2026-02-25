@@ -138,6 +138,13 @@ class VPNFailure(models.Model):
     # GeoIP (Opcional, mas útil para análise)
     city = models.CharField(max_length=100, null=True, blank=True)
     country_code = models.CharField(max_length=10, null=True, blank=True)
+    country_name = models.CharField(max_length=100, null=True, blank=True)
+
+    # Campos enriquecidos do AD
+    ad_department = models.CharField(max_length=255, null=True, blank=True, db_index=True)
+    ad_email = models.EmailField(null=True, blank=True)
+    ad_title = models.CharField(max_length=255, null=True, blank=True, db_index=True)
+    ad_display_name = models.CharField(max_length=255, null=True, blank=True)
     
     raw_data = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)

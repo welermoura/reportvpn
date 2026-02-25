@@ -151,11 +151,14 @@ class VPNFailureViewSet(viewsets.ReadOnlyModelViewSet):
         queryset = VPNFailure.objects.all().order_by('-timestamp')
         user = self.request.query_params.get('user')
         ip = self.request.query_params.get('ip')
-        if user or ip:
-            if user:
-                queryset = queryset.filter(user__icontains=user)
-            if ip:
-                queryset = queryset.filter(source_ip__icontains=ip)
+        start_date = self.request.query_params.get('start_date')
+        
+        if user:
+            queryset = queryset.filter(user__icontains=user)
+        if ip:
+            queryset = queryset.filter(source_ip__icontains=ip)
+        if start_date:
+            queryset = queryset.filter(timestamp__date=start_date)
         return queryset
 
 class UserRiskScoreViewSet(viewsets.ReadOnlyModelViewSet):
