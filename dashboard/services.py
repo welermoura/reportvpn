@@ -134,11 +134,31 @@ class RiskScoringService:
                         prev = last_travel.travel_details.get('previous', {})
                         curr = last_travel.travel_details.get('current', {})
                         hours = last_travel.travel_details.get('time_diff_hours', '?')
-                        desc = f"Viagem Impossível: De {prev.get('city') or '?'}/{prev.get('code')} para {curr.get('city') or '?'}/{curr.get('code')} em {hours}h"
+                        
+                        # Formatação de tempo amigável (minutos se < 1h)
+                        if isinstance(hours, (int, float)):
+                            time_str = f"{int(hours * 60)} min" if hours < 1 else f"{hours}h"
+                        else:
+                            time_str = f"{hours}h"
+                            
+                        desc = f"Viagem Impossível: De {prev.get('city') or '?'}/{prev.get('code')} para {curr.get('city') or '?'}/{curr.get('code')} em {time_str}"
                     else:
-                        # Fallback para logs antigos: mostra pelo menos o local do último alerta
-                        loc = f"{last_travel.city or '?'}/{last_travel.country_code or '?'}"
-                        desc = f"Viagem Impossível: Último alerta em {loc} (Contexto em logs novos)"
+                        # Reconstrução on-the-fly para logs antigos ou sem JSON
+                        prev_log = VPNLog.objects.filter(
+                            user=u,
+                            start_time__lt=last_travel.start_time,
+                            country_code__isnull=False
+                        ).exclude(id=last_travel.id).order_by('-start_time').first()
+
+                        if prev_log:
+                            diff = last_travel.start_time - prev_log.start_time
+                            minutes = int(diff.total_seconds() / 60)
+                            time_str = f"{minutes} min" if minutes < 60 else f"{round(minutes/60, 1)}h"
+                            
+                            desc = f"Viagem Impossível: De {prev_log.city or '?'}/{prev_log.country_code} para {last_travel.city or '?'}/{last_travel.country_code} em {time_str}"
+                        else:
+                            loc = f"{last_travel.city or '?'}/{last_travel.country_code or '?'}"
+                            desc = f"Viagem Impossível: Conexão suspeita em {loc}"
 
                 entry['events'].append({
                     'source': 'vpn',

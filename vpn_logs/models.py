@@ -81,21 +81,19 @@ class VPNLog(models.Model):
         if not previous_log:
             return
 
-        # Se países são iguais, assumir possível (ignorar cidades por enquanto para evitar falsos positivos de ISP)
-        if previous_log.country_code == self.country_code:
+        # Mudança drástica: agora permitimos cidade diferente no mesmo país se o tempo for muito curto
+        # (ex: SP para Vitória em 20 min)
+        if previous_log.country_code == self.country_code and previous_log.city == self.city:
             return
 
-        # Calcular distância e tempo
-        # Precisamos das coordenadas. Se não temos lat/long no modelo, usamos uma aproximação ou lookup
-        # Como o GeoIPClient já retorna, o ideal seria salvar lat/long no model.
-        # Por hora, vamos marcar se houver mudança de PAÍS em < 1 hora como regra heurística simples
-        
         time_diff = (self.start_time - previous_log.start_time).total_seconds() / 3600.0 # Horas
         
-        if time_diff < 1.5: # Mudança de país em menos de 1.5h
-             # Permitir fronteiras ou casos específicos seria a evolução ideal
+        # Limite: 1.5h para países diferentes, 1h para cidades diferentes no mesmo país
+        threshold = 1.5 if previous_log.country_code != self.country_code else 1.0
+        
+        if time_diff < threshold:
             self.impossible_travel = True
-            self.travel_speed = 9999.0 # Placeholder para "Instantâneo"
+            self.travel_speed = 9999.0 # Placeholder
             self.travel_details = {
                 'previous': {
                     'city': previous_log.city,
