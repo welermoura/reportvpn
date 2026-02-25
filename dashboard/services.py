@@ -126,14 +126,19 @@ class RiskScoringService:
                     user=u, 
                     impossible_travel=True, 
                     start_time__gte=start_date
-                ).exclude(travel_details__isnull=True).order_by('-start_time').first()
+                ).order_by('-start_time').first()
                 
                 desc = f"VPN: {item['impossible']} alertas de viagem impossível"
-                if last_travel and last_travel.travel_details:
-                    prev = last_travel.travel_details.get('previous', {})
-                    curr = last_travel.travel_details.get('current', {})
-                    hours = last_travel.travel_details.get('time_diff_hours', '?')
-                    desc = f"Viagem Impossível: De {prev.get('city') or '?'}/{prev.get('code')} para {curr.get('city') or '?'}/{curr.get('code')} em {hours}h"
+                if last_travel:
+                    if last_travel.travel_details:
+                        prev = last_travel.travel_details.get('previous', {})
+                        curr = last_travel.travel_details.get('current', {})
+                        hours = last_travel.travel_details.get('time_diff_hours', '?')
+                        desc = f"Viagem Impossível: De {prev.get('city') or '?'}/{prev.get('code')} para {curr.get('city') or '?'}/{curr.get('code')} em {hours}h"
+                    else:
+                        # Fallback para logs antigos: mostra pelo menos o local do último alerta
+                        loc = f"{last_travel.city or '?'}/{last_travel.country_code or '?'}"
+                        desc = f"Viagem Impossível: Último alerta em {loc} (Contexto em logs novos)"
 
                 entry['events'].append({
                     'source': 'vpn',
