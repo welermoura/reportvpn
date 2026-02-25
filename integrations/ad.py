@@ -1,5 +1,16 @@
-from ldap3 import Server, Connection, SUBTREE, ALL
+from ldap3 import Server, Connection, ALL
 from .models import ActiveDirectoryConfig
+import json
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Tenta importar redis para o cache
+try:
+    import redis
+    redis_client = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
+except:
+    redis_client = None
 
 class ActiveDirectoryClient:
     def __init__(self):
@@ -30,8 +41,22 @@ class ActiveDirectoryClient:
 
     def get_user_info(self, username):
         """
-        Busca informações do usuário no AD.
+        Busca informações do usuário no AD com cache no Redis (1 hora).
         """
+        if not username:
+            return None
+
+        # 1. Tentar Cache
+        cache_key = f"ad_user:{username.lower()}"
+        if redis_client:
+            try:
+                cached = redis_client.get(cache_key)
+                if cached:
+                    return json.loads(cached)
+            except:
+                pass
+
+        # 2. Consultar AD
         conn = self.get_connection()
         if not conn:
             return None
@@ -45,15 +70,25 @@ class ActiveDirectoryClient:
                 attributes=['mail', 'department', 'displayName', 'title']
             )
             
+            res = None
             if conn.entries:
                 entry = conn.entries[0]
-                return {
-                    'email': str(entry.mail) if entry.mail else None,
-                    'department': str(entry.department) if entry.department else None,
-                    'display_name': str(entry.displayName) if entry.displayName else None,
-                    'title': str(entry.title) if entry.title else None
+                res = {
+                    'email': str(entry.mail) if hasattr(entry, 'mail') and entry.mail else None,
+                    'department': str(entry.department) if hasattr(entry, 'department') and entry.department else None,
+                    'display_name': str(entry.displayName) if hasattr(entry, 'displayName') and entry.displayName else None,
+                    'title': str(entry.title) if hasattr(entry, 'title') and entry.title else None
                 }
-            return None
+            
+            # 3. Salvar no Cache (mesmo se for None, para evitar negativas repetitivas, por 10min)
+            if redis_client:
+                try:
+                    expiry = 3600 if res else 600
+                    redis_client.setex(cache_key, expiry, json.dumps(res))
+                except:
+                    pass
+            
+            return res
         except Exception as e:
-            print(f"Erro ao consultar AD: {e}")
+            logger.error(f"Erro ao consultar AD para {username}: {e}")
             return None

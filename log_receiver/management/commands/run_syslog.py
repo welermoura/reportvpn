@@ -9,7 +9,7 @@ from django.core.management.base import BaseCommand
 from log_receiver.parsers.fortinet import parse_fortinet_syslog
 
 import redis
-from django.core.cache import cache
+from integrations.ad import ActiveDirectoryClient
  
 logger = logging.getLogger(__name__)
 
@@ -75,15 +75,12 @@ def _device_db_worker():
 
 
 def _log_processor_worker(worker_id: int):
-    """
-    Consome (ip, raw_str) da _raw_queue, parseia e grava no banco.
-    Cada worker tem sua própria conexão Django.
-    SecurityEvents são acumulados em micro-batch antes do flush.
-    """
+    """Processa o raw_queue em batches e salva SecurityEvents."""
     from django import db
     from security_events.models import SecurityEvent
-
-    batch_buffer: list = []
+    ad_client = ActiveDirectoryClient()
+    
+    batch_buffer = []
     last_flush = time.time()
 
     def flush_batch():
@@ -156,8 +153,8 @@ def _log_processor_worker(worker_id: int):
                         _save_vpn_log(parsed)
 
                 # --- UTM events ---
-                elif log_type in ['utm', 'ips', 'virus'] or (log_type == 'traffic' and parsed.get('utm-action')):
-                    se = _build_security_event(parsed, raw_data)
+                elif log_type in ['utm', 'ips', 'virus', 'webfilter', 'app-ctrl'] or (log_type == 'traffic' and parsed.get('utm-action')):
+                    se = _build_security_event(parsed, raw_data, ad_client)
                     if se:
                         batch_buffer.append(se)
 
@@ -262,7 +259,7 @@ def get_geoip_data(ip):
     return {}
 
 
-def _build_security_event(parsed_data, raw_data):
+def _build_security_event(parsed_data, raw_data, ad_client=None):
     """Constrói (sem salvar) um objeto SecurityEvent rico com todos os campos."""
     import hashlib, json, urllib.parse
     from security_events.models import SecurityEvent
@@ -305,6 +302,17 @@ def _build_security_event(parsed_data, raw_data):
         src_port=_int(parsed_data.get('srcport')),
         dst_port=_int(parsed_data.get('dstport')),
     )
+
+    # 4. Enriquecimento AD
+    if username and ad_client:
+        ad_info = ad_client.get_user_info(username)
+        if ad_info:
+            kwargs.update(
+                user_email=ad_info.get('email', ''),
+                user_department=ad_info.get('department', ''),
+                ad_title=ad_info.get('title', ''),
+                ad_display_name=ad_info.get('display_name', ''),
+            )
 
     if mapped_type == 'ips':
         kwargs.update(
