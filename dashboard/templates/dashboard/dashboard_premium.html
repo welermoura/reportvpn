@@ -592,13 +592,12 @@
                                     <th>Origem</th>
                                     <th>Cidade</th>
                                     <th>País</th>
-                                    <th>Volume</th>
                                     <th>Duração</th>
                                     <th style={{ width: '40px', paddingRight: '20px' }}>Detalhes</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {loading && logs.length === 0 ? <tr><td colSpan="11" style={{ textAlign: 'center', padding: '40px' }}>Carregando...</td></tr> :
+                                {loading && logs.length === 0 ? <tr><td colSpan="10" style={{ textAlign: 'center', padding: '40px' }}>Carregando...</td></tr> :
                                     logs.map(l => {
                                         const active = l.latest_status === 'active' || l.latest_status === 'tunnel-up';
                                         let dur = l.total_duration || 0;
