@@ -421,7 +421,7 @@
             const today = new Date();
             return today.toISOString().split('T')[0];
         };
-        const [filters, setFilters] = useState({ user: '', level: '', start_date: getTodayDate() });
+        const [filters, setFilters] = useState({ user: '', level: '', start_date: getTodayDate(), end_date: getTodayDate() });
 
         const fetchData = useCallback(async () => {
             try {
@@ -450,7 +450,7 @@
         };
 
         const clearFilters = () => {
-            setFilters({ user: '', level: '' });
+            setFilters({ user: '', level: '', start_date: getTodayDate(), end_date: getTodayDate() });
             setPage(1);
         };
 
@@ -507,7 +507,15 @@
                             className="filter-input"
                             value={filters.start_date}
                             onChange={e => { setFilters({ ...filters, start_date: e.target.value }); setPage(1); }}
-                            style={{ colorScheme: 'dark' }}
+                            style={{ colorScheme: 'dark', width: '130px' }}
+                        />
+                        <span style={{ color: '#858796', fontSize: '0.8rem' }}>Até</span>
+                        <input
+                            type="date"
+                            className="filter-input"
+                            value={filters.end_date}
+                            onChange={e => { setFilters({ ...filters, end_date: e.target.value }); setPage(1); }}
+                            style={{ colorScheme: 'dark', width: '130px' }}
                         />
                         <select
                             className="filter-input"

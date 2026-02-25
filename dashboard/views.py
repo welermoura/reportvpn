@@ -558,40 +558,54 @@ class UserRiskScoreListView(LoginRequiredMixin, ListView):
 
 @login_required
 def risk_stats_api(request):
-    """API for User Risk Scoring Dashboard statistics — otimizada com aggregate"""
-    from .models import UserRiskScore
-    from django.db.models import Count, Case, When, IntegerField
+    """API for User Risk Scoring Dashboard statistics — otimizada com suporte a data"""
+    from .models import UserRiskScore, RiskEvent
+    from django.db.models import Count, Sum, Q
     
-    # Filtrar apenas usuários com risco calculado (exclui score=0)
-    queryset = UserRiskScore.objects.filter(current_score__gt=0)
-
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
     user = request.GET.get('user')
+    level = request.GET.get('level')
+
+    queryset = UserRiskScore.objects.all()
+    
+    # 1. Aplicar filtros de base
     if user:
         queryset = queryset.filter(username__icontains=user)
-    
-    level = request.GET.get('level')
     if level:
         queryset = queryset.filter(risk_level__iexact=level)
 
-    # 1. Risk Level Distribution — UMA única query com values/annotate
+    # 2. Lógica de Score (Estático vs Dinâmico por Data)
+    if start_date or end_date:
+        event_filter = Q()
+        if start_date:
+            event_filter &= Q(events__timestamp__date__gte=start_date)
+        if end_date:
+            event_filter &= Q(events__timestamp__date__lte=end_date)
+        
+        queryset = queryset.annotate(
+            display_score=Sum('events__weight_added', filter=event_filter)
+        ).filter(display_score__gt=0)
+    else:
+        from django.db.models import F
+        queryset = queryset.filter(current_score__gt=0).annotate(
+            display_score=F('current_score')
+        )
+
+    # 3. Distribution
     dist_rows = queryset.values('risk_level').annotate(count=Count('id')).order_by('-count')
-    labels = [r['risk_level'] for r in dist_rows]
-    data = [r['count'] for r in dist_rows]
-    
     dist_data = {
-        'labels': labels,
-        'data': data
+        'labels': [r['risk_level'] for r in dist_rows],
+        'data': [r['count'] for r in dist_rows]
     }
     
-    # 2. Top 10 High Risk Users
-    top_risk = queryset.order_by('-current_score')[:10]
-    
+    # 4. Top 10 High Risk Users
+    top_risk = queryset.order_by('-display_score')[:10]
     top_data = {
         'labels': [entry.username for entry in top_risk],
-        'data': [entry.current_score for entry in top_risk]
+        'data': [entry.display_score for entry in top_risk]
     }
     
-    from django.http import JsonResponse
     return JsonResponse({
         'distribution': dist_data,
         'top_risk': top_data

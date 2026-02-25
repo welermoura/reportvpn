@@ -174,16 +174,30 @@ class UserRiskScoreViewSet(viewsets.ReadOnlyModelViewSet):
         return UserRiskScoreSerializer
 
     def get_queryset(self):
-        from dashboard.models import UserRiskScore
-        # Apenas usuários com risco real, sem prefetch na listagem
-        queryset = UserRiskScore.objects.filter(
-            current_score__gt=0
-        ).order_by('-current_score')
+        from dashboard.models import UserRiskScore, RiskEvent
+        from django.db.models import Sum, Q
 
-        # No detalhe, adicionar prefetch_related para buscar events eficientemente
-        if self.action == 'retrieve':
-            queryset = queryset.prefetch_related('events')
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
 
+        queryset = UserRiskScore.objects.all()
+
+        if start_date or end_date:
+            # Filtro dinâmico por período baseado nos eventos
+            event_filter = Q()
+            if start_date:
+                event_filter &= Q(events__timestamp__date__gte=start_date)
+            if end_date:
+                event_filter &= Q(events__timestamp__date__lte=end_date)
+            
+            queryset = queryset.annotate(
+                period_score=Sum('events__weight_added', filter=event_filter)
+            ).filter(period_score__gt=0).order_by('-period_score')
+        else:
+            # Comportamento padrão: usa o score pré-calculado
+            queryset = queryset.filter(current_score__gt=0).order_by('-current_score')
+
+        # Filtros adicionais
         user = self.request.query_params.get('user')
         if user:
             queryset = queryset.filter(username__icontains=user)
@@ -192,4 +206,25 @@ class UserRiskScoreViewSet(viewsets.ReadOnlyModelViewSet):
         if level:
             queryset = queryset.filter(risk_level__iexact=level)
 
+        if self.action == 'retrieve':
+            queryset = queryset.prefetch_related('events')
+
         return queryset
+
+    def list(self, request, *args, **kwargs):
+        # Override list to inject period_score into current_score for the serializer if filtering by date
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            data = serializer.data
+            # Injetar period_score se existir
+            if request.query_params.get('start_date') or request.query_params.get('end_date'):
+                for idx, obj in enumerate(page):
+                    if hasattr(obj, 'period_score'):
+                        data[idx]['current_score'] = obj.period_score or 0
+            return self.get_paginated_response(data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
