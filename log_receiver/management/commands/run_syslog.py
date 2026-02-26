@@ -337,12 +337,21 @@ def _build_security_event(parsed_data, raw_data, ad_client=None):
             src_country=urllib.parse.unquote(parsed_data.get('srccountry', '')),
         )
     elif mapped_type == 'app-control':
+        hostname = parsed_data.get('hostname', '')
+        url_path = parsed_data.get('url', '')
+        url_final = ""
+        if hostname:
+            url_final = f"{hostname}{url_path}" if url_path else hostname
+        elif url_path:
+            url_final = url_path
+
         kwargs.update(
             app_name=urllib.parse.unquote(parsed_data.get('app', '')),
             app_category=urllib.parse.unquote(parsed_data.get('appcat', '')),
             app_risk=parsed_data.get('apprisk', ''),
-            bytes_in=_int(parsed_data.get('rcvdbyte')),
-            bytes_out=_int(parsed_data.get('sentbyte')),
+            url=url_final,
+            bytes_in=_int(parsed_data.get('rcvdbyte'), 0),
+            bytes_out=_int(parsed_data.get('sentbyte'), 0),
         )
 
     return SecurityEvent(**kwargs)

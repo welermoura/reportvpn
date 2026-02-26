@@ -216,8 +216,26 @@ def fetch_security_events_task(self, target_subtype=None):
                     event.app_name = app_raw
                     event.app_category = cat_raw
                     event.app_risk = str(log.get('apprisk', 'low'))
-                    event.bytes_in = int(log.get('rcvdbyte', 0)) if log.get('rcvdbyte') else None
-                    event.bytes_out = int(log.get('sentbyte', 0)) if log.get('sentbyte') else None
+                    
+                    # URL/Hostname extraction for App Control
+                    hostname = log.get('hostname', '')
+                    url_path = log.get('url', '')
+                    if hostname:
+                        event.url = f"{hostname}{url_path}" if url_path else hostname
+                    elif url_path:
+                        event.url = url_path
+
+                    # Bytes conversion (ensure 0 instead of None if we want data to show in charts)
+                    # Note: UTM logs might not have bytes, but we try to capture them if present
+                    try:
+                        event.bytes_in = int(log.get('rcvdbyte', 0))
+                    except (ValueError, TypeError):
+                        event.bytes_in = 0
+                        
+                    try:
+                        event.bytes_out = int(log.get('sentbyte', 0))
+                    except (ValueError, TypeError):
+                        event.bytes_out = 0
 
 
                 try:

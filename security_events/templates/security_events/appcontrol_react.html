@@ -399,24 +399,50 @@
                             </div>
 
                             {/* URL / Website - High Priority Highlight */}
-                            {(event.url || (event.details && (event.details.url || event.details.hostname))) && (
-                                <div style={{
-                                    background: 'rgba(78, 115, 223, 0.1)',
-                                    padding: '12px',
-                                    borderRadius: '8px',
-                                    borderLeft: '4px solid #4e73df',
-                                    gridColumn: 'span 2'
-                                }}>
-                                    <label style={{ display: 'block', color: '#a0aec0', fontSize: '0.7rem', textTransform: 'uppercase', marginBottom: '4px', fontWeight: 600 }}>URL / Website Acessado</label>
-                                    <div style={{ fontSize: '1rem', color: '#63b3ed', wordBreak: 'break-all', fontWeight: 500 }}>
-                                        <a href={(event.url || event.details?.url || event.details?.hostname).startsWith('http') ? (event.url || event.details?.url || event.details?.hostname) : `http://${(event.url || event.details?.url || event.details?.hostname)}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
-                                            <i className="fas fa-link me-2"></i>
-                                            {event.url || event.details?.url || event.details?.hostname}
-                                            <i className="fas fa-external-link-alt ms-2" style={{ fontSize: '0.8rem' }}></i>
-                                        </a>
+                            {(() => {
+                                let urlText = event.url;
+
+                                // Se o campo principal estiver vazio, tenta compor do 'details' (para logs antigos)
+                                if (!urlText && event.details) {
+                                    const h = event.details.hostname || '';
+                                    const u = event.details.url || '';
+                                    if (h) {
+                                        urlText = u ? (h + u) : h;
+                                    } else if (u && u !== '/') {
+                                        urlText = u;
+                                    }
+                                }
+
+                                if (!urlText || urlText === '/') return null;
+
+                                // Só cria link clicável se parecer uma URL absoluta ou tiver um domínio
+                                const isAbsolute = urlText.startsWith('http');
+                                const hasDomain = urlText.includes('.') && !urlText.startsWith('/');
+                                const fullUrl = isAbsolute ? urlText : (hasDomain ? `http://${urlText}` : null);
+
+                                return (
+                                    <div style={{
+                                        background: 'rgba(78, 115, 223, 0.1)',
+                                        padding: '12px',
+                                        borderRadius: '8px',
+                                        borderLeft: '4px solid #4e73df',
+                                        gridColumn: 'span 2'
+                                    }}>
+                                        <label style={{ display: 'block', color: '#a0aec0', fontSize: '0.7rem', textTransform: 'uppercase', marginBottom: '4px', fontWeight: 600 }}>URL / Website Acessado</label>
+                                        <div style={{ fontSize: '1rem', color: '#63b3ed', wordBreak: 'break-all', fontWeight: 500 }}>
+                                            {fullUrl ? (
+                                                <a href={fullUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+                                                    <i className="fas fa-link me-2"></i>
+                                                    {urlText}
+                                                    <i className="fas fa-external-link-alt ms-2" style={{ fontSize: '0.8rem' }}></i>
+                                                </a>
+                                            ) : (
+                                                <span><i className="fas fa-globe me-2"></i>{urlText}</span>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })()}
 
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                 <div>
