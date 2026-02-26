@@ -105,40 +105,38 @@ class WebFilterViewSet(viewsets.ReadOnlyModelViewSet):
                 category=F('key'), count=Sum('count')
             ).order_by('-count')[:10]
             
-            # Sites não são salvos em métricas por terem alta cardinalidade, fazemos query real-time limitada
-            top_sites = SecurityEvent.objects.filter(
-                event_type='webfilter', action__in=['block', 'blocked']
-            ).values('url').annotate(count=Count('id')).order_by('-count')[:10]
+            top_sites = metrics_qs.filter(metric_name='top_sites').values('key').annotate(
+                url=F('key'), count=Sum('count')
+            ).order_by('-count')[:10]
+
+            top_users = metrics_qs.filter(metric_name='top_users').values('key').annotate(
+                username=F('key'), count=Sum('count')
+            ).order_by('-count')[:10]
 
             return Response({
                 'total_events': total_events,
                 'blocked_events': blocked_events,
                 'top_categories': list(top_categories),
-                'top_sites': list(top_sites)
+                'top_sites': list(top_sites),
+                'top_users': list(top_users)
             })
 
         # Se houver filtro, usamos a lógica original (o índice composto ajudará aqui)
         queryset = self.filter_queryset(self.get_queryset())
         total_events = queryset.count()
-        blocked_events = queryset.filter(action__in=['block', 'blocked']).count()
+        blocked = queryset.filter(action__in=['block', 'blocked'])
+        blocked_events = blocked.count()
         
-        top_categories = queryset.filter(
-            action__in=['block', 'blocked']
-        ).values('category').annotate(
-            count=Count('id')
-        ).order_by('-count')[:10]
-        
-        top_sites = queryset.filter(
-            action__in=['block', 'blocked']
-        ).values('url').annotate(
-            count=Count('id')
-        ).order_by('-count')[:10]
+        top_categories = blocked.values('category').annotate(count=Count('id')).order_by('-count')[:10]
+        top_sites = blocked.values('url').annotate(count=Count('id')).order_by('-count')[:10]
+        top_users = blocked.values('username').annotate(count=Count('id')).order_by('-count')[:10]
         
         return Response({
             'total_events': total_events,
             'blocked_events': blocked_events,
             'top_categories': list(top_categories),
-            'top_sites': list(top_sites)
+            'top_sites': list(top_sites),
+            'top_users': list(top_users)
         })
 
     @action(detail=False, methods=['get'])

@@ -205,6 +205,7 @@
     const StatsCharts = ({ stats, onFilterChange }) => {
         const catRef = useRef(null);
         const siteRef = useRef(null);
+        const userRef = useRef(null);
         const chartInstances = useRef({});
 
         useEffect(() => {
@@ -234,71 +235,99 @@
             };
 
             // Categories Chart
-            if (stats.top_categories) {
-                chartInstances.current.categories = new Chart(catRef.current, {
-                    type: 'bar',
-                    data: {
-                        labels: stats.top_categories.map(item => item.category),
-                        datasets: [{
-                            label: 'Eventos',
-                            data: stats.top_categories.map(item => item.count),
-                            backgroundColor: 'rgba(59, 130, 246, 0.8)',
-                            borderRadius: 4,
-                            barThickness: 20
-                        }]
-                    },
-                    options: {
-                        ...chartOptions,
-                        onClick: (event, elements) => {
-                            if (elements.length > 0 && onFilterChange) {
-                                const index = elements[0].index;
-                                const value = stats.top_categories[index].category;
-                                onFilterChange('category', value);
-                            }
+            const topCats = stats.top_categories || [];
+            chartInstances.current.categories = new Chart(catRef.current, {
+                type: 'bar',
+                data: {
+                    labels: topCats.map(item => item.category),
+                    datasets: [{
+                        label: 'Eventos',
+                        data: topCats.map(item => item.count),
+                        backgroundColor: 'rgba(54, 185, 204, 0.8)',
+                        borderRadius: 4,
+                        barThickness: 20
+                    }]
+                },
+                options: {
+                    ...chartOptions,
+                    onClick: (event, elements) => {
+                        if (elements.length > 0 && onFilterChange) {
+                            const index = elements[0].index;
+                            const value = topCats[index].category;
+                            onFilterChange('category', value);
                         }
                     }
-                });
-            }
+                }
+            });
 
             // Sites Chart
-            if (stats.top_sites) {
-                chartInstances.current.sites = new Chart(siteRef.current, {
-                    type: 'bar',
-                    data: {
-                        labels: stats.top_sites.map(item => item.url),
-                        datasets: [{
-                            label: 'Eventos',
-                            data: stats.top_sites.map(item => item.count),
-                            backgroundColor: 'rgba(239, 68, 68, 0.8)',
-                            borderRadius: 4,
-                            barThickness: 20
-                        }]
-                    },
-                    options: {
-                        ...chartOptions,
-                        onClick: (event, elements) => {
-                            if (elements.length > 0 && onFilterChange) {
-                                const index = elements[0].index;
-                                const value = stats.top_sites[index].url;
-                                onFilterChange('url', value);
-                            }
+            const topSites = stats.top_sites || [];
+            chartInstances.current.sites = new Chart(siteRef.current, {
+                type: 'bar',
+                data: {
+                    labels: topSites.map(item => (item.url || '').substring(0, 30)),
+                    datasets: [{
+                        label: 'Bloqueios',
+                        data: topSites.map(item => item.count),
+                        backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                        borderRadius: 4,
+                        barThickness: 20
+                    }]
+                },
+                options: {
+                    ...chartOptions,
+                    onClick: (event, elements) => {
+                        if (elements.length > 0 && onFilterChange) {
+                            const index = elements[0].index;
+                            const value = topSites[index].url;
+                            onFilterChange('url', value);
                         }
                     }
-                });
-            }
+                }
+            });
+
+            // Users Chart
+            const topUsers = stats.top_users || [];
+            chartInstances.current.users = new Chart(userRef.current, {
+                type: 'bar',
+                data: {
+                    labels: topUsers.map(item => item.username),
+                    datasets: [{
+                        label: 'Bloqueios',
+                        data: topUsers.map(item => item.count),
+                        backgroundColor: 'rgba(78, 115, 223, 0.8)',
+                        borderRadius: 4,
+                        barThickness: 20
+                    }]
+                },
+                options: {
+                    ...chartOptions,
+                    onClick: (event, elements) => {
+                        if (elements.length > 0 && onFilterChange) {
+                            const index = elements[0].index;
+                            const value = topUsers[index].username;
+                            onFilterChange('username', value);
+                        }
+                    }
+                }
+            });
 
             return () => Object.values(chartInstances.current).forEach(c => c.destroy());
         }, [stats]);
 
         return (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                <div className="chart-box" style={{ height: '400px' }}>
-                    <div className="chart-title">Top 10 Categorias Bloqueadas</div>
-                    <div style={{ height: '340px' }}><canvas ref={catRef}></canvas></div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+                <div className="chart-box">
+                    <div className="chart-title">Top Categorias Bloqueadas</div>
+                    <div style={{ height: '230px' }}><canvas ref={catRef}></canvas></div>
                 </div>
-                <div className="chart-box" style={{ height: '400px' }}>
+                <div className="chart-box">
                     <div className="chart-title">Top 10 Sites Bloqueados</div>
-                    <div style={{ height: '340px' }}><canvas ref={siteRef}></canvas></div>
+                    <div style={{ height: '230px' }}><canvas ref={siteRef}></canvas></div>
+                </div>
+                <div className="chart-box">
+                    <div className="chart-title">Top 10 Usuários Bloqueados</div>
+                    <div style={{ height: '230px' }}><canvas ref={userRef}></canvas></div>
                 </div>
             </div>
         );

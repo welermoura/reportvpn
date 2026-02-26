@@ -319,6 +319,22 @@ class MetricsService:
                 defaults={'count': item['c']}
             )
 
+        # Top Sites (Limit 20)
+        top_sites = qs.filter(action__in=['block', 'blocked']).values('url').annotate(c=Count('id')).order_by('-c')[:20]
+        for item in top_sites:
+            DashboardMetric.objects.update_or_create(
+                date=date, group='webfilter', metric_name='top_sites', key=item['url'] or 'Unknown',
+                defaults={'count': item['c']}
+            )
+
+        # Top Users (Limit 20)
+        top_users = qs.filter(action__in=['block', 'blocked']).values('username').annotate(c=Count('id')).order_by('-c')[:20]
+        for item in top_users:
+            DashboardMetric.objects.update_or_create(
+                date=date, group='webfilter', metric_name='top_users', key=item['username'] or 'Unknown',
+                defaults={'count': item['c']}
+            )
+
     @staticmethod
     def consolidate_ips(date):
         from dashboard.models import DashboardMetric
