@@ -431,6 +431,21 @@ class RadarADViewSet(viewsets.ViewSet):
             "inactive_users_data": last_snap.inactive_users_data or []
         })
 
+    @action(detail=False, methods=['get'])
+    def export(self, request):
+        """Exporta os achados do último snapshot para Excel"""
+        from dashboard.utils import export_list_to_xlsx
+        
+        last_snap = ADRiskSnapshot.objects.first()
+        if not last_snap or not last_snap.findings_data:
+            return Response({"error": "Nenhum dado para exportar."}, status=404)
+            
+        filename = f"radar_ad_audit_{timezone.now().strftime('%Y%m%d_%H%M')}.xlsx"
+        headers = ['Usuário', 'Grupo Crítico', 'Impacto', 'Score', 'Hops (Passos)', 'Caminho Completo']
+        field_keys = ['user', 'priv_group', 'impact_label', 'score', 'path_hops', 'path_human']
+        
+        return export_list_to_xlsx(last_snap.findings_data, filename, headers, field_keys)
+
     @action(detail=False, methods=['post'])
     def scan(self, request):
         """Aciona a varredura LDAP através de um Background Job (Celery)"""

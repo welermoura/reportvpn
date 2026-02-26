@@ -733,7 +733,10 @@
 
         const handleExport = (type) => {
             if (type === 'pdf') { window.print(); return; }
-            alert('A exportação em Excel para Radar AD ainda será implementada no backend.');
+            if (type === 'csv' || type === 'xlsx') {
+                window.open('/api/security-events/radar-ad/export/', '_blank');
+                return;
+            }
         };
 
         const Pagination = () => (

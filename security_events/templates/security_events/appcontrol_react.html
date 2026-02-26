@@ -187,6 +187,7 @@
     const StatsCharts = ({ stats, onFilterChange }) => {
         const appsRef = useRef(null);
         const catRef = useRef(null);
+        const userRef = useRef(null);
         const chartInstances = useRef({});
 
         useEffect(() => {
@@ -264,18 +265,48 @@
                 });
             }
 
+            // Users Chart
+            if (stats.top_users) {
+                chartInstances.current.users = new Chart(userRef.current, {
+                    type: 'bar',
+                    data: {
+                        labels: stats.top_users.map(item => item.username),
+                        datasets: [{
+                            label: 'Acessos',
+                            data: stats.top_users.map(item => item.count),
+                            backgroundColor: 'rgba(78, 115, 223, 0.8)',
+                            borderRadius: 4, barThickness: 15
+                        }]
+                    },
+                    options: {
+                        ...chartOptions,
+                        onClick: (event, elements) => {
+                            if (elements.length > 0 && onFilterChange) {
+                                const index = elements[0].index;
+                                const value = stats.top_users[index].username;
+                                onFilterChange('username', value);
+                            }
+                        }
+                    }
+                });
+            }
+
             return () => Object.values(chartInstances.current).forEach(c => c.destroy());
         }, [stats]);
 
         return (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                <div className="chart-box" style={{ height: '400px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+                <div className="chart-box" style={{ height: '350px' }}>
                     <div className="chart-title">Top 10 Aplicações</div>
-                    <div style={{ height: '340px' }}><canvas ref={appsRef}></canvas></div>
+                    <div style={{ height: '290px' }}><canvas ref={appsRef}></canvas></div>
                 </div>
-                <div className="chart-box" style={{ height: '400px' }}>
-                    <div className="chart-title">Top 10 Categorias de Aplicação</div>
-                    <div style={{ height: '340px' }}><canvas ref={catRef}></canvas></div>
+                <div className="chart-box" style={{ height: '350px' }}>
+                    <div className="chart-title">Top 10 Usuários</div>
+                    <div style={{ height: '290px' }}><canvas ref={userRef}></canvas></div>
+                </div>
+                <div className="chart-box" style={{ height: '350px' }}>
+                    <div className="chart-title">Categorias de Aplicação</div>
+                    <div style={{ height: '290px' }}><canvas ref={catRef}></canvas></div>
                 </div>
             </div>
         );
@@ -355,6 +386,15 @@
                                         background: 'rgba(246, 194, 62, 0.2)', color: '#f6c23e'
                                     }}>{event.app_category || '-'}</span>
                                 </div>
+                                {event.app_risk && (
+                                    <div>
+                                        <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Risco</label>
+                                        <span style={{
+                                            padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600,
+                                            background: 'rgba(231, 74, 59, 0.2)', color: '#e74a3b'
+                                        }}>{event.app_risk}</span>
+                                    </div>
+                                )}
                             </div>
                             {event.url && (
                                 <div>
@@ -593,7 +633,7 @@
                                     <th>Data/Hora</th>
                                     <th>Usuário</th>
                                     <th>Aplicação</th>
-                                    <th>Categoria</th>
+                                    <th>Volume (Total)</th>
                                     <th>IP Origem</th>
                                     <th>Ação</th>
                                     <th style={{ textAlign: 'center' }}>Detalhes</th>
@@ -623,13 +663,15 @@
                                                 </div>
                                             </td>
                                             <td>
-                                                <span style={{ fontWeight: 600, color: '#f8fafc' }}>{event.app_name || '-'}</span>
+                                                <div style={{ fontWeight: 600, color: '#f8fafc' }}>{event.app_name || '-'}</div>
+                                                <div style={{ fontSize: '0.7rem', color: '#858796' }}>{event.app_category || 'Outros'}</div>
                                             </td>
                                             <td>
-                                                <span style={{
-                                                    padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem',
-                                                    background: 'rgba(246, 194, 62, 0.15)', color: '#f6c23e', border: '1px solid rgba(246, 194, 62, 0.2)'
-                                                }}>{event.app_category || 'Outros'}</span>
+                                                <div style={{ color: '#d1d3e2', fontSize: '0.85rem' }}>
+                                                    {event.bytes_in || event.bytes_out ? (
+                                                        <span>{Math.round(((event.bytes_in || 0) + (event.bytes_out || 0)) / 1024).toLocaleString()} KB</span>
+                                                    ) : '-'}
+                                                </div>
                                             </td>
                                             <td style={{ color: '#d1d3e2' }}>{event.src_ip}</td>
                                             <td>
