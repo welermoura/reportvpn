@@ -3,7 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Count
+from django.db.models import Count, Sum, F, Q, Case, When, Value, IntegerField
+from django.db.models.functions import Coalesce
 from security_events.models import SecurityEvent, ADAuthEvent
 from .serializers import SecurityEventSerializer, ADAuthEventSerializer
 from django.utils import timezone
@@ -342,21 +343,26 @@ class AppControlViewSet(viewsets.ReadOnlyModelViewSet):
                 username=F('key'), volume=Sum('volume')
             ).order_by('-volume')[:10]
 
-            # Apps and Categories remain dynamic due to high cardinality or recent focus
-            queryset = self.filter_queryset(self.get_queryset())
-            top_apps = queryset.exclude(app_name='').values('app_name').annotate(count=Count('id')).order_by('-count')[:10]
+            top_apps = metrics_qs.filter(metric_name='top_apps').values('key').annotate(
+                app_name=F('key'), count=Sum('count')
+            ).order_by('-count')[:10]
+
+            top_categories = metrics_qs.filter(metric_name='top_categories').values('key').annotate(
+                app_category=F('key'), count=Sum('count')
+            ).order_by('-count')[:10]
 
             return Response({
                 'total_events': total_events,
                 'top_apps': list(top_apps),
                 'top_users': list(top_users),
+                'top_categories': list(top_categories)
             })
 
         queryset = self.filter_queryset(self.get_queryset())
         total_events = queryset.count()
         top_apps = queryset.exclude(app_name='').values('app_name').annotate(count=Count('id')).order_by('-count')[:10]
+        top_categories = queryset.exclude(app_category='').values('app_category').annotate(count=Count('id')).order_by('-count')[:10]
         
-        from django.db.models.functions import Coalesce
         top_users = queryset.exclude(username='').values('username').annotate(
             volume=Sum(Coalesce(F('bytes_in'), 0) + Coalesce(F('bytes_out'), 0))
         ).order_by('-volume')[:10]
@@ -364,7 +370,8 @@ class AppControlViewSet(viewsets.ReadOnlyModelViewSet):
         return Response({
             'total_events': total_events,
             'top_apps': list(top_apps),
-            'top_users': list(top_users)
+            'top_users': list(top_users),
+            'top_categories': list(top_categories)
         })
 
 class ADAuthEventViewSet(viewsets.ModelViewSet):

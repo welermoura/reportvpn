@@ -242,8 +242,9 @@
             };
 
             // Severity Distribution
-            const severityLabels = data.severity_dist.map(d => d.severity);
-            const severityData = data.severity_dist.map(d => d.count);
+            const severityDist = data.severity_dist || [];
+            const severityLabels = severityDist.map(d => d.severity);
+            const severityData = severityDist.map(d => d.count);
             const severityColors = severityLabels.map(s => {
                 if (s === 'critical') return '#e74a3b';
                 if (s === 'high') return '#f6c23e';
@@ -268,11 +269,12 @@
             });
 
             // Top Attacks
+            const topAttacks = data.top_attacks || [];
             charInstances.current.attack = new Chart(attackRef.current, {
                 type: 'bar',
                 data: {
-                    labels: data.top_attacks.map(d => d.attack_name.substring(0, 20) + '...'),
-                    datasets: [{ label: 'Eventos', data: data.top_attacks.map(d => d.count), backgroundColor: '#e74a3b' }]
+                    labels: topAttacks.map(d => (d.attack_name || '').substring(0, 20) + '...'),
+                    datasets: [{ label: 'Eventos', data: topAttacks.map(d => d.count), backgroundColor: '#e74a3b' }]
                 },
                 options: {
                     ...chartOptions,
@@ -281,7 +283,7 @@
                     scales: { x: { ticks: { color: '#858796' }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { ticks: { color: '#858796' }, grid: { display: false } } },
                     onClick: (e, elements) => {
                         if (elements.length > 0 && onFilterChange) {
-                            const attackName = data.top_attacks[elements[0].index].attack_name;
+                            const attackName = topAttacks[elements[0].index].attack_name;
                             onFilterChange({ search: attackName });
                         }
                     }
@@ -289,11 +291,12 @@
             });
 
             // Top Sources
+            const topSources = data.top_sources || [];
             charInstances.current.source = new Chart(sourceRef.current, {
                 type: 'bar',
                 data: {
-                    labels: data.top_sources.map(d => d.src_ip),
-                    datasets: [{ label: 'Eventos', data: data.top_sources.map(d => d.count), backgroundColor: '#4e73df' }]
+                    labels: topSources.map(d => d.src_ip),
+                    datasets: [{ label: 'Eventos', data: topSources.map(d => d.count), backgroundColor: '#4e73df' }]
                 },
                 options: {
                     ...chartOptions,
@@ -301,7 +304,7 @@
                     scales: { y: { ticks: { color: '#858796' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#858796' }, grid: { display: false } } },
                     onClick: (e, elements) => {
                         if (elements.length > 0 && onFilterChange) {
-                            const srcIp = data.top_sources[elements[0].index].src_ip;
+                            const srcIp = topSources[elements[0].index].src_ip;
                             onFilterChange({ search: srcIp });
                         }
                     }

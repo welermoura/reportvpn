@@ -390,6 +390,22 @@ class MetricsService:
                 defaults={'volume': item['v']}
             )
 
+        # Top Apps
+        top_a = qs.exclude(app_name='').values('app_name').annotate(c=Count('id')).order_by('-c')[:15]
+        for item in top_a:
+            DashboardMetric.objects.update_or_create(
+                date=date, group='app-control', metric_name='top_apps', key=item['app_name'],
+                defaults={'count': item['c']}
+            )
+
+        # Top Categories
+        top_c = qs.exclude(app_category='').values('app_category').annotate(c=Count('id')).order_by('-c')[:15]
+        for item in top_c:
+            DashboardMetric.objects.update_or_create(
+                date=date, group='app-control', metric_name='top_categories', key=item['app_category'],
+                defaults={'count': item['c']}
+            )
+
     @staticmethod
     def consolidate_vpn(date):
         from dashboard.models import DashboardMetric
