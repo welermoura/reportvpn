@@ -205,22 +205,26 @@ class IPSViewSet(viewsets.ReadOnlyModelViewSet):
                 severity=F('key'), count=Sum('count')
             ).order_by('-count')
 
+            top_attacks = metrics_qs.filter(metric_name='top_attacks').values('key').annotate(
+                attack_name=F('key'), count=Sum('count')
+            ).order_by('-count')[:10]
+
+            top_sources = metrics_qs.filter(metric_name='top_sources').values('key').annotate(
+                src_ip=F('key'), count=Sum('count')
+            ).order_by('-count')[:10]
+
             agg = {
                 'total_events': total_events,
                 'critical_events': sum(m['count'] for m in severity_dist if m['severity'] == 'critical'),
                 'high_events': sum(m['count'] for m in severity_dist if m['severity'] == 'high'),
             }
 
-            # Top Attacks remain real-time but limited due to cardinality
-            top_attacks = SecurityEvent.objects.filter(event_type='ips').values('attack_name').annotate(
-                count=Count('id')
-            ).order_by('-count')[:20]
-
             return Response({
                 'total_events': agg['total_events'],
                 'critical_events': agg['critical_events'],
                 'high_events': agg['high_events'],
                 'top_attacks': list(top_attacks),
+                'top_sources': list(top_sources),
                 'severity_dist': list(severity_dist)
             })
 
@@ -234,12 +238,14 @@ class IPSViewSet(viewsets.ReadOnlyModelViewSet):
             high_events=Count(Case(When(severity='high', then=1), output_field=IntegerField())),
         )
         
-        top_attacks = queryset.values('attack_name').annotate(count=Count('id')).order_by('-count')[:20]
+        top_attacks = queryset.values('attack_name').annotate(count=Count('id')).order_by('-count')[:10]
+        top_sources = queryset.values('src_ip').annotate(count=Count('id')).order_by('-count')[:10]
         severity_dist = queryset.values('severity').annotate(count=Count('id')).order_by('-count')
         
         return Response({
             **agg,
             'top_attacks': list(top_attacks),
+            'top_sources': list(top_sources),
             'severity_dist': list(severity_dist)
         })
 
@@ -282,24 +288,44 @@ class AntivirusViewSet(viewsets.ReadOnlyModelViewSet):
         if not start_date and not end_date:
             metrics_qs = DashboardMetric.objects.filter(group='antivirus')
             total_events = metrics_qs.filter(metric_name='total_events', key='all').aggregate(s=Sum('count'))['s'] or 0
+            
+            severity_dist = metrics_qs.filter(metric_name='severity_dist').values('key').annotate(
+                severity=F('key'), count=Sum('count')
+            ).order_by('-count')
+
             top_viruses = metrics_qs.filter(metric_name='top_viruses').values('key').annotate(
                 virus_name=F('key'), count=Sum('count')
-            ).order_by('-count')[:20]
+            ).order_by('-count')[:10]
+
+            top_users = metrics_qs.filter(metric_name='top_users').values('key').annotate(
+                username=F('key'), count=Sum('count')
+            ).order_by('-count')[:10]
 
             return Response({
                 'total_events': total_events,
+                'critical_events': sum(m['count'] for m in severity_dist if m['severity'] == 'critical'),
+                'high_events': sum(m['count'] for m in severity_dist if m['severity'] == 'high'),
                 'top_viruses': list(top_viruses),
-                'top_users': [] # Users remain dynamic
+                'top_users': list(top_users),
+                'severity_dist': list(severity_dist)
             })
 
         total_events = queryset.count()
-        top_viruses = queryset.values('virus_name').annotate(count=Count('id')).order_by('-count')[:20]
-        top_users = queryset.exclude(username='').values('username').annotate(count=Count('id')).order_by('-count')[:20]
+        agg = queryset.aggregate(
+            critical_events=Count(Case(When(severity='critical', then=1), output_field=IntegerField())),
+            high_events=Count(Case(When(severity='high', then=1), output_field=IntegerField())),
+        )
+        top_viruses = queryset.values('virus_name').annotate(count=Count('id')).order_by('-count')[:10]
+        top_users = queryset.exclude(username='').values('username').annotate(count=Count('id')).order_by('-count')[:10]
+        severity_dist = queryset.values('severity').annotate(count=Count('id')).order_by('-count')
 
         return Response({
             'total_events': total_events,
+            'critical_events': agg['critical_events'],
+            'high_events': agg['high_events'],
             'top_viruses': list(top_viruses),
-            'top_users': list(top_users)
+            'top_users': list(top_users),
+            'severity_dist': list(severity_dist)
         })
 
 class AppControlViewSet(viewsets.ReadOnlyModelViewSet):

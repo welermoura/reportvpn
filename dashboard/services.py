@@ -342,6 +342,22 @@ class MetricsService:
             defaults={'count': total}
         )
 
+        # Top Attacks
+        top_a = qs.exclude(attack_name='').values('attack_name').annotate(c=Count('id')).order_by('-c')[:20]
+        for item in top_a:
+            DashboardMetric.objects.update_or_create(
+                date=date, group='ips', metric_name='top_attacks', key=item['attack_name'],
+                defaults={'count': item['c']}
+            )
+
+        # Top Sources
+        top_s = qs.exclude(src_ip='').values('src_ip').annotate(c=Count('id')).order_by('-c')[:20]
+        for item in top_s:
+            DashboardMetric.objects.update_or_create(
+                date=date, group='ips', metric_name='top_sources', key=item['src_ip'],
+                defaults={'count': item['c']}
+            )
+
     @staticmethod
     def consolidate_antivirus(date):
         from dashboard.models import DashboardMetric
@@ -361,6 +377,14 @@ class MetricsService:
         for item in top_v:
             DashboardMetric.objects.update_or_create(
                 date=date, group='antivirus', metric_name='top_viruses', key=item['virus_name'] or 'Unknown',
+                defaults={'count': item['c']}
+            )
+
+        # Top Users
+        top_u = qs.exclude(username='').values('username').annotate(c=Count('id')).order_by('-c')[:20]
+        for item in top_u:
+            DashboardMetric.objects.update_or_create(
+                date=date, group='antivirus', metric_name='top_users', key=item['username'],
                 defaults={'count': item['c']}
             )
 

@@ -210,8 +210,9 @@
             };
 
             // Severity Distribution
-            const severityLabels = data.severity_dist.map(d => d.severity);
-            const severityData = data.severity_dist.map(d => d.count);
+            const severityDist = data.severity_dist || [];
+            const severityLabels = severityDist.map(d => d.severity);
+            const severityData = severityDist.map(d => d.count);
             const severityColors = severityLabels.map(s => {
                 if (s === 'critical') return '#e74a3b';
                 if (s === 'high') return '#f6c23e';
@@ -236,11 +237,12 @@
             });
 
             // Top Viruses
+            const topViruses = data.top_viruses || [];
             charInstances.current.virus = new Chart(virusRef.current, {
                 type: 'bar',
                 data: {
-                    labels: data.top_viruses.map(d => d.virus_name.substring(0, 20) + '...'),
-                    datasets: [{ label: 'Detecções', data: data.top_viruses.map(d => d.count), backgroundColor: '#e74a3b' }]
+                    labels: topViruses.map(d => (d.virus_name || '').substring(0, 20) + '...'),
+                    datasets: [{ label: 'Detecções', data: topViruses.map(d => d.count), backgroundColor: '#e74a3b' }]
                 },
                 options: {
                     ...chartOptions,
@@ -249,7 +251,7 @@
                     scales: { x: { ticks: { color: '#858796' }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { ticks: { color: '#858796' }, grid: { display: false } } },
                     onClick: (e, elements) => {
                         if (elements.length > 0 && onFilterChange) {
-                            const virusName = data.top_viruses[elements[0].index].virus_name;
+                            const virusName = topViruses[elements[0].index].virus_name;
                             onFilterChange({ search: virusName });
                         }
                     }
@@ -257,11 +259,12 @@
             });
 
             // Top Users
+            const topUsers = data.top_users || [];
             charInstances.current.user = new Chart(userRef.current, {
                 type: 'bar',
                 data: {
-                    labels: data.top_users.map(d => d.username),
-                    datasets: [{ label: 'Infecções', data: data.top_users.map(d => d.count), backgroundColor: '#4e73df' }]
+                    labels: topUsers.map(d => d.username),
+                    datasets: [{ label: 'Infecções', data: topUsers.map(d => d.count), backgroundColor: '#4e73df' }]
                 },
                 options: {
                     ...chartOptions,
@@ -269,7 +272,7 @@
                     scales: { y: { ticks: { color: '#858796' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#858796' }, grid: { display: false } } },
                     onClick: (e, elements) => {
                         if (elements.length > 0 && onFilterChange) {
-                            const username = data.top_users[elements[0].index].username;
+                            const username = topUsers[elements[0].index].username;
                             onFilterChange({ search: username });
                         }
                     }

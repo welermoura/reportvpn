@@ -82,6 +82,9 @@ class SecurityEvent(models.Model):
             models.Index(fields=['event_type', 'date', 'username']),
             models.Index(fields=['username', 'date']),
             models.Index(fields=['-timestamp']),
+            models.Index(fields=['event_type', 'date', 'attack_name']),
+            models.Index(fields=['event_type', 'date', 'virus_name']),
+            models.Index(fields=['event_type', '-timestamp']),
         ]
         verbose_name = 'Evento de Segurança'
         verbose_name_plural = 'Eventos de Segurança'
