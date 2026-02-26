@@ -287,6 +287,7 @@ class AppControlViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
+        from django.db.models import Sum, F
         queryset = self.filter_queryset(self.get_queryset())
         
         total_events = queryset.count()
@@ -296,10 +297,11 @@ class AppControlViewSet(viewsets.ReadOnlyModelViewSet):
              count=Count('id')
         ).order_by('-count')[:10]
 
-        # Top Users
+        # Top Users by Volume (Bandwidth)
+        from django.db.models.functions import Coalesce
         top_users = queryset.exclude(username='').values('username').annotate(
-            count=Count('id')
-        ).order_by('-count')[:20]
+            volume=Sum(Coalesce(F('bytes_in'), 0) + Coalesce(F('bytes_out'), 0))
+        ).order_by('-volume')[:10]
 
         # Top Categories
         top_categories = queryset.exclude(app_category='').values('app_category').annotate(

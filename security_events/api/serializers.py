@@ -56,7 +56,9 @@ class SecurityEventSerializer(serializers.ModelSerializer):
                 'direction': data.get('direction', ''),
                 'profile': data.get('profile', ''),
                 'ref': data.get('ref', ''),
-                'policyid': data.get('policyid', '')
+                'policyid': data.get('policyid', ''),
+                'hostname': data.get('hostname', ''),
+                'url': data.get('url', '')
             }
         except Exception:
             return {}

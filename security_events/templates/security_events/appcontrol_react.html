@@ -265,21 +265,46 @@
                 });
             }
 
-            // Users Chart
+            // Users Chart - Volume based (MB)
             if (stats.top_users) {
+                const toMB = (bytes) => (bytes / (1024 * 1024)).toFixed(2);
+
                 chartInstances.current.users = new Chart(userRef.current, {
                     type: 'bar',
                     data: {
                         labels: stats.top_users.map(item => item.username),
                         datasets: [{
-                            label: 'Acessos',
-                            data: stats.top_users.map(item => item.count),
+                            label: 'Volume (MB)',
+                            data: stats.top_users.map(item => toMB(item.volume)),
                             backgroundColor: 'rgba(78, 115, 223, 0.8)',
                             borderRadius: 4, barThickness: 15
                         }]
                     },
                     options: {
                         ...chartOptions,
+                        plugins: {
+                            ...chartOptions.plugins,
+                            tooltip: {
+                                ...chartOptions.plugins.tooltip,
+                                callbacks: {
+                                    label: function (context) {
+                                        return `Volume: ${context.raw} MB`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            ...chartOptions.scales,
+                            x: {
+                                ...chartOptions.scales.x,
+                                ticks: {
+                                    ...chartOptions.scales.x.ticks,
+                                    callback: function (value) {
+                                        return value + ' MB';
+                                    }
+                                }
+                            }
+                        },
                         onClick: (event, elements) => {
                             if (elements.length > 0 && onFilterChange) {
                                 const index = elements[0].index;
@@ -321,11 +346,12 @@
         const initials = displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
         const formatBytes = (bytes) => {
-            if (!bytes) return '0 B';
+            if (bytes === 0 || !bytes) return '0 B';
             const k = 1024;
             const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            const i = Math.floor(Math.log(Math.abs(bytes)) / Math.log(k));
+            const index = Math.min(Math.max(i, 0), sizes.length - 1);
+            return parseFloat((bytes / Math.pow(k, index)).toFixed(2)) + ' ' + sizes[index];
         };
 
         return (
@@ -371,6 +397,27 @@
                                 <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Data e Hora</label>
                                 <div style={{ fontSize: '0.95rem', color: '#d1d3e2' }}><i className="far fa-clock me-2"></i>{formatTime(event.timestamp)}</div>
                             </div>
+
+                            {/* URL / Website - High Priority Highlight */}
+                            {(event.url || (event.details && (event.details.url || event.details.hostname))) && (
+                                <div style={{
+                                    background: 'rgba(78, 115, 223, 0.1)',
+                                    padding: '12px',
+                                    borderRadius: '8px',
+                                    borderLeft: '4px solid #4e73df',
+                                    gridColumn: 'span 2'
+                                }}>
+                                    <label style={{ display: 'block', color: '#a0aec0', fontSize: '0.7rem', textTransform: 'uppercase', marginBottom: '4px', fontWeight: 600 }}>URL / Website Acessado</label>
+                                    <div style={{ fontSize: '1rem', color: '#63b3ed', wordBreak: 'break-all', fontWeight: 500 }}>
+                                        <a href={(event.url || event.details?.url || event.details?.hostname).startsWith('http') ? (event.url || event.details?.url || event.details?.hostname) : `http://${(event.url || event.details?.url || event.details?.hostname)}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+                                            <i className="fas fa-link me-2"></i>
+                                            {event.url || event.details?.url || event.details?.hostname}
+                                            <i className="fas fa-external-link-alt ms-2" style={{ fontSize: '0.8rem' }}></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            )}
+
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                 <div>
                                     <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Aplicação</label>
@@ -389,40 +436,33 @@
                                 {event.app_risk && (
                                     <div>
                                         <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Risco</label>
-                                        <span style={{
-                                            padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600,
-                                            background: 'rgba(231, 74, 59, 0.2)', color: '#e74a3b'
-                                        }}>{event.app_risk}</span>
+                                        {(() => {
+                                            const risk = event.app_risk.toLowerCase();
+                                            let bg = 'rgba(133, 135, 150, 0.2)', color = '#858796';
+                                            if (risk.includes('crit') || risk === '5') { bg = 'rgba(231, 74, 59, 0.2)'; color = '#e74a3b'; }
+                                            else if (risk.includes('high') || risk === '4') { bg = 'rgba(253, 126, 20, 0.2)'; color = '#fd7e14'; }
+                                            else if (risk.includes('elevated') || risk.includes('med') || risk === '3') { bg = 'rgba(246, 194, 62, 0.2)'; color = '#f6c23e'; }
+                                            else if (risk.includes('low') || risk === '2' || risk === '1') { bg = 'rgba(28, 200, 138, 0.2)'; color = '#1cc88a'; }
+
+                                            return (
+                                                <span style={{
+                                                    padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600,
+                                                    background: bg, color: color, textTransform: 'capitalize'
+                                                }}>{event.app_risk}</span>
+                                            );
+                                        })()}
                                     </div>
                                 )}
-                            </div>
-                            {event.url && (
                                 <div>
-                                    <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>URL / Website</label>
-                                    <div style={{ fontSize: '0.85rem', color: '#4e73df', wordBreak: 'break-all', textDecoration: 'underline' }}>
-                                        <a href={event.url.startsWith('http') ? event.url : `http://${event.url}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>
-                                            {event.url}
-                                        </a>
-                                    </div>
+                                    <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Ação</label>
+                                    <span style={{
+                                        padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600,
+                                        background: event.action === 'blocked' ? 'rgba(220, 53, 69, 0.2)' : 'rgba(28, 200, 138, 0.2)',
+                                        color: event.action === 'blocked' ? '#dc3545' : '#1cc88a'
+                                    }}>
+                                        {event.action || '-'}
+                                    </span>
                                 </div>
-                            )}
-                            {(!event.url && (event.raw_data?.hostname || event.raw_data?.url)) && (
-                                <div>
-                                    <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>URL / Website (Raw)</label>
-                                    <div style={{ fontSize: '0.85rem', color: '#4e73df', wordBreak: 'break-all', textDecoration: 'underline' }}>
-                                        {event.raw_data?.hostname || event.raw_data?.url}
-                                    </div>
-                                </div>
-                            )}
-                            <div>
-                                <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Ação</label>
-                                <span style={{
-                                    padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600,
-                                    background: event.action === 'blocked' ? 'rgba(220, 53, 69, 0.2)' : 'rgba(28, 200, 138, 0.2)',
-                                    color: event.action === 'blocked' ? '#dc3545' : '#1cc88a'
-                                }}>
-                                    {event.action || '-'}
-                                </span>
                             </div>
                         </div>
 
@@ -669,7 +709,7 @@
                                             <td>
                                                 <div style={{ color: '#d1d3e2', fontSize: '0.85rem' }}>
                                                     {event.bytes_in || event.bytes_out ? (
-                                                        <span>{Math.round(((event.bytes_in || 0) + (event.bytes_out || 0)) / 1024).toLocaleString()} KB</span>
+                                                        <span>{(((event.bytes_in || 0) + (event.bytes_out || 0)) / (1024 * 1024)).toFixed(2)} MB</span>
                                                     ) : '-'}
                                                 </div>
                                             </td>
