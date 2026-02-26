@@ -327,8 +327,8 @@ class MetricsService:
         
         qs = SecurityEvent.objects.filter(event_type='ips', date=date)
         
-        # Severity summary
-        sevs = qs.values('severity').annotate(c=Count('id'))
+        # Severity summary - Using order_by() to clear default Meta ordering for SQL Server
+        sevs = qs.values('severity').annotate(c=Count('id')).order_by()
         for item in sevs:
             DashboardMetric.objects.update_or_create(
                 date=date, group='ips', metric_name='severity_dist', key=item['severity'],
@@ -356,7 +356,7 @@ class MetricsService:
             defaults={'count': total}
         )
         
-        # Top viruses
+        # Top viruses - Using order_by('-c') which is valid
         top_v = qs.values('virus_name').annotate(c=Count('id')).order_by('-c')[:10]
         for item in top_v:
             DashboardMetric.objects.update_or_create(
@@ -379,7 +379,7 @@ class MetricsService:
             defaults={'count': total}
         )
         
-        # Top users by volume
+        # Top users by volume - order_by('-v') is explicit
         top_u = qs.exclude(username='').values('username').annotate(
             v=Sum(Coalesce(F('bytes_in'), 0) + Coalesce(F('bytes_out'), 0))
         ).order_by('-v')[:15]
