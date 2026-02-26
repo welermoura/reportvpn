@@ -74,3 +74,39 @@ class RiskEvent(models.Model):
         verbose_name = "Evento de Risco"
         verbose_name_plural = "Eventos de Risco"
         ordering = ['-timestamp']
+
+class DashboardMetric(models.Model):
+    """
+    Tabela de sumário para performance instantânea dos dashboards.
+    Armazena agregações diárias/horárias por grupo e categoria.
+    """
+    METRIC_GROUPS = [
+        ('webfilter', 'Web Filter'),
+        ('ips', 'IPS'),
+        ('antivirus', 'Antivirus'),
+        ('app-control', 'App Control'),
+        ('vpn', 'VPN'),
+        ('ad-auth', 'AD Auth'),
+        ('risk', 'User Risk'),
+    ]
+
+    date = models.DateField(db_index=True)
+    group = models.CharField(max_length=50, choices=METRIC_GROUPS, db_index=True)
+    metric_name = models.CharField(max_length=100, db_index=True) # ex: 'top_categories', 'total_events'
+    key = models.CharField(max_length=255, blank=True, db_index=True) # ex: 'YouTube', 'Critical'
+    
+    count = models.BigIntegerField(default=0)
+    volume = models.BigIntegerField(default=0) # Bytes ou relevância
+    
+    last_updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Métrica de Dashboard"
+        verbose_name_plural = "Métricas de Dashboard"
+        unique_together = ['date', 'group', 'metric_name', 'key']
+        indexes = [
+            models.Index(fields=['group', 'metric_name', 'date']),
+        ]
+
+    def __str__(self):
+        return f"{self.date} | {self.group} | {self.metric_name}:{self.key} = {self.count}"

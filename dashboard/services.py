@@ -261,3 +261,160 @@ class RiskScoringService:
         score_obj, created = UserRiskScore.objects.get_or_create(username=username)
         # (Lógica individual simplificada aqui se necessário)
         return score_obj
+
+class MetricsService:
+    @staticmethod
+    def consolidate_all(days=30):
+        """Consolida métricas de todos os módulos."""
+        from dashboard.models import DashboardMetric
+        
+        # Iterar pelos últimos N dias
+        for i in range(days + 1):
+            target_date = (timezone.now() - timedelta(days=i)).date()
+            
+            # 1. WebFilter
+            MetricsService.consolidate_webfilter(target_date)
+            
+            # 2. IPS
+            MetricsService.consolidate_ips(target_date)
+            
+            # 3. Antivirus
+            MetricsService.consolidate_antivirus(target_date)
+            
+            # 4. App Control
+            MetricsService.consolidate_appcontrol(target_date)
+            
+            # 5. VPN
+            MetricsService.consolidate_vpn(target_date)
+
+        logger.info(f"Consolidação de métricas concluída para os últimos {days} dias.")
+
+    @staticmethod
+    def consolidate_webfilter(date):
+        from dashboard.models import DashboardMetric
+        from security_events.models import SecurityEvent
+        from django.db.models import Count
+        
+        qs = SecurityEvent.objects.filter(event_type='webfilter', date=date)
+        
+        # Total events
+        total = qs.count()
+        DashboardMetric.objects.update_or_create(
+            date=date, group='webfilter', metric_name='total_events', key='all',
+            defaults={'count': total}
+        )
+        
+        # Blocked
+        blocked = qs.filter(action__in=['block', 'blocked']).count()
+        DashboardMetric.objects.update_or_create(
+            date=date, group='webfilter', metric_name='blocked_events', key='all',
+            defaults={'count': blocked}
+        )
+        
+        # Top Categories (Limit 10)
+        top_cats = qs.filter(action__in=['block', 'blocked']).values('category').annotate(c=Count('id')).order_by('-c')[:10]
+        for item in top_cats:
+            DashboardMetric.objects.update_or_create(
+                date=date, group='webfilter', metric_name='top_categories', key=item['category'] or 'Unknown',
+                defaults={'count': item['c']}
+            )
+
+    @staticmethod
+    def consolidate_ips(date):
+        from dashboard.models import DashboardMetric
+        from security_events.models import SecurityEvent
+        from django.db.models import Count
+        
+        qs = SecurityEvent.objects.filter(event_type='ips', date=date)
+        
+        # Severity summary
+        sevs = qs.values('severity').annotate(c=Count('id'))
+        for item in sevs:
+            DashboardMetric.objects.update_or_create(
+                date=date, group='ips', metric_name='severity_dist', key=item['severity'],
+                defaults={'count': item['c']}
+            )
+            
+        # Total
+        total = sum(item['c'] for item in sevs)
+        DashboardMetric.objects.update_or_create(
+            date=date, group='ips', metric_name='total_events', key='all',
+            defaults={'count': total}
+        )
+
+    @staticmethod
+    def consolidate_antivirus(date):
+        from dashboard.models import DashboardMetric
+        from security_events.models import SecurityEvent
+        from django.db.models import Count
+        
+        qs = SecurityEvent.objects.filter(event_type='antivirus', date=date)
+        
+        total = qs.count()
+        DashboardMetric.objects.update_or_create(
+            date=date, group='antivirus', metric_name='total_events', key='all',
+            defaults={'count': total}
+        )
+        
+        # Top viruses
+        top_v = qs.values('virus_name').annotate(c=Count('id')).order_by('-c')[:10]
+        for item in top_v:
+            DashboardMetric.objects.update_or_create(
+                date=date, group='antivirus', metric_name='top_viruses', key=item['virus_name'] or 'Unknown',
+                defaults={'count': item['c']}
+            )
+
+    @staticmethod
+    def consolidate_appcontrol(date):
+        from dashboard.models import DashboardMetric
+        from security_events.models import SecurityEvent
+        from django.db.models.functions import Coalesce
+        from django.db.models import Sum, F
+        
+        qs = SecurityEvent.objects.filter(event_type='app-control', date=date)
+        
+        total = qs.count()
+        DashboardMetric.objects.update_or_create(
+            date=date, group='app-control', metric_name='total_events', key='all',
+            defaults={'count': total}
+        )
+        
+        # Top users by volume
+        top_u = qs.exclude(username='').values('username').annotate(
+            v=Sum(Coalesce(F('bytes_in'), 0) + Coalesce(F('bytes_out'), 0))
+        ).order_by('-v')[:15]
+        
+        for item in top_u:
+            DashboardMetric.objects.update_or_create(
+                date=date, group='app-control', metric_name='top_users_volume', key=item['username'],
+                defaults={'volume': item['v']}
+            )
+
+    @staticmethod
+    def consolidate_vpn(date):
+        from dashboard.models import DashboardMetric
+        from vpn_logs.models import VPNLog
+        from django.db.models import Sum, F
+        
+        qs = VPNLog.objects.filter(start_date=date)
+        
+        # Total Connections
+        total = qs.count()
+        DashboardMetric.objects.update_or_create(
+            date=date, group='vpn', metric_name='total_connections', key='all',
+            defaults={'count': total}
+        )
+        
+        # Total Volume
+        vol = qs.aggregate(v=Sum(F('bandwidth_in') + F('bandwidth_out')))['v'] or 0
+        DashboardMetric.objects.update_or_create(
+            date=date, group='vpn', metric_name='total_volume', key='all',
+            defaults={'volume': vol}
+        )
+        
+        # Suspicious
+        susp = qs.filter(is_suspicious=True).count()
+        DashboardMetric.objects.update_or_create(
+            date=date, group='vpn', metric_name='suspicious_connections', key='all',
+            defaults={'count': susp}
+        )

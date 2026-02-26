@@ -147,6 +147,11 @@ class VPNLog(models.Model):
         verbose_name = "Log de VPN"
         verbose_name_plural = "Logs de VPN"
         ordering = ['-start_time']
+        indexes = [
+            models.Index(fields=['user', 'start_date']),
+            models.Index(fields=['is_suspicious', 'start_date']),
+            models.Index(fields=['impossible_travel', 'start_date']),
+        ]
 
     def __str__(self):
         return f"{self.user} - {self.start_time}"

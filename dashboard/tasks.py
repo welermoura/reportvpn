@@ -16,4 +16,16 @@ def update_user_risk_scores_task():
         return f"Updated {len(results)} users"
     except Exception as e:
         logger.error(f"Erro ao atualizar scores de risco: {e}")
+@shared_task(name='Consolidar Metricas Dashboard')
+def consolidate_metrics_task(days=1):
+    """
+    Consolida métricas para os dashboards (resumo diário).
+    """
+    try:
+        from .services import MetricsService
+        logger.info("Iniciando consolidação de métricas...")
+        MetricsService.consolidate_all(days=days)
+        return f"Consolidation for {days} days completed"
+    except Exception as e:
+        logger.error(f"Erro ao consolidar métricas: {e}")
         return f"Error: {e}"

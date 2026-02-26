@@ -86,23 +86,47 @@ class WebFilterViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
-        """Return statistics for dashboard charts"""
-        # Base webfilter queryset with all filters applied
-        queryset = self.filter_queryset(self.get_queryset())
+        """Return statistics for dashboard charts using metrics table for performance"""
+        from dashboard.models import DashboardMetric
+        from django.db.models import Sum
         
-        # Totals
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        
+        # Se não houver filtro de data, pegamos os últimos 7 dias das métricas
+        if not start_date and not end_date:
+            metrics_qs = DashboardMetric.objects.filter(group='webfilter')
+            
+            total_events = metrics_qs.filter(metric_name='total_events', key='all').aggregate(s=Sum('count'))['s'] or 0
+            blocked_events = metrics_qs.filter(metric_name='blocked_events', key='all').aggregate(s=Sum('count'))['s'] or 0
+            
+            top_categories = metrics_qs.filter(metric_name='top_categories').values('key').annotate(
+                category=F('key'), count=Sum('count')
+            ).order_by('-count')[:10]
+            
+            # Sites não são salvos em métricas por terem alta cardinalidade, fazemos query real-time limitada
+            top_sites = SecurityEvent.objects.filter(
+                event_type='webfilter', action__in=['block', 'blocked']
+            ).values('url').annotate(count=Count('id')).order_by('-count')[:10]
+
+            return Response({
+                'total_events': total_events,
+                'blocked_events': blocked_events,
+                'top_categories': list(top_categories),
+                'top_sites': list(top_sites)
+            })
+
+        # Se houver filtro, usamos a lógica original (o índice composto ajudará aqui)
+        queryset = self.filter_queryset(self.get_queryset())
         total_events = queryset.count()
         blocked_events = queryset.filter(action__in=['block', 'blocked']).count()
         
-        # Top Categories (Blocked)
         top_categories = queryset.filter(
             action__in=['block', 'blocked']
         ).values('category').annotate(
             count=Count('id')
         ).order_by('-count')[:10]
         
-        # Top Sites (Blocked)
-        # Extract domain from URL or use as is if simple
         top_sites = queryset.filter(
             action__in=['block', 'blocked']
         ).values('url').annotate(
@@ -164,42 +188,59 @@ class IPSViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
-        """Return statistics for dashboard charts"""
+        """Return statistics for dashboard charts using metrics table for performance"""
+        from dashboard.models import DashboardMetric
+        from django.db.models import Sum
+        
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+
+        if not start_date and not end_date:
+            metrics_qs = DashboardMetric.objects.filter(group='ips')
+            
+            total_events = metrics_qs.filter(metric_name='total_events', key='all').aggregate(s=Sum('count'))['s'] or 0
+            
+            severity_dist = metrics_qs.filter(metric_name='severity_dist').values('key').annotate(
+                severity=F('key'), count=Sum('count')
+            ).order_by('-count')
+
+            agg = {
+                'total_events': total_events,
+                'critical_events': sum(m['count'] for m in severity_dist if m['severity'] == 'critical'),
+                'high_events': sum(m['count'] for m in severity_dist if m['severity'] == 'high'),
+            }
+
+            # Top Attacks remain real-time but limited due to cardinality
+            top_attacks = SecurityEvent.objects.filter(event_type='ips').values('attack_name').annotate(
+                count=Count('id')
+            ).order_by('-count')[:20]
+
+            return Response({
+                'total_events': agg['total_events'],
+                'critical_events': agg['critical_events'],
+                'high_events': agg['high_events'],
+                'top_attacks': list(top_attacks),
+                'severity_dist': list(severity_dist)
+            })
+
+        # Real-time fallback
         from django.db.models import Case, When, IntegerField
         queryset = self.filter_queryset(self.get_queryset())
         
-        # Uma única query agregada para evitar race condition (Críticos > Total)
         agg = queryset.aggregate(
             total_events=Count('id'),
             critical_events=Count(Case(When(severity='critical', then=1), output_field=IntegerField())),
             high_events=Count(Case(When(severity='high', then=1), output_field=IntegerField())),
         )
         
-        # Top Attacks
-        top_attacks = queryset.values('attack_name').annotate(
-            count=Count('id')
-        ).order_by('-count')[:20]
-        
-        # Top Sources
-        top_sources = queryset.exclude(src_ip='0.0.0.0').values('src_ip').annotate(
-            count=Count('id')
-        ).order_by('-count')[:20]
-        
-        # Severity Distribution
-        severity_dist = queryset.values('severity').annotate(
-            count=Count('id')
-        ).order_by('-count')
+        top_attacks = queryset.values('attack_name').annotate(count=Count('id')).order_by('-count')[:20]
+        severity_dist = queryset.values('severity').annotate(count=Count('id')).order_by('-count')
         
         return Response({
-            'total_events': agg['total_events'],
-            'critical_events': agg['critical_events'],
-            'high_events': agg['high_events'],
+            **agg,
             'top_attacks': list(top_attacks),
-            'top_sources': list(top_sources),
             'severity_dist': list(severity_dist)
         })
-
-
 
 class AntivirusViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -229,36 +270,36 @@ class AntivirusViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
+        """Return statistics for dashboard charts using metrics table"""
+        from dashboard.models import DashboardMetric
+        from django.db.models import Sum
+        
         queryset = self.filter_queryset(self.get_queryset())
-        
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+
+        if not start_date and not end_date:
+            metrics_qs = DashboardMetric.objects.filter(group='antivirus')
+            total_events = metrics_qs.filter(metric_name='total_events', key='all').aggregate(s=Sum('count'))['s'] or 0
+            top_viruses = metrics_qs.filter(metric_name='top_viruses').values('key').annotate(
+                virus_name=F('key'), count=Sum('count')
+            ).order_by('-count')[:20]
+
+            return Response({
+                'total_events': total_events,
+                'top_viruses': list(top_viruses),
+                'top_users': [] # Users remain dynamic
+            })
+
         total_events = queryset.count()
-        critical_events = queryset.filter(severity='critical').count()
-        high_events = queryset.filter(severity='high').count()
-        
-        # Top Viruses
-        top_viruses = queryset.values('virus_name').annotate(
-             count=Count('id')
-        ).order_by('-count')[:20]
-
-        # Top Users
-        top_users = queryset.exclude(username='').values('username').annotate(
-            count=Count('id')
-        ).order_by('-count')[:20]
-
-        # Severity Distribution
-        severity_dist = queryset.values('severity').annotate(
-            count=Count('id')
-        ).order_by('-count')
+        top_viruses = queryset.values('virus_name').annotate(count=Count('id')).order_by('-count')[:20]
+        top_users = queryset.exclude(username='').values('username').annotate(count=Count('id')).order_by('-count')[:20]
 
         return Response({
             'total_events': total_events,
-            'critical_events': critical_events,
-            'high_events': high_events,
             'top_viruses': list(top_viruses),
-            'top_users': list(top_users),
-            'severity_dist': list(severity_dist)
+            'top_users': list(top_users)
         })
-
 
 class AppControlViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -287,32 +328,43 @@ class AppControlViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
+        """Return statistics for dashboard charts using metrics table"""
+        from dashboard.models import DashboardMetric
         from django.db.models import Sum, F
-        queryset = self.filter_queryset(self.get_queryset())
         
-        total_events = queryset.count()
-        
-        # Top Apps
-        top_apps = queryset.exclude(app_name='').values('app_name').annotate(
-             count=Count('id')
-        ).order_by('-count')[:10]
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
 
-        # Top Users by Volume (Bandwidth)
+        if not start_date and not end_date:
+            metrics_qs = DashboardMetric.objects.filter(group='app-control')
+            total_events = metrics_qs.filter(metric_name='total_events', key='all').aggregate(s=Sum('count'))['s'] or 0
+            top_users = metrics_qs.filter(metric_name='top_users_volume').values('key').annotate(
+                username=F('key'), volume=Sum('volume')
+            ).order_by('-volume')[:10]
+
+            # Apps and Categories remain dynamic due to high cardinality or recent focus
+            queryset = self.filter_queryset(self.get_queryset())
+            top_apps = queryset.exclude(app_name='').values('app_name').annotate(count=Count('id')).order_by('-count')[:10]
+
+            return Response({
+                'total_events': total_events,
+                'top_apps': list(top_apps),
+                'top_users': list(top_users),
+            })
+
+        queryset = self.filter_queryset(self.get_queryset())
+        total_events = queryset.count()
+        top_apps = queryset.exclude(app_name='').values('app_name').annotate(count=Count('id')).order_by('-count')[:10]
+        
         from django.db.models.functions import Coalesce
         top_users = queryset.exclude(username='').values('username').annotate(
             volume=Sum(Coalesce(F('bytes_in'), 0) + Coalesce(F('bytes_out'), 0))
         ).order_by('-volume')[:10]
 
-        # Top Categories
-        top_categories = queryset.exclude(app_category='').values('app_category').annotate(
-            count=Count('id')
-        ).order_by('-count')[:10]
-
         return Response({
             'total_events': total_events,
             'top_apps': list(top_apps),
-            'top_users': list(top_users),
-            'top_categories': list(top_categories)
+            'top_users': list(top_users)
         })
 
 class ADAuthEventViewSet(viewsets.ModelViewSet):
@@ -342,8 +394,29 @@ class ADAuthEventViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
-        queryset = self.filter_queryset(self.get_queryset())
+        """Return statistics for dashboard charts using metrics table"""
+        from dashboard.models import DashboardMetric
+        from django.db.models import Sum
         
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+
+        if not start_date and not end_date:
+            metrics_qs = DashboardMetric.objects.filter(group='ad-auth')
+            total_events = metrics_qs.filter(metric_name='total_events', key='all').aggregate(s=Sum('count'))['s'] or 0
+            failed_logins = metrics_qs.filter(metric_name='failed_logins', key='all').aggregate(s=Sum('count'))['s'] or 0
+            locked_accounts = metrics_qs.filter(metric_name='locked_accounts', key='all').aggregate(s=Sum('count'))['s'] or 0
+
+            return Response({
+                'total_events': total_events,
+                'failed_logins': failed_logins,
+                'locked_accounts': locked_accounts,
+                'top_failed_users': [], # Dynamic
+                'top_failed_workstations': [], # Dynamic
+                'recent_auth_events': [] # Dynamic
+            })
+
+        queryset = self.filter_queryset(self.get_queryset())
         total_events = queryset.count()
         failed_logins = queryset.filter(status='failed').count()
         locked_accounts = queryset.filter(status='locked').count()
@@ -358,12 +431,6 @@ class ADAuthEventViewSet(viewsets.ModelViewSet):
             count=Count('id')
         ).order_by('-count')[:20]
 
-        # Heatmap Data (Logins por hora)
-        # Extrair a hora agregada e contar - para simplicidade usaremos uma query agregada básica
-        # Se for no sqlite pode dar divergência do postgres de extração de hora, então faremos via Python se necessário,
-        # ou count básico. 
-        # Optando por enviar os eventos agrupados para o frontend calcular o Heatmap (mais leve)
-        # limitando para heatmap events às últimas 24/48h por exemplo:
         recent_events = list(queryset.order_by('-timestamp')[:500].values('timestamp', 'status'))
 
 

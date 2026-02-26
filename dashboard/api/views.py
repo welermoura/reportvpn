@@ -34,13 +34,8 @@ class VPNLogViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def list(self, request):
-        # 0. Initial Queryset for base filtering - SSL VPN ONLY
-        # Filtramos por tunneltype/vpntype ou pela porta padrão de SSL VPN (se o log de syslog vier sem o campo explícito)
-        base_qs = VPNLog.objects.filter(
-            Q(raw_data__tunneltype__icontains='ssl') | 
-            Q(raw_data__vpntype__icontains='ssl') |
-            Q(raw_data__service__icontains='SSL')
-        )
+        """Aggregated list of VPN users with performance optimization"""
+        from dashboard.models import DashboardMetric
         
         # Apply filters from query params
         user_q = request.query_params.get('user_q')
@@ -48,6 +43,13 @@ class VPNLogViewSet(viewsets.ModelViewSet):
         dept_q = request.query_params.get('dept_q')
         date_str = request.query_params.get('date')
 
+        # 0. Initial Queryset for base filtering
+        base_qs = VPNLog.objects.filter(
+            Q(raw_data__tunneltype__icontains='ssl') | 
+            Q(raw_data__vpntype__icontains='ssl') |
+            Q(raw_data__service__icontains='SSL')
+        )
+        
         if user_q:
             base_qs = base_qs.filter(Q(user__icontains=user_q) | Q(ad_display_name__icontains=user_q))
         if title_q:
@@ -61,12 +63,12 @@ class VPNLogViewSet(viewsets.ModelViewSet):
             except ValueError:
                 pass
 
-        # 1. Latest Log Subquery
-        latest_log_qs = VPNLog.objects.filter(
-            user=OuterRef('user')
-        ).order_by('-start_time')
+        # Optimized aggregation: grouping by user is still needed for the table
+        # We use select_related or prefetch for any related data if needed
+        # (VPNLog doesn't have many foreign keys in this list view)
         
-        # 2. Main aggregation query using the filtered base_qs
+        latest_log_qs = VPNLog.objects.filter(user=OuterRef('user')).order_by('-start_time')
+        
         qs = base_qs.values(
             'user', 
             'ad_display_name', 
@@ -82,7 +84,6 @@ class VPNLogViewSet(viewsets.ModelViewSet):
             latest_country=Subquery(latest_log_qs.values('country_name')[:1]),
             latest_country_code=Subquery(latest_log_qs.values('country_code')[:1]),
             latest_status=Subquery(latest_log_qs.values('status')[:1]),
-            # Calculate online priority (1 for active, 0 for others)
             online_priority=Subquery(
                 VPNLog.objects.filter(user=OuterRef('user'))
                 .order_by('-start_time')
@@ -96,35 +97,40 @@ class VPNLogViewSet(viewsets.ModelViewSet):
             )
         )
 
-        # 3. Handle Ordering
         ordering_param = request.query_params.get('ordering', '-last_connection')
-        
         sort_map = {
-            'user': 'user',
-            '-user': '-user',
-            'volume': 'total_volume',
-            '-volume': '-total_volume',
-            'duration': 'total_duration',
-            '-duration': '-total_duration',
-            'connections': 'total_connections',
-            '-connections': '-total_connections',
-            'last_connection': 'last_connection',
-            '-last_connection': '-last_connection',
-            'title': 'ad_title',
-            '-title': '-ad_title',
-            'dept': 'ad_department',
-            '-dept': '-ad_department'
+            'user': 'user', '-user': '-user',
+            'volume': 'total_volume', '-volume': '-total_volume',
+            'duration': 'total_duration', '-duration': '-total_duration',
+            'connections': 'total_connections', '-connections': '-total_connections',
+            'last_connection': 'last_connection', '-last_connection': '-last_connection',
+            'title': 'ad_title', '-title': '-ad_title',
+            'dept': 'ad_department', '-dept': '-ad_department'
         }
-        
         secondary_sort = sort_map.get(ordering_param, '-last_connection')
-
-        # 4. Apply Final Ordering: Always Online Priority first, then user's choice
         qs = qs.order_by('-online_priority', secondary_sort)
 
         serializer = VPNLogAggregatedSerializer(qs, many=True)
         return Response({
             'logs': serializer.data,
             'server_time': datetime.datetime.now().isoformat()
+        })
+
+    @action(detail=False, methods=['get'])
+    def stats(self, request):
+        """Global VPN stats using DashboardMetric"""
+        from dashboard.models import DashboardMetric
+        from django.db.models import Sum
+        
+        metrics_qs = DashboardMetric.objects.filter(group='vpn')
+        total_connections = metrics_qs.filter(metric_name='total_connections', key='all').aggregate(s=Sum('count'))['s'] or 0
+        total_volume = metrics_qs.filter(metric_name='total_volume', key='all').aggregate(s=Sum('volume'))['s'] or 0
+        suspicious_count = metrics_qs.filter(metric_name='suspicious_connections', key='all').aggregate(s=Sum('count'))['s'] or 0
+
+        return Response({
+            'total_connections': total_connections,
+            'total_volume': total_volume,
+            'suspicious_count': suspicious_count
         })
 
 

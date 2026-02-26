@@ -76,8 +76,10 @@ class SecurityEvent(models.Model):
     class Meta:
         ordering = ['-timestamp']
         indexes = [
-            models.Index(fields=['event_type', 'date']),
-            models.Index(fields=['severity', 'date']),
+            models.Index(fields=['event_type', 'date', 'severity']),
+            models.Index(fields=['event_type', 'date', 'action']),
+            models.Index(fields=['event_type', 'date', 'app_category']),
+            models.Index(fields=['event_type', 'date', 'username']),
             models.Index(fields=['username', 'date']),
             models.Index(fields=['-timestamp']),
         ]
