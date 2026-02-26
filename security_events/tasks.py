@@ -54,7 +54,7 @@ def fetch_security_events_task(self, target_subtype=None):
             {'name': 'ips', 'log_type': 'ips', 'filter': 'subtype=="ips"'},
             {'name': 'antivirus', 'log_type': 'virus', 'filter': 'subtype=="virus"'},
             {'name': 'webfilter', 'log_type': 'webfilter', 'filter': 'subtype=="webfilter"'},
-            {'name': 'app-control', 'log_type': 'traffic', 'filter': 'app!=""'}
+            {'name': 'app-control', 'log_type': 'traffic', 'filter': 'app!="" and app!="unscanned" and app!="unknown"'}
         ]
         
         if target_subtype:

@@ -153,7 +153,8 @@ def _log_processor_worker(worker_id: int):
                         _save_vpn_log(parsed)
 
                 # --- UTM events ---
-                elif log_type in ['utm', 'ips', 'virus', 'webfilter', 'app-ctrl'] or (log_type == 'traffic' and parsed.get('utm-action')):
+                elif (log_type in ['utm', 'ips', 'virus', 'webfilter', 'app-ctrl']) or \
+                     (log_type == 'traffic' and (parsed.get('utm-action') or parsed.get('app'))):
                     se = _build_security_event(parsed, raw_data, ad_client)
                     if se:
                         batch_buffer.append(se)
@@ -279,6 +280,7 @@ def _build_security_event(parsed_data, raw_data, ad_client=None):
     if not mapped_type:
         if fa_type == 'ips': mapped_type = 'ips'
         elif fa_type == 'virus': mapped_type = 'antivirus'
+        elif fa_type == 'traffic' and parsed_data.get('app'): mapped_type = 'app-control'
 
     if not mapped_type:
         return None
