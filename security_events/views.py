@@ -693,7 +693,35 @@ def devices_api(request):
                 'antivirus':  se.get('antivirus', 0),
                 'webfilter':  se.get('webfilter', 0),
                 'appcontrol': se.get('app-control', 0),
-            }
+            },
+            'monitored_ports': dev.monitored_ports,
+            'id': dev.id,
         })
 
     return JsonResponse(result, safe=False)
+
+from django.views.decorators.http import require_http_methods
+
+@login_required
+@require_http_methods(["POST"])
+def update_device_ports(request, device_id):
+    """Atualiza a lista de portas monitoradas JSON do KnownDevice"""
+    from integrations.models import KnownDevice
+    try:
+        device = KnownDevice.objects.get(id=device_id)
+        data = json.loads(request.body)
+        
+        ports = data.get('monitored_ports', [])
+        
+        # Simples Type checking para ver se é lista de dicionários
+        if not isinstance(ports, list):
+            return JsonResponse({'error': 'monitored_ports deve ser uma lista'}, status=400)
+            
+        device.monitored_ports = ports
+        device.save()
+        
+        return JsonResponse({'status': 'success', 'monitored_ports': device.monitored_ports})
+    except KnownDevice.DoesNotExist:
+        return JsonResponse({'error': 'Device não encontrado'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

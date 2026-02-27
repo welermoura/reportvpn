@@ -119,6 +119,9 @@ class KnownDevice(models.Model):
     link_status = models.CharField(max_length=50, default="normal", help_text="Estado dos Links (normal/alarme)")
     conserve_mode = models.BooleanField(default=False, help_text="Indica se o dispositivo está em Conserve Mode")
     
+    # Portas Monitoradas (SD-WAN / Health Checks)
+    monitored_ports = models.JSONField(default=list, blank=True, help_text="Lista de portas monitoradas: [{'name': 'wan1', 'alias': 'Internet'}]")
+    
     def __str__(self):
         return f"{self.hostname or self.device_id} ({self.ip_address})"
 

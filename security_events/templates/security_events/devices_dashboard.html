@@ -2,6 +2,7 @@
 
 {% block content %}
 <div id="devices-root"></div>
+{% csrf_token %}
 
 <!-- React & Dependencies -->
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -348,8 +349,58 @@
     }
 
     // ── Modal ───────────────────────────────────────────────────────────────
-    const DeviceModal = ({ device, onClose }) => {
+    const DeviceModal = ({ device, onClose, onDeviceUpdate }) => {
         if (!device) return null;
+
+        const [editPorts, setEditPorts] = useState(false);
+        const [ports, setPorts] = useState(device.monitored_ports || []);
+        const [newPortName, setNewPortName] = useState('');
+        const [newPortAlias, setNewPortAlias] = useState('');
+        const [saving, setSaving] = useState(false);
+
+        const handleAddPort = () => {
+            if (!newPortName.trim()) return;
+            setPorts([...ports, { name: newPortName.trim(), alias: newPortAlias.trim() }]);
+            setNewPortName('');
+            setNewPortAlias('');
+        };
+
+        const handleRemovePort = (idx) => {
+            setPorts(ports.filter((_, i) => i !== idx));
+        };
+
+        const handleSavePorts = async () => {
+            setSaving(true);
+            try {
+                // Obter o CSRF Token
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+
+                const res = await fetch(`/security/devices/api/${device.id}/ports/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ monitored_ports: ports })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (onDeviceUpdate) {
+                        onDeviceUpdate({ ...device, monitored_ports: data.monitored_ports });
+                    }
+                    setEditPorts(false);
+                } else {
+                    alert('Erro ao salvar as portas monitoradas.');
+                }
+            } catch (e) {
+                console.error('Erro ao salvar portas', e);
+                alert('Erro de comunicação.');
+            } finally {
+                setSaving(false);
+            }
+        };
+
         const st = statusInfo(device.last_seen);
         const totalLogs = LOG_TYPES.reduce((s, t) => s + (device.log_counts?.[t.key] || 0), 0);
 
@@ -464,25 +515,95 @@
 
                     {/* Volume de logs por tipo */}
                     <div style={{ marginTop: 24 }}>
-                        <div style={{ fontSize: '0.8rem', color: '#858796', textTransform: 'uppercase', marginBottom: 12, fontWeight: 600, letterSpacing: '0.5px' }}>
-                            Volume de Logs Recebidos (últimas 24h)
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                            <div style={{ fontSize: '0.8rem', color: '#858796', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.5px' }}>
+                                Volume de Logs Recebidos (últimas 24h)
+                            </div>
+                            <button onClick={() => setEditPorts(!editPorts)} style={{
+                                background: editPorts ? 'rgba(78,115,223,0.2)' : 'rgba(255,255,255,0.05)',
+                                color: editPorts ? '#4e73df' : '#858796',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                fontSize: '0.8rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                            }}>
+                                <i className="fa-solid fa-gear"></i> Configurar Portas (Health)
+                            </button>
                         </div>
-                        {LOG_TYPES.map(t => {
-                            const count = device.log_counts?.[t.key] || 0;
-                            const pct = totalLogs > 0 ? (count / totalLogs * 100) : 0;
-                            return (
-                                <div className="log-bar" key={t.key}>
-                                    <span className="log-bar-label">{t.label}</span>
-                                    <div className="log-bar-track">
-                                        <div className="log-bar-fill" style={{ width: `${pct}%`, background: t.color }}></div>
-                                    </div>
-                                    <span className="log-bar-count">{count.toLocaleString()}</span>
+
+                        {editPorts ? (
+                            <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                <div style={{ fontSize: '0.85rem', color: '#d1d3e2', marginBottom: '12px' }}>
+                                    Adicione as portas / SLAs que devem acionar o alarme de Saúde de Link neste dispositivo. Se vazio, monitora todas.
                                 </div>
-                            );
-                        })}
-                        <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#858796', marginTop: 6 }}>
-                            Total: {totalLogs.toLocaleString()} logs em 24h
-                        </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '10px', marginBottom: '16px' }}>
+                                    <input
+                                        type="text"
+                                        placeholder="Nome Real (ex: wan1)"
+                                        className="search-box"
+                                        style={{ width: '100%', padding: '8px 12px', fontSize: '0.85rem' }}
+                                        value={newPortName}
+                                        onChange={e => setNewPortName(e.target.value)}
+                                    />
+                                    <input
+                                        type="text"
+                                        placeholder="Alias (ex: Link Principal)"
+                                        className="search-box"
+                                        style={{ width: '100%', padding: '8px 12px', fontSize: '0.85rem' }}
+                                        value={newPortAlias}
+                                        onChange={e => setNewPortAlias(e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && handleAddPort()}
+                                    />
+                                    <button onClick={handleAddPort} style={{ background: '#4e73df', color: 'white', border: 'none', borderRadius: '8px', padding: '0 16px', cursor: 'pointer', fontWeight: 600 }}>
+                                        Adicionar
+                                    </button>
+                                </div>
+
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
+                                    {ports.length === 0 ? (
+                                        <span style={{ fontSize: '0.8rem', color: '#858796', fontStyle: 'italic' }}>Nenhuma porta específica. Monitorando tudo.</span>
+                                    ) : (
+                                        ports.map((p, idx) => (
+                                            <div key={idx} style={{ background: 'rgba(78,115,223,0.15)', border: '1px solid rgba(78,115,223,0.3)', padding: '4px 10px', borderRadius: '16px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <span style={{ color: 'white' }}>{p.alias || p.name}</span>
+                                                <span style={{ color: '#858796', fontFamily: 'monospace' }}>({p.name})</span>
+                                                <i className="fa-solid fa-xmark" style={{ cursor: 'pointer', color: '#e74a3b', marginLeft: '4px' }} onClick={() => handleRemovePort(idx)}></i>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                                    <button onClick={() => setEditPorts(false)} style={{ background: 'transparent', color: '#858796', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}>Cancelar</button>
+                                    <button onClick={handleSavePorts} disabled={saving} style={{ background: '#1cc88a', color: 'white', border: 'none', padding: '6px 16px', borderRadius: '6px', cursor: saving ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>
+                                        {saving ? 'Salvando...' : 'Salvar Portas'}
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                {LOG_TYPES.map(t => {
+                                    const count = device.log_counts?.[t.key] || 0;
+                                    const pct = totalLogs > 0 ? (count / totalLogs * 100) : 0;
+                                    return (
+                                        <div className="log-bar" key={t.key}>
+                                            <span className="log-bar-label">{t.label}</span>
+                                            <div className="log-bar-track">
+                                                <div className="log-bar-fill" style={{ width: `${pct}%`, background: t.color }}></div>
+                                            </div>
+                                            <span className="log-bar-count">{count.toLocaleString()}</span>
+                                        </div>
+                                    );
+                                })}
+                                <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#858796', marginTop: 6 }}>
+                                    Total: {totalLogs.toLocaleString()} logs em 24h
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -611,8 +732,20 @@
                                             </div>
                                         )}
                                     </div>
-                                    <div style={{ fontSize: '0.78rem', color: '#858796', fontFamily: 'monospace', marginBottom: 12 }}>
+                                    <div style={{ fontSize: '0.78rem', color: '#858796', fontFamily: 'monospace', marginBottom: 4 }}>
                                         {device.device_id}
+                                    </div>
+
+                                    {/* Monitored Ports Summary */}
+                                    <div style={{ fontSize: '0.72rem', color: '#4e73df', marginBottom: 12, minHeight: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {device.monitored_ports && device.monitored_ports.length > 0 ? (
+                                            <>
+                                                <i className="fa-solid fa-filter" style={{ marginRight: '4px' }}></i>
+                                                Health: {device.monitored_ports.map(p => p.alias || p.name).join(', ')}
+                                            </>
+                                        ) : (
+                                            <span style={{ color: '#858796' }}><i className="fa-solid fa-globe" style={{ marginRight: '4px' }}></i> Health: Todas Portas</span>
+                                        )}
                                     </div>
 
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -649,7 +782,10 @@
                     </div>
                 )}
 
-                {selected && <DeviceModal device={selected} onClose={() => setSelected(null)} />}
+                {selected && <DeviceModal device={selected} onClose={() => setSelected(null)} onDeviceUpdate={(updatedDevice) => {
+                    setDevices(devs => devs.map(d => d.id === updatedDevice.id ? { ...d, monitored_ports: updatedDevice.monitored_ports } : d));
+                    setSelected(prev => ({ ...prev, monitored_ports: updatedDevice.monitored_ports }));
+                }} />}
             </div>
         );
     }

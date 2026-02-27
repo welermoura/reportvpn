@@ -633,11 +633,35 @@ def _process_system_alert(parsed_data, source_ip):
                 if intf_match:
                     interface = intf_match.group(1).strip()
 
-        if is_failure:
-            update_fields['link_status'] = 'alarme'
-            prefix = "Link Down"
-        else:
-            update_fields['link_status'] = 'normal'
+        # Verifica filtro de Portas Monitoradas do KnownDevice
+        process_link_event = True
+        try:
+            from integrations.models import KnownDevice
+            device = KnownDevice.objects.get(device_id=devid)
+            configured_ports = device.monitored_ports
+            
+            # Se há portas cadastradas, verificar match com 'interface' ou 'sla_name'
+            if configured_ports and isinstance(configured_ports, list) and len(configured_ports) > 0:
+                is_matched = False
+                for p in configured_ports:
+                    p_name = str(p.get('name', '')).lower()
+                    
+                    if p_name and (p_name == str(interface).lower() or p_name == str(sla_name).lower()):
+                        is_matched = True
+                        break
+                        
+                if not is_matched:
+                    logger.info(f"IGNORANDO aleta de link para {interface}/{sla_name} pois não está na lista de portas monitoradas do dispositivo.")
+                    process_link_event = False
+        except Exception as e:
+            logger.error(f"Erro ao avaliar portas monitoradas no dispositivo {devid}: {e}")
+
+        if process_link_event:
+            if is_failure:
+                update_fields['link_status'] = 'alarme'
+                prefix = "Link Down"
+            else:
+                update_fields['link_status'] = 'normal'
             prefix = "Link UP"
 
         desc = parsed_data.get('msg') or parsed_data.get('logdesc') or "Mudança de estado no link"
