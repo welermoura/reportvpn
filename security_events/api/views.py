@@ -94,28 +94,35 @@ class WebFilterViewSet(viewsets.ReadOnlyModelViewSet):
         start_date = self.request.query_params.get('start_date')
         end_date = self.request.query_params.get('end_date')
         
+        from django.db.models.functions import Coalesce
+        
+        # Helper for real-time volume
+        vol_expr = Coalesce(F('bytes_in'), 0) + Coalesce(F('bytes_out'), 0)
+
         # Se não houver filtro de data, pegamos os últimos 7 dias das métricas
         if not start_date and not end_date:
             metrics_qs = DashboardMetric.objects.filter(group='webfilter')
             
-            total_events = metrics_qs.filter(metric_name='total_events', key='all').aggregate(s=Sum('count'))['s'] or 0
-            blocked_events = metrics_qs.filter(metric_name='blocked_events', key='all').aggregate(s=Sum('count'))['s'] or 0
+            total_vol = metrics_qs.filter(metric_name='total_volume', key='all').aggregate(s=Sum('volume'))['s'] or 0
+            blocked_vol = metrics_qs.filter(metric_name='blocked_volume', key='all').aggregate(s=Sum('volume'))['s'] or 0
+            allowed_vol = metrics_qs.filter(metric_name='allowed_volume', key='all').aggregate(s=Sum('volume'))['s'] or 0
             
-            top_categories = metrics_qs.filter(metric_name='top_categories').values('key').annotate(
-                category=F('key'), count=Sum('count')
-            ).order_by('-count')[:10]
+            top_categories = metrics_qs.filter(metric_name='top_categories_volume').values('key').annotate(
+                category=F('key'), volume=Sum('volume')
+            ).order_by('-volume')[:10]
             
-            top_sites = metrics_qs.filter(metric_name='top_sites').values('key').annotate(
-                url=F('key'), count=Sum('count')
-            ).order_by('-count')[:10]
+            top_sites = metrics_qs.filter(metric_name='top_sites_volume').values('key').annotate(
+                url=F('key'), volume=Sum('volume')
+            ).order_by('-volume')[:10]
 
-            top_users = metrics_qs.filter(metric_name='top_users').values('key').annotate(
-                username=F('key'), count=Sum('count')
-            ).order_by('-count')[:10]
+            top_users = metrics_qs.filter(metric_name='top_users_volume').values('key').annotate(
+                username=F('key'), volume=Sum('volume')
+            ).order_by('-volume')[:10]
 
             return Response({
-                'total_events': total_events,
-                'blocked_events': blocked_events,
+                'total_volume': total_vol,
+                'blocked_volume': blocked_vol,
+                'allowed_volume': allowed_vol,
                 'top_categories': list(top_categories),
                 'top_sites': list(top_sites),
                 'top_users': list(top_users)
@@ -123,17 +130,23 @@ class WebFilterViewSet(viewsets.ReadOnlyModelViewSet):
 
         # Se houver filtro, usamos a lógica original (o índice composto ajudará aqui)
         queryset = self.filter_queryset(self.get_queryset())
-        total_events = queryset.count()
-        blocked = queryset.filter(action__in=['block', 'blocked'])
-        blocked_events = blocked.count()
         
-        top_categories = blocked.values('category').annotate(count=Count('id')).order_by('-count')[:10]
-        top_sites = blocked.values('url').annotate(count=Count('id')).order_by('-count')[:10]
-        top_users = blocked.values('username').annotate(count=Count('id')).order_by('-count')[:10]
+        # Stats por Volume
+        total_vol = queryset.aggregate(v=Sum(vol_expr))['v'] or 0
+        blocked = queryset.filter(action__in=['block', 'blocked'])
+        allowed = queryset.filter(action__in=['pass', 'allowed', 'passthrough'])
+        
+        blocked_vol = blocked.aggregate(v=Sum(vol_expr))['v'] or 0
+        allowed_vol = allowed.aggregate(v=Sum(vol_expr))['v'] or 0
+        
+        top_categories = blocked.values('category').annotate(volume=Sum(vol_expr)).order_by('-volume')[:10]
+        top_sites = blocked.values('url').annotate(volume=Sum(vol_expr)).order_by('-volume')[:10]
+        top_users = blocked.values('username').annotate(volume=Sum(vol_expr)).order_by('-volume')[:10]
         
         return Response({
-            'total_events': total_events,
-            'blocked_events': blocked_events,
+            'total_volume': total_vol,
+            'blocked_volume': blocked_vol,
+            'allowed_volume': allowed_vol,
             'top_categories': list(top_categories),
             'top_sites': list(top_sites),
             'top_users': list(top_users)

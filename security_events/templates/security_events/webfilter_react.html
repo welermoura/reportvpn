@@ -200,6 +200,16 @@
     const { useState, useEffect, useCallback, useRef } = React;
     const { createRoot } = ReactDOM;
 
+    // --- Utils ---
+    const formatBytes = (bytes, decimals = 2) => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    };
+
     // --- Components ---
 
     const StatsCharts = ({ stats, onFilterChange }) => {
@@ -226,11 +236,14 @@
                         bodyColor: '#cbd5e1',
                         borderColor: 'rgba(255, 255, 255, 0.1)',
                         borderWidth: 1,
+                        callbacks: {
+                            label: (context) => `Volume: ${formatBytes(context.raw)}`
+                        }
                     }
                 },
                 scales: {
                     y: { ticks: { color: '#858796', font: { family: 'Inter' } }, grid: { display: false } },
-                    x: { ticks: { color: '#858796', font: { family: 'Inter' } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    x: { ticks: { color: '#858796', font: { family: 'Inter' }, callback: (v) => formatBytes(v, 0) }, grid: { color: 'rgba(255,255,255,0.05)' } }
                 }
             };
 
@@ -241,11 +254,11 @@
                 data: {
                     labels: topCats.map(item => item.category),
                     datasets: [{
-                        label: 'Eventos',
-                        data: topCats.map(item => item.count),
+                        label: 'Volume',
+                        data: topCats.map(item => item.volume),
                         backgroundColor: 'rgba(54, 185, 204, 0.8)',
                         borderRadius: 4,
-                        barThickness: 20
+                        barThickness: 15
                     }]
                 },
                 options: {
@@ -267,11 +280,11 @@
                 data: {
                     labels: topSites.map(item => (item.url || '').substring(0, 30)),
                     datasets: [{
-                        label: 'Bloqueios',
-                        data: topSites.map(item => item.count),
+                        label: 'Volume',
+                        data: topSites.map(item => item.volume),
                         backgroundColor: 'rgba(239, 68, 68, 0.8)',
                         borderRadius: 4,
-                        barThickness: 20
+                        barThickness: 15
                     }]
                 },
                 options: {
@@ -293,11 +306,11 @@
                 data: {
                     labels: topUsers.map(item => item.username),
                     datasets: [{
-                        label: 'Bloqueios',
-                        data: topUsers.map(item => item.count),
+                        label: 'Volume',
+                        data: topUsers.map(item => item.volume),
                         backgroundColor: 'rgba(78, 115, 223, 0.8)',
                         borderRadius: 4,
-                        barThickness: 20
+                        barThickness: 15
                     }]
                 },
                 options: {
@@ -316,18 +329,18 @@
         }, [stats]);
 
         return (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                <div className="chart-box">
-                    <div className="chart-title">Top Categorias Bloqueadas</div>
-                    <div style={{ height: '230px' }}><canvas ref={catRef}></canvas></div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+                <div className="chart-box" style={{ height: '350px' }}>
+                    <div className="chart-title">Categorias Bloqueadas (Volume)</div>
+                    <div style={{ height: '290px' }}><canvas ref={catRef}></canvas></div>
                 </div>
-                <div className="chart-box">
-                    <div className="chart-title">Top 10 Sites Bloqueados</div>
-                    <div style={{ height: '230px' }}><canvas ref={siteRef}></canvas></div>
+                <div className="chart-box" style={{ height: '350px' }}>
+                    <div className="chart-title">Top 10 Sites Bloqueados (Volume)</div>
+                    <div style={{ height: '290px' }}><canvas ref={siteRef}></canvas></div>
                 </div>
-                <div className="chart-box">
-                    <div className="chart-title">Top 10 Usuários Bloqueados</div>
-                    <div style={{ height: '230px' }}><canvas ref={userRef}></canvas></div>
+                <div className="chart-box" style={{ height: '350px' }}>
+                    <div className="chart-title">Top 10 Usuários Bloqueados (Volume)</div>
+                    <div style={{ height: '290px' }}><canvas ref={userRef}></canvas></div>
                 </div>
             </div>
         );
@@ -414,10 +427,14 @@
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             <div>
-                                <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Rede</label>
+                                <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Rede & Volume</label>
                                 <div style={{ fontSize: '0.9rem', color: '#d1d3e2' }}>
-                                    <div><span style={{ color: '#858796' }}>Origem:</span> {event.src_ip} {event.src_country && `(${event.src_country})`}</div>
-                                    <div><span style={{ color: '#858796' }}>Destino:</span> {event.dst_ip || '-'} {event.dst_country && `(${event.dst_country})`}</div>
+                                    <div><span style={{ color: '#858796' }}>Origem:</span> {event.src_ip}</div>
+                                    <div><span style={{ color: '#858796' }}>Destino:</span> {event.dst_ip || '-'}</div>
+                                    <div style={{ marginTop: '5px', color: '#36b9cc', fontWeight: '600' }}>
+                                        <i className="fas fa-exchange-alt me-2"></i>
+                                        Volume: {formatBytes((event.bytes_in || 0) + (event.bytes_out || 0))}
+                                    </div>
                                 </div>
                             </div>
                             {details.msg && (
@@ -434,19 +451,13 @@
                                 <label style={{ display: 'block', color: '#858796', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px' }}>Política & Tráfego</label>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '0.9rem', color: '#d1d3e2' }}>
                                     <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '8px', borderRadius: '4px' }}>
-                                        <div style={{ color: '#858796', fontSize: '0.75rem' }}>Direção</div>
-                                        <div>{details.direction ? details.direction.toUpperCase() : '-'}</div>
+                                        <div style={{ color: '#858796', fontSize: '0.75rem' }}>E/S</div>
+                                        <div>↓ {formatBytes(event.bytes_out || 0)} / ↑ {formatBytes(event.bytes_in || 0)}</div>
                                     </div>
                                     <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '8px', borderRadius: '4px' }}>
                                         <div style={{ color: '#858796', fontSize: '0.75rem' }}>ID da Política</div>
                                         <div>{details.policyid || '-'}</div>
                                     </div>
-                                    {details.profile && (
-                                        <div style={{ gridColumn: '1 / -1', background: 'rgba(255, 255, 255, 0.03)', padding: '8px', borderRadius: '4px' }}>
-                                            <div style={{ color: '#858796', fontSize: '0.75rem' }}>Perfil Web (Profile)</div>
-                                            <div>{details.profile}</div>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         </div>
@@ -554,7 +565,7 @@
             <div style={{ padding: '0px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                     <h2 style={{ fontSize: '1.4rem', color: 'white', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: '1.2rem' }}>🌐</span> Filtro de Conteúdo Web
+                        <span style={{ fontSize: '1.2rem' }}>🌐</span> Filtro de Conteúdo Web (Volume)
                     </h2>
                     <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.3)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--glass-border)' }}>
                         <span className="pulse-live"></span>
@@ -563,7 +574,7 @@
                 </div>
 
                 <div className="premium-card" style={{ marginBottom: '20px', padding: '10px 20px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }} onClick={() => setShowCharts(!showCharts)}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>📊 Visualizar Gráficos e Estatísticas</span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>📊 Visualizar Gráficos e Estatísticas de Volume</span>
                     <span>{showCharts ? '▲' : '▼'}</span>
                 </div>
 
@@ -572,15 +583,21 @@
                         <StatsCharts stats={stats} onFilterChange={handleFilterChange} />
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '30px' }}>
                             <div className="premium-card" style={{ padding: '24px' }}>
-                                <div className="stat-label">Total de Eventos</div>
+                                <div className="stat-label">Total Geral (Volume)</div>
                                 <div className="stat-value-premium" style={{ color: '#36b9cc' }}>
-                                    {stats?.total_events?.toLocaleString() || 0}
+                                    {formatBytes(stats?.total_volume || 0)}
                                 </div>
                             </div>
                             <div className="premium-card" style={{ padding: '24px' }}>
-                                <div className="stat-label">Acessos Bloqueados</div>
+                                <div className="stat-label">Total Bloqueados (Volume)</div>
                                 <div className="stat-value-premium" style={{ color: '#dc3545' }}>
-                                    {stats?.blocked_events?.toLocaleString() || 0}
+                                    {formatBytes(stats?.blocked_volume || 0)}
+                                </div>
+                            </div>
+                            <div className="premium-card" style={{ padding: '24px' }}>
+                                <div className="stat-label">Total Liberados (Volume)</div>
+                                <div className="stat-value-premium" style={{ color: '#1cc88a' }}>
+                                    {formatBytes(stats?.allowed_volume || 0)}
                                 </div>
                             </div>
                         </div>
@@ -618,7 +635,7 @@
                         >
                             <option value="">Todas Ações</option>
                             <option value="blocked">Bloqueado</option>
-                            <option value="passthrough">Permitido</option>
+                            <option value="allowed">Liberado</option>
                         </select>
                         <input
                             type="date" className="filter-input"
@@ -654,15 +671,16 @@
                                     <th>IP Origem</th>
                                     <th>Categoria</th>
                                     <th>URL / Site</th>
+                                    <th>Volume</th>
                                     <th>Ação</th>
                                     <th style={{ textAlign: 'center' }}>Detalhes</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {loading && events.length === 0 ? (
-                                    <tr><td colSpan="7" style={{ textAlign: 'center', padding: '40px' }}>Carregando dados...</td></tr>
+                                    <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px' }}>Carregando dados...</td></tr>
                                 ) : events.length === 0 ? (
-                                    <tr><td colSpan="7" style={{ textAlign: 'center', padding: '40px' }}>Nenhum evento encontrado.</td></tr>
+                                    <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px' }}>Nenhum evento encontrado.</td></tr>
                                 ) : (
                                     events.map((event, index) => (
                                         <tr key={index}>
@@ -677,8 +695,6 @@
                                                         <div style={{ fontWeight: 600, color: 'white' }}>{event.ad_display_name || event.username}</div>
                                                         <div style={{ fontSize: '0.7rem', color: '#5a5c69' }}>
                                                             <span>{event.user_department || 'N/A'}</span>
-                                                            {event.user_department && <span> • </span>}
-                                                            <span>{event.ad_title}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -691,15 +707,18 @@
                                                 }}>{event.category || 'Outros'}</span>
                                             </td>
                                             <td>
-                                                <div style={{ maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#858796' }} title={event.url}>
+                                                <div style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#858796' }} title={event.url}>
                                                     {event.url}
                                                 </div>
+                                            </td>
+                                            <td style={{ fontWeight: '600', color: '#36b9cc' }}>
+                                                {formatBytes((event.bytes_in || 0) + (event.bytes_out || 0))}
                                             </td>
                                             <td>
                                                 <span style={{
                                                     padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600,
-                                                    background: event.action === 'blocked' ? 'rgba(220, 53, 69, 0.2)' : 'rgba(28, 200, 138, 0.2)',
-                                                    color: event.action === 'blocked' ? '#dc3545' : '#1cc88a'
+                                                    background: ['blocked', 'block'].includes(event.action) ? 'rgba(220, 53, 69, 0.2)' : 'rgba(28, 200, 138, 0.2)',
+                                                    color: ['blocked', 'block'].includes(event.action) ? '#dc3545' : '#1cc88a'
                                                 }}>
                                                     {event.action_display}
                                                 </span>

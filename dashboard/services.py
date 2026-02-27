@@ -293,46 +293,60 @@ class MetricsService:
     def consolidate_webfilter(date):
         from dashboard.models import DashboardMetric
         from security_events.models import SecurityEvent
-        from django.db.models import Count
+        from django.db.models import Count, Sum, F
+        from django.db.models.functions import Coalesce
         
+        # Base QuerySet
         qs = SecurityEvent.objects.filter(event_type='webfilter', date=date)
         
-        # Total events
-        total = qs.count()
+        # Volume Calculation Helper (Bytes In + Bytes Out)
+        volume_expr = Coalesce(F('bytes_in'), 0) + Coalesce(F('bytes_out'), 0)
+        
+        # 1. Total Volume (All actions)
+        total_vol = qs.aggregate(v=Sum(volume_expr))['v'] or 0
         DashboardMetric.objects.update_or_create(
-            date=date, group='webfilter', metric_name='total_events', key='all',
-            defaults={'count': total}
+            date=date, group='webfilter', metric_name='total_volume', key='all',
+            defaults={'volume': total_vol, 'count': qs.count()}
         )
         
-        # Blocked
-        blocked = qs.filter(action__in=['block', 'blocked']).count()
+        # 2. Blocked Volume
+        blocked_qs = qs.filter(action__in=['block', 'blocked'])
+        blocked_vol = blocked_qs.aggregate(v=Sum(volume_expr))['v'] or 0
         DashboardMetric.objects.update_or_create(
-            date=date, group='webfilter', metric_name='blocked_events', key='all',
-            defaults={'count': blocked}
+            date=date, group='webfilter', metric_name='blocked_volume', key='all',
+            defaults={'volume': blocked_vol, 'count': blocked_qs.count()}
+        )
+
+        # 3. Allowed Volume
+        allowed_qs = qs.filter(action__in=['pass', 'allowed', 'passthrough'])
+        allowed_vol = allowed_qs.aggregate(v=Sum(volume_expr))['v'] or 0
+        DashboardMetric.objects.update_or_create(
+            date=date, group='webfilter', metric_name='allowed_volume', key='all',
+            defaults={'volume': allowed_vol, 'count': allowed_qs.count()}
         )
         
-        # Top Categories (Limit 10)
-        top_cats = qs.filter(action__in=['block', 'blocked']).values('category').annotate(c=Count('id')).order_by('-c')[:10]
+        # 4. Top Categories (by Blocked Volume - Limit 10)
+        top_cats = blocked_qs.values('category').annotate(v=Sum(volume_expr)).order_by('-v')[:10]
         for item in top_cats:
             DashboardMetric.objects.update_or_create(
-                date=date, group='webfilter', metric_name='top_categories', key=item['category'] or 'Unknown',
-                defaults={'count': item['c']}
+                date=date, group='webfilter', metric_name='top_categories_volume', key=item['category'] or 'Unknown',
+                defaults={'volume': item['v']}
             )
 
-        # Top Sites (Limit 20)
-        top_sites = qs.filter(action__in=['block', 'blocked']).values('url').annotate(c=Count('id')).order_by('-c')[:20]
+        # 5. Top Sites (by Blocked Volume - Limit 20)
+        top_sites = blocked_qs.values('url').annotate(v=Sum(volume_expr)).order_by('-v')[:20]
         for item in top_sites:
             DashboardMetric.objects.update_or_create(
-                date=date, group='webfilter', metric_name='top_sites', key=item['url'] or 'Unknown',
-                defaults={'count': item['c']}
+                date=date, group='webfilter', metric_name='top_sites_volume', key=item['url'] or 'Unknown',
+                defaults={'volume': item['v']}
             )
 
-        # Top Users (Limit 20)
-        top_users = qs.filter(action__in=['block', 'blocked']).values('username').annotate(c=Count('id')).order_by('-c')[:20]
+        # 6. Top Users (by Blocked Volume - Limit 20)
+        top_users = blocked_qs.values('username').annotate(v=Sum(volume_expr)).order_by('-v')[:20]
         for item in top_users:
             DashboardMetric.objects.update_or_create(
-                date=date, group='webfilter', metric_name='top_users', key=item['username'] or 'Unknown',
-                defaults={'count': item['c']}
+                date=date, group='webfilter', metric_name='top_users_volume', key=item['username'] or 'Unknown',
+                defaults={'volume': item['v']}
             )
 
     @staticmethod
