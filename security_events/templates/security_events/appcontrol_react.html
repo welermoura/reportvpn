@@ -213,6 +213,36 @@
                 }
             };
 
+            // Common Volume Formatter
+            const toMB = (bytes) => (bytes / (1024 * 1024)).toFixed(2);
+
+            const volumeChartOptions = {
+                ...chartOptions,
+                plugins: {
+                    ...chartOptions.plugins,
+                    tooltip: {
+                        ...chartOptions.plugins.tooltip,
+                        callbacks: {
+                            label: function (context) {
+                                return `Volume: ${context.raw} MB`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    ...chartOptions.scales,
+                    x: {
+                        ...chartOptions.scales.x,
+                        ticks: {
+                            ...chartOptions.scales.x.ticks,
+                            callback: function (value) {
+                                return value + ' MB';
+                            }
+                        }
+                    }
+                }
+            };
+
             // Top Apps Chart
             if (stats.top_apps) {
                 chartInstances.current.apps = new Chart(appsRef.current, {
@@ -220,14 +250,14 @@
                     data: {
                         labels: stats.top_apps.map(item => item.app_name),
                         datasets: [{
-                            label: 'Acessos',
-                            data: stats.top_apps.map(item => item.count),
+                            label: 'Volume (MB)',
+                            data: stats.top_apps.map(item => toMB(item.volume)),
                             backgroundColor: 'rgba(54, 185, 204, 0.8)',
                             borderRadius: 4, barThickness: 15
                         }]
                     },
                     options: {
-                        ...chartOptions,
+                        ...volumeChartOptions,
                         onClick: (event, elements) => {
                             if (elements.length > 0 && onFilterChange) {
                                 const index = elements[0].index;
@@ -246,14 +276,14 @@
                     data: {
                         labels: stats.top_categories.map(item => item.app_category),
                         datasets: [{
-                            label: 'Acessos',
-                            data: stats.top_categories.map(item => item.count),
+                            label: 'Volume (MB)',
+                            data: stats.top_categories.map(item => toMB(item.volume)),
                             backgroundColor: 'rgba(246, 194, 62, 0.8)',
                             borderRadius: 4, barThickness: 15
                         }]
                     },
                     options: {
-                        ...chartOptions,
+                        ...volumeChartOptions,
                         onClick: (event, elements) => {
                             if (elements.length > 0 && onFilterChange) {
                                 const index = elements[0].index;
@@ -547,17 +577,14 @@
             start_date: getTodayDate(), end_date: getTodayDate()
         });
 
-        const [autoLoadStage, setAutoLoadStage] = useState(1);
-        const autoLoadStageRef = useRef(1);
-
         useEffect(() => {
-            fetchData(true);
-            const interval = setInterval(() => fetchData(false), 60000);
+            fetchData();
+            const interval = setInterval(() => fetchData(), 60000);
             return () => clearInterval(interval);
-        }, [page, filters, autoLoadStage]); // Added autoLoadStage to dependencies
+        }, [page, filters]);
 
-        const fetchData = async (showLoading = true) => {
-            if (showLoading && autoLoadStageRef.current !== -1) setLoading(true);
+        const fetchData = async () => {
+            setLoading(true);
             try {
                 // Remove campos vazios, mapeia src_ip se preenchido
                 const activeFilters = Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''));
@@ -592,33 +619,8 @@
 
                 if (statsRes.ok) setStats(await statsRes.json());
 
-                // Smart Lazy Load Sequence
-                if (autoLoadStageRef.current > 0) {
-                    const currentStage = autoLoadStageRef.current;
-                    autoLoadStageRef.current = -1; // In-progress/Wait state
-
-                    if (currentStage === 1) {
-                        setTimeout(() => {
-                            if (autoLoadStageRef.current !== 0) {
-                                setFilters(prev => ({ ...prev, start_date: getPastDate(3) }));
-                                autoLoadStageRef.current = 2;
-                                setAutoLoadStage(2);
-                            }
-                        }, 2500);
-                    } else if (currentStage === 2) {
-                        setTimeout(() => {
-                            if (autoLoadStageRef.current !== 0) {
-                                setFilters(prev => ({ ...prev, start_date: getPastDate(7) }));
-                                autoLoadStageRef.current = 0;
-                                setAutoLoadStage(0);
-                            }
-                        }, 4000);
-                    }
-                }
             } catch (err) {
                 console.error(err);
-                autoLoadStageRef.current = 0;
-                setAutoLoadStage(0);
             } finally {
                 setLoading(false);
             }
@@ -627,8 +629,6 @@
         const handleFilterChange = (field, value) => {
             setFilters(prev => ({ ...prev, [field]: value }));
             setPage(1);
-            autoLoadStageRef.current = 0;
-            setAutoLoadStage(0);
         };
 
         const clearFilters = () => {
@@ -665,11 +665,6 @@
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                     <h2 style={{ fontSize: '1.4rem', color: 'white', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <span style={{ fontSize: '1.2rem' }}>📱</span> Controle de Aplicações
-                        {autoLoadStageRef.current !== 0 && (
-                            <span style={{ fontSize: '0.85rem', color: '#f6c23e', fontWeight: 500, animation: 'pulse 2s infinite', marginLeft: '10px', background: 'rgba(246, 194, 62, 0.1)', padding: '4px 10px', borderRadius: '20px', border: '1px solid rgba(246, 194, 62, 0.2)' }}>
-                                ⏳ Carregando histórico inteligente...
-                            </span>
-                        )}
                     </h2>
                     <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.3)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--glass-border)' }}>
                         <span className="pulse-live"></span>

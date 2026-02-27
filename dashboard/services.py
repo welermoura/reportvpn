@@ -447,19 +447,23 @@ class MetricsService:
             )
 
         # Top Apps
-        top_a = qs.exclude(app_name='').values('app_name').annotate(c=Count('id')).order_by('-c')[:15]
+        top_a = qs.exclude(app_name='').values('app_name').annotate(
+            v=Sum(Coalesce(F('bytes_in'), 0) + Coalesce(F('bytes_out'), 0))
+        ).order_by('-v')[:15]
         for item in top_a:
             DashboardMetric.objects.update_or_create(
-                date=date, group='app-control', metric_name='top_apps', key=item['app_name'],
-                defaults={'count': item['c']}
+                date=date, group='app-control', metric_name='top_apps_volume', key=item['app_name'],
+                defaults={'volume': item['v']}
             )
 
         # Top Categories
-        top_c = qs.exclude(app_category='').values('app_category').annotate(c=Count('id')).order_by('-c')[:15]
+        top_c = qs.exclude(app_category='').values('app_category').annotate(
+            v=Sum(Coalesce(F('bytes_in'), 0) + Coalesce(F('bytes_out'), 0))
+        ).order_by('-v')[:15]
         for item in top_c:
             DashboardMetric.objects.update_or_create(
-                date=date, group='app-control', metric_name='top_categories', key=item['app_category'],
-                defaults={'count': item['c']}
+                date=date, group='app-control', metric_name='top_categories_volume', key=item['app_category'],
+                defaults={'volume': item['v']}
             )
 
     @staticmethod

@@ -494,9 +494,6 @@
             start_date: getTodayDate(), end_date: getTodayDate()
         });
 
-        const [autoLoadStage, setAutoLoadStage] = useState(1);
-        const autoLoadStageRef = useRef(1);
-
         useEffect(() => {
             fetch('/api/security-events/webfilter/categories/')
                 .then(res => res.json())
@@ -505,13 +502,13 @@
         }, []);
 
         useEffect(() => {
-            fetchData(true);
-            const interval = setInterval(() => fetchData(false), 60000);
+            fetchData();
+            const interval = setInterval(() => fetchData(), 60000);
             return () => clearInterval(interval);
         }, [page, filters]);
 
-        const fetchData = async (showLoading = true) => {
-            if (showLoading && autoLoadStageRef.current !== -1) setLoading(true);
+        const fetchData = async () => {
+            setLoading(true);
             try {
                 const params = new URLSearchParams({
                     page: page,
@@ -530,33 +527,8 @@
 
                 if (statsRes.ok) setStats(await statsRes.json());
 
-                // Smart Lazy Load Sequence
-                if (autoLoadStageRef.current > 0) {
-                    const currentStage = autoLoadStageRef.current;
-                    autoLoadStageRef.current = -1; // In-progress/Wait state
-
-                    if (currentStage === 1) {
-                        setTimeout(() => {
-                            if (autoLoadStageRef.current !== 0) {
-                                setFilters(prev => ({ ...prev, start_date: getPastDate(3) }));
-                                autoLoadStageRef.current = 2;
-                                setAutoLoadStage(2);
-                            }
-                        }, 2500); // 2.5s for users to see today's data before expanding
-                    } else if (currentStage === 2) {
-                        setTimeout(() => {
-                            if (autoLoadStageRef.current !== 0) {
-                                setFilters(prev => ({ ...prev, start_date: getPastDate(7) }));
-                                autoLoadStageRef.current = 0;
-                                setAutoLoadStage(0);
-                            }
-                        }, 4000); // 4s later, fetch 7 days
-                    }
-                }
             } catch (err) {
                 console.error(err);
-                autoLoadStageRef.current = 0;
-                setAutoLoadStage(0);
             } finally {
                 setLoading(false);
             }
@@ -565,8 +537,6 @@
         const handleFilterChange = (field, value) => {
             setFilters(prev => ({ ...prev, [field]: value }));
             setPage(1);
-            autoLoadStageRef.current = 0;
-            setAutoLoadStage(0);
         };
 
         const handleExport = (type) => {
@@ -583,8 +553,6 @@
                 start_date: getTodayDate(), end_date: getTodayDate()
             });
             setPage(1);
-            autoLoadStageRef.current = 0;
-            setAutoLoadStage(0);
         };
 
         const Pagination = () => (
@@ -605,11 +573,6 @@
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                     <h2 style={{ fontSize: '1.4rem', color: 'white', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <span style={{ fontSize: '1.2rem' }}>🌐</span> Filtro de Conteúdo Web (Volume)
-                        {autoLoadStageRef.current !== 0 && (
-                            <span style={{ fontSize: '0.85rem', color: '#f6c23e', fontWeight: 500, animation: 'pulse 2s infinite', marginLeft: '10px', background: 'rgba(246, 194, 62, 0.1)', padding: '4px 10px', borderRadius: '20px', border: '1px solid rgba(246, 194, 62, 0.2)' }}>
-                                ⏳ Carregando histórico inteligente...
-                            </span>
-                        )}
                     </h2>
                     <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.3)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--glass-border)' }}>
                         <span className="pulse-live"></span>

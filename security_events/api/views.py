@@ -375,17 +375,18 @@ class AppControlViewSet(viewsets.ReadOnlyModelViewSet):
         if not start_date and not end_date:
             metrics_qs = DashboardMetric.objects.filter(group='app-control')
             total_events = metrics_qs.filter(metric_name='total_events', key='all').aggregate(s=Sum('count'))['s'] or 0
+            
             top_users = metrics_qs.filter(metric_name='top_users_volume').values('key').annotate(
                 username=F('key'), volume=Sum('volume')
             ).order_by('-volume')[:10]
 
-            top_apps = metrics_qs.filter(metric_name='top_apps').values('key').annotate(
-                app_name=F('key'), count=Sum('count')
-            ).order_by('-count')[:10]
+            top_apps = metrics_qs.filter(metric_name='top_apps_volume').values('key').annotate(
+                app_name=F('key'), volume=Sum('volume')
+            ).order_by('-volume')[:10]
 
-            top_categories = metrics_qs.filter(metric_name='top_categories').values('key').annotate(
-                app_category=F('key'), count=Sum('count')
-            ).order_by('-count')[:10]
+            top_categories = metrics_qs.filter(metric_name='top_categories_volume').values('key').annotate(
+                app_category=F('key'), volume=Sum('volume')
+            ).order_by('-volume')[:10]
 
             return Response({
                 'total_events': total_events,
@@ -396,11 +397,15 @@ class AppControlViewSet(viewsets.ReadOnlyModelViewSet):
 
         queryset = self.filter_queryset(self.get_queryset())
         total_events = queryset.count()
-        top_apps = queryset.exclude(app_name='').values('app_name').annotate(count=Count('id')).order_by('-count')[:10]
-        top_categories = queryset.exclude(app_category='').values('app_category').annotate(count=Count('id')).order_by('-count')[:10]
+        
+        # Real-time Volume Query
+        vol_expr = Coalesce(F('bytes_in'), 0) + Coalesce(F('bytes_out'), 0)
+        
+        top_apps = queryset.exclude(app_name='').values('app_name').annotate(volume=Sum(vol_expr)).order_by('-volume')[:10]
+        top_categories = queryset.exclude(app_category='').values('app_category').annotate(volume=Sum(vol_expr)).order_by('-volume')[:10]
         
         top_users = queryset.exclude(username='').values('username').annotate(
-            volume=Sum(Coalesce(F('bytes_in'), 0) + Coalesce(F('bytes_out'), 0))
+            volume=Sum(vol_expr)
         ).order_by('-volume')[:10]
 
         return Response({
