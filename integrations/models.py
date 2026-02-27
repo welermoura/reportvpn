@@ -103,6 +103,18 @@ class SyslogConfig(SingletonModel):
         verbose_name = "Coleta em Tempo Real (Syslog)"
         verbose_name_plural = "Coleta em Tempo Real (Syslog)"
 
+class DataRetentionConfig(SingletonModel):
+    is_enabled = models.BooleanField(default=True, verbose_name="Ativar Limpeza Automática", help_text="Se ativado, logs antigos serão excluídos diariamente.")
+    retention_days = models.PositiveIntegerField(default=90, verbose_name="Dias de Retenção", help_text="Quantidade de dias que os logs permanecerão no banco de dados. (Ex: 90)")
+
+    def __str__(self):
+        status = "Ativada" if self.is_enabled else "Desativada"
+        return f"Política de Retenção: {self.retention_days} dias ({status})"
+
+    class Meta:
+        verbose_name = "Política de Retenção de Dados"
+        verbose_name_plural = "Política de Retenção de Dados"
+
 class KnownDevice(models.Model):
     device_id = models.CharField(max_length=100, unique=True, help_text="ID/Serial Number do Dispositivo (ex: FGT60E...)")
     hostname = models.CharField(max_length=255, blank=True, null=True)

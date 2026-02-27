@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import FortiAnalyzerConfig, ActiveDirectoryConfig, SyslogConfig, KnownDevice
+from .models import FortiAnalyzerConfig, ActiveDirectoryConfig, SyslogConfig, KnownDevice, DataRetentionConfig
 
 class SingletonModelAdmin(admin.ModelAdmin):
     """
@@ -12,6 +12,15 @@ class SingletonModelAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+@admin.register(DataRetentionConfig)
+class DataRetentionConfigAdmin(SingletonModelAdmin):
+    list_display = ('is_enabled', 'retention_days')
+    fieldsets = (
+        ('Controle de Retenção', {
+            'fields': ('is_enabled', 'retention_days')
+        }),
+    )
 
 @admin.register(FortiAnalyzerConfig)
 class FortiAnalyzerConfigAdmin(SingletonModelAdmin):

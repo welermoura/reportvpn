@@ -79,4 +79,27 @@ class Command(BaseCommand):
         if created:
             self.stdout.write(self.style.SUCCESS(f"Created task: {stale_task.name}"))
 
+        # 5. Data Retention Cleanup (Daily at 02:00)
+        crontab_0200, created = CrontabSchedule.objects.get_or_create(
+            minute='0',
+            hour='2',
+            day_of_week='*',
+            day_of_month='*',
+            month_of_year='*',
+        )
+
+        retention_task, created = PeriodicTask.objects.get_or_create(
+            name='Limpeza Automática de Logs (Retenção)',
+            defaults={
+                'task': 'integrations.tasks.cleanup_old_logs',
+                'crontab': crontab_0200,
+                'enabled': True,
+                'description': 'Remove logs antigos do banco de dados baseando-se na Política de Retenção configurada'
+            }
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS(f"Created task: {retention_task.name}"))
+        else:
+            self.stdout.write(f"Task already exists: {retention_task.name}")
+
         self.stdout.write(self.style.SUCCESS("Standard tasks setup completed."))
