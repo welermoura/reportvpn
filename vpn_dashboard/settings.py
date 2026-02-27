@@ -144,6 +144,7 @@ if db_config and db_config.get('setup_complete'):
                 'OPTIONS': {
                     'driver': 'ODBC Driver 18 for SQL Server',
                     'extra_params': 'TrustServerCertificate=yes;LoginTimeout=30;ConnectRetryCount=3;ConnectRetryInterval=10',
+                    'isolation_level': 'READ UNCOMMITTED',
                 },
             }
         }
