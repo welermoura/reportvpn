@@ -59,6 +59,7 @@ class SecurityEvent(models.Model):
     
     # Web Filter Específico
     url = models.TextField(blank=True)
+    hostname = models.CharField(max_length=255, blank=True, db_index=True)
     category = models.CharField(max_length=255, blank=True)
     action = models.CharField(max_length=50)  # blocked, allowed, monitored
     
@@ -84,6 +85,7 @@ class SecurityEvent(models.Model):
             models.Index(fields=['-timestamp']),
             models.Index(fields=['event_type', 'date', 'attack_name']),
             models.Index(fields=['event_type', 'date', 'virus_name']),
+            models.Index(fields=['event_type', 'date', 'hostname']),
             models.Index(fields=['event_type', 'date', 'category']),
             models.Index(fields=['event_type', 'date', 'src_ip']),
             models.Index(fields=['event_type', 'date', 'dst_ip']),

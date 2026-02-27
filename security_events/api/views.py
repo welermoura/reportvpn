@@ -140,7 +140,7 @@ class WebFilterViewSet(viewsets.ReadOnlyModelViewSet):
         allowed_vol = allowed.aggregate(v=Sum(vol_expr))['v'] or 0
         
         top_categories = blocked.values('category').annotate(volume=Sum(vol_expr)).order_by('-volume')[:10]
-        top_sites = blocked.values('url').annotate(volume=Sum(vol_expr)).order_by('-volume')[:10]
+        top_sites = blocked.values('hostname').annotate(volume=Sum(vol_expr), url=F('hostname')).order_by('-volume')[:10]
         top_users = blocked.values('username').annotate(volume=Sum(vol_expr)).order_by('-volume')[:10]
         
         return Response({

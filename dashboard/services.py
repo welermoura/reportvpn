@@ -334,10 +334,12 @@ class MetricsService:
             )
 
         # 5. Top Sites (by Blocked Volume - Limit 20)
-        top_sites = blocked_qs.values('url').annotate(v=Sum(volume_expr)).order_by('-v')[:20]
+        top_sites = blocked_qs.values('hostname').annotate(v=Sum(volume_expr)).order_by('-v')[:20]
         for item in top_sites:
+            # Fallback for sites that might not have a hostname parsed yet
+            host_key = item['hostname'] if item['hostname'] else 'Unknown'
             DashboardMetric.objects.update_or_create(
-                date=date, group='webfilter', metric_name='top_sites_volume', key=item['url'] or 'Unknown',
+                date=date, group='webfilter', metric_name='top_sites_volume', key=host_key,
                 defaults={'volume': item['v']}
             )
 

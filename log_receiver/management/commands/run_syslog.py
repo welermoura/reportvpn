@@ -333,8 +333,22 @@ def _build_security_event(parsed_data, raw_data, ad_client=None):
             url=urllib.parse.unquote(parsed_data.get('url', '')),
         )
     elif mapped_type == 'webfilter':
+        url_raw = urllib.parse.unquote(parsed_data.get('url', ''))
+        hostname_val = parsed_data.get('hostname', '')
+        if not hostname_val and url_raw:
+            try:
+                from urllib.parse import urlparse
+                # Some logs come as pure domains, others as full scheme urls
+                if not url_raw.startswith('http'):
+                    hostname_val = urlparse(f'http://{url_raw}').netloc
+                else:
+                    hostname_val = urlparse(url_raw).netloc
+            except:
+                pass
+
         kwargs.update(
-            url=urllib.parse.unquote(parsed_data.get('url', '')),
+            url=url_raw,
+            hostname=hostname_val,
             category=urllib.parse.unquote(parsed_data.get('catdesc', parsed_data.get('category', ''))),
             src_country=urllib.parse.unquote(parsed_data.get('srccountry', '')),
         )
@@ -352,9 +366,14 @@ def _build_security_event(parsed_data, raw_data, ad_client=None):
             app_category=urllib.parse.unquote(parsed_data.get('appcat', '')),
             app_risk=parsed_data.get('apprisk', ''),
             url=url_final,
-            bytes_in=_int(parsed_data.get('rcvdbyte'), 0),
-            bytes_out=_int(parsed_data.get('sentbyte'), 0),
+            hostname=hostname,
         )
+
+    # Bandwidth mapping for all UTM types
+    kwargs.update(
+        bytes_in=_int(parsed_data.get('rcvdbyte'), 0),
+        bytes_out=_int(parsed_data.get('sentbyte'), 0),
+    )
 
     return SecurityEvent(**kwargs)
 
