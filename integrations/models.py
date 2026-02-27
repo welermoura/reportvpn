@@ -129,3 +129,39 @@ class KnownDevice(models.Model):
         verbose_name = "Dispositivo Emissor (Inventory)"
         verbose_name_plural = "Dispositivos Emissores (Inventory)"
         ordering = ['-last_seen']
+
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
+
+@receiver(pre_delete, sender=KnownDevice)
+def delete_device_logs(sender, instance, **kwargs):
+    """
+    Cascades device deletion by manually wiping out logs associated with its IP address
+    to free up DB space and avoid orphans.
+    """
+    ip = instance.ip_address
+    dev_id = instance.device_id
+    
+    if not ip and not dev_id:
+        return
+        
+    try:
+        from vpn_logs.models import VPNLog, VPNFailure
+        from security_events.models import SecurityEvent, ADAuthEvent
+        
+        logger.info(f"Cascading delete for device {instance.hostname or dev_id} ({ip})")
+        
+        if ip:
+            # VPN Logs
+            vpn_deleted, _ = VPNLog.objects.filter(source_ip=ip).delete()
+            vpnf_deleted, _ = VPNFailure.objects.filter(source_ip=ip).delete()
+            logger.info(f"Deleted {vpn_deleted} VPNLogs and {vpnf_deleted} VPNFailures for {ip}")
+            
+            # Security Events
+            sec_deleted, _ = SecurityEvent.objects.filter(src_ip=ip).delete()
+            ad_deleted, _ = ADAuthEvent.objects.filter(src_ip=ip).delete()
+            logger.info(f"Deleted {sec_deleted} SecurityEvents and {ad_deleted} ADAuthEvents for {ip}")
+            
+    except Exception as e:
+        logger.error(f"Error cascading device deletion for {instance}: {e}")
+

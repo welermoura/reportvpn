@@ -1,0 +1,17 @@
+{% extends "admin/index.html" %}
+{% load dashboard_extras %}
+
+{% block content_title %}
+{{ block.super }}
+<div
+    style="margin-bottom: 20px; padding: 15px; background: #fff; border-left: 4px solid #4e73df; box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15); border-radius: .35rem;">
+    <h4 style="margin: 0; color: #5a5c69; font-size: 1rem; font-family: 'Nunito', sans-serif;">
+        <i class="fas fa-database" style="color: #4e73df; margin-right: 5px;"></i>
+        <strong>Tamanho do Banco de Dados:</strong> {% get_db_size %}
+    </h4>
+    <p style="margin: 5px 0 0 25px; font-size: 0.85rem; color: #858796;">
+        O tamanho atualizado diretamente do PostgreSQL. Dispositivos apagados agora executam limpeza automática dos logs
+        em cascata.
+    </p>
+</div>
+{% endblock %}

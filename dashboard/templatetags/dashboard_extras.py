@@ -38,3 +38,18 @@ def format_volume(bytes_val):
         return f"{gb:.2f} GB"
     mb = bytes_val / (1024 * 1024)
     return f"{mb:.2f} MB"
+
+from django.db import connection
+
+@register.simple_tag
+def get_db_size():
+    try:
+        with connection.cursor() as cursor:
+            # PostgreSQL specific query
+            cursor.execute("SELECT pg_size_pretty(pg_database_size(current_database()));")
+            row = cursor.fetchone()
+            if row:
+                return row[0]
+    except Exception:
+        pass
+    return "Desconhecido"
