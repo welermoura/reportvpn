@@ -813,14 +813,6 @@
                                         </span>
                                     </div>
 
-                                    {/* Mini barras de tipo de log */}
-                                    <div style={{ display: 'flex', gap: '4px', height: '4px', borderRadius: '2px', overflow: 'hidden', marginBottom: 10 }}>
-                                        {LOG_TYPES.map(t => {
-                                            const count = device.log_counts?.[t.key] || 0;
-                                            const pct = totalLogs > 0 ? (count / totalLogs * 100) : 0;
-                                            return <div key={t.key} style={{ width: `${pct}%`, background: t.color, minWidth: count > 0 ? '4px' : '0' }}></div>;
-                                        })}
-                                    </div>
 
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#858796' }}>
                                         <span>🕒 {relativeTime(device.last_seen)}</span>
