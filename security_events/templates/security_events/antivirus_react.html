@@ -409,21 +409,32 @@
         const [totalPages, setTotalPages] = useState(1);
         const [totalCount, setTotalCount] = useState(0);
 
+        const getTodayDate = () => {
+            const today = new Date();
+            return today.toISOString().split('T')[0];
+        };
+
+        const getPastDate = (days) => {
+            const date = new Date();
+            date.setDate(date.getDate() - days);
+            return date.toISOString().split('T')[0];
+        };
+
         const [filters, setFilters] = useState({
-            search: '', severity: '', start_date: '', end_date: '', ordering: '-timestamp'
+            search: '', severity: '', start_date: getTodayDate(), end_date: getTodayDate(), ordering: '-timestamp'
         });
 
-        const fetchData = useCallback(async () => {
+        const [autoLoadStage, setAutoLoadStage] = useState(1);
+        const autoLoadStageRef = useRef(1);
+
+        const fetchData = useCallback(async (showLoading = true) => {
+            if (showLoading && autoLoadStageRef.current !== -1) setLoading(true);
             try {
                 const params = new URLSearchParams();
                 if (filters.search) params.append('search', filters.search);
                 if (filters.severity) params.append('severity', filters.severity);
-                if (filters.start_date) {
-                    params.append('start_date', filters.start_date);
-                }
-                if (filters.end_date) {
-                    params.append('end_date', filters.end_date);
-                }
+                if (filters.start_date) params.append('start_date', filters.start_date);
+                if (filters.end_date) params.append('end_date', filters.end_date);
                 params.append('page', page);
 
                 const [lRes, sRes] = await Promise.all([
@@ -435,14 +446,44 @@
                 setLogs(logData.results || []);
                 setTotalCount(logData.count || 0);
                 setTotalPages(Math.ceil((logData.count || 0) / 50) || 1);
-                setStats(await sRes.json());
+
+                if (sRes.ok) setStats(await sRes.json());
+
+                // Smart Lazy Load Sequence
+                if (autoLoadStageRef.current > 0) {
+                    const currentStage = autoLoadStageRef.current;
+                    autoLoadStageRef.current = -1; // In-progress/Wait state
+
+                    if (currentStage === 1) {
+                        setTimeout(() => {
+                            if (autoLoadStageRef.current !== 0) {
+                                setFilters(prev => ({ ...prev, start_date: getPastDate(3) }));
+                                autoLoadStageRef.current = 2;
+                                setAutoLoadStage(2);
+                            }
+                        }, 2500);
+                    } else if (currentStage === 2) {
+                        setTimeout(() => {
+                            if (autoLoadStageRef.current !== 0) {
+                                setFilters(prev => ({ ...prev, start_date: getPastDate(7) }));
+                                autoLoadStageRef.current = 0;
+                                setAutoLoadStage(0);
+                            }
+                        }, 4000);
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                autoLoadStageRef.current = 0;
+                setAutoLoadStage(0);
+            } finally {
                 setLoading(false);
-            } catch (err) { console.error(err); }
-        }, [filters, page]);
+            }
+        }, [filters, page, autoLoadStage]);
 
         useEffect(() => {
-            fetchData();
-            const interval = setInterval(fetchData, 30000);
+            fetchData(true);
+            const interval = setInterval(() => fetchData(false), 30000);
             return () => clearInterval(interval);
         }, [fetchData]);
 
@@ -453,6 +494,13 @@
                 case 'medium': return 'severity-medium';
                 default: return 'severity-low';
             }
+        };
+
+        const handleFilterChange = (newFilters) => {
+            setFilters(f => ({ ...f, ...newFilters }));
+            setPage(1);
+            autoLoadStageRef.current = 0;
+            setAutoLoadStage(0);
         };
 
         const handleExport = (type) => {
@@ -467,7 +515,12 @@
             window.location.href = `${url}?${params.toString()}`;
         };
 
-        const clearFilters = () => { setFilters({ search: '', severity: '', start_date: '', end_date: '', ordering: '-timestamp' }); setPage(1); };
+        const clearFilters = () => {
+            setFilters({ search: '', severity: '', start_date: getTodayDate(), end_date: getTodayDate(), ordering: '-timestamp' });
+            setPage(1);
+            autoLoadStageRef.current = 0;
+            setAutoLoadStage(0);
+        };
 
         const Pagination = () => (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,0.05)', flexWrap: 'wrap', gap: '10px' }}>
@@ -487,6 +540,11 @@
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                     <h2 style={{ fontSize: '1.4rem', color: 'white', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <span style={{ fontSize: '1.2rem' }}>🦠</span> Monitoramento Antivirus / Malware
+                        {autoLoadStageRef.current !== 0 && (
+                            <span style={{ fontSize: '0.85rem', color: '#f6c23e', fontWeight: 500, animation: 'pulse 2s infinite', marginLeft: '10px', background: 'rgba(246, 194, 62, 0.1)', padding: '4px 10px', borderRadius: '20px', border: '1px solid rgba(246, 194, 62, 0.2)' }}>
+                                ⏳ Carregando histórico inteligente...
+                            </span>
+                        )}
                     </h2>
                     <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.3)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--glass-border)' }}>
                         <span className="pulse-live"></span>

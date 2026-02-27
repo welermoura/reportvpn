@@ -92,6 +92,14 @@ class SecurityEvent(models.Model):
             models.Index(fields=['event_type', 'date', 'app_name']),
             models.Index(fields=['event_type', 'date', 'app_risk']),
             models.Index(fields=['event_type', '-timestamp']),
+            
+            # Novos índices focados em Busch Livre (Full Search Options)
+            models.Index(fields=['event_type', 'date', 'src_country']),
+            models.Index(fields=['event_type', 'date', 'cve']),
+            models.Index(fields=['event_type', 'date', 'file_name']),
+            models.Index(fields=['event_type', 'date', 'file_hash']),
+            models.Index(fields=['event_type', 'date', 'ad_display_name']),
+            models.Index(fields=['event_type', 'date', 'user_department']),
         ]
         verbose_name = 'Evento de Segurança'
         verbose_name_plural = 'Eventos de Segurança'
@@ -141,6 +149,10 @@ class ADAuthEvent(models.Model):
             models.Index(fields=['username', 'timestamp']),
             models.Index(fields=['status', 'timestamp']),
             models.Index(fields=['event_id', 'timestamp']),
+            
+            # Novos índices focados em busca e extração de logs do AD
+            models.Index(fields=['timestamp', 'workstation']),
+            models.Index(fields=['timestamp', 'src_ip']),
         ]
         verbose_name = 'Evento de Autenticação AD'
         verbose_name_plural = 'Eventos de Autenticação AD'
