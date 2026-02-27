@@ -447,26 +447,6 @@
                             </div>
                         </div>
 
-                        {/* Alerta de Sistema */}
-                        {device.alert_message && (
-                            <div style={{
-                                background: 'rgba(231,74,59,0.12)',
-                                border: '1px solid rgba(231,74,59,0.3)',
-                                borderRadius: '8px',
-                                padding: '12px 16px',
-                                margin: '20px 0',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '14px'
-                            }}>
-                                <i className="fa-solid fa-triangle-exclamation" style={{ color: '#e74a3b', fontSize: '1.2rem' }}></i>
-                                <div>
-                                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#e74a3b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 2 }}>Alerta de Sistema</div>
-                                    <div style={{ fontSize: '0.9rem', color: 'white', fontWeight: 500 }}>{device.alert_message}</div>
-                                    <div style={{ fontSize: '0.72rem', color: '#858796', marginTop: 4 }}>Detectado em: {new Date(device.alert_time).toLocaleString('pt-BR')}</div>
-                                </div>
-                            </div>
-                        )}
                         <button onClick={onClose} style={{
                             background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)',
                             color: '#858796', borderRadius: '8px', padding: '6px 12px', cursor: 'pointer', fontSize: '1rem'
@@ -561,7 +541,7 @@
                         {editPorts ? (
                             <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
                                 <div style={{ fontSize: '0.85rem', color: '#d1d3e2', marginBottom: '12px' }}>
-                                    Adicione as portas / SLAs que devem acionar o alarme de Saúde de Link neste dispositivo. Se vazio, monitora todas.
+                                    Adicione as portas / SLAs específicas que deseja alertar neste dispositivo. Se esta lista estiver vazia, o sistema irá **descobrir e monitorar automaticamente** (via Redis) todas as portas ativas recebidas no Syslog.
                                 </div>
 
                                 {/* Portas Descobertas Dinamicamente */}

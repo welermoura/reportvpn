@@ -638,6 +638,14 @@ def _process_system_alert(parsed_data, source_ip):
         # O campo alias pode vir nativamente no log 
         alias = parsed_data.get('alias', '')
 
+        # Tenta extrair o nome do SLA do log (útil pra SD-WAN)
+        sla_name = parsed_data.get('health-check-name') or parsed_data.get('sla-name') or \
+                   parsed_data.get('service-name') or parsed_data.get('vlan')
+        
+        # O alias às vezes é enviado no campo SLA ou msg
+        if sla_name and not alias and str(sla_name).lower() != str(interface).lower():
+            alias = sla_name
+
         # Se não achou em campo dedicado, tenta extrair da mensagem
         msg_val = parsed_data.get('msg', '')
         
@@ -670,48 +678,85 @@ def _process_system_alert(parsed_data, source_ip):
             except Exception as e:
                 logger.error(f"Erro ao salvar interface descoberta no Redis: {e}")
         
-        # Verifica filtro de Portas Monitoradas do KnownDevice
+        # Verifica filtro de Portas Monitoradas do KnownDevice ou do Auto-Discovery via Redis
         process_link_event = True
         try:
             from integrations.models import KnownDevice
-            device = KnownDevice.objects.get(device_id=devid)
-            configured_ports = device.monitored_ports
-            
-            # Se há portas cadastradas, verificar match com 'interface' ou 'sla_name'
-            if configured_ports and isinstance(configured_ports, list) and len(configured_ports) > 0:
-                is_matched = False
-                for p in configured_ports:
-                    p_name = str(p.get('name', '')).lower()
+            device_obj = KnownDevice.objects.filter(device_id=devid).first()
+            if device_obj:
+                configured_ports = device_obj.monitored_ports or []
+                
+                # Se NENHUMA porta estiver configurada MANUALMENTE no DB, 
+                # a gente consulta o Redis para ver se essa porta já foi auto-descoberta.
+                # Se já estiver na memória dinâmica (Redis), processaremos.
+                if not configured_ports:
+                    import redis
+                    redis_client = redis.Redis(host='redis', port=6379, db=2, decode_responses=True)
+                    redis_key = f"device_interfaces_{devid}"
+                    cached_interfaces = redis_client.smembers(redis_key)
                     
-                    if p_name and (p_name == str(interface).lower() or p_name == str(alias).lower()): # Changed sla_name to alias
-                        is_matched = True
-                        break
+                    if cached_interfaces:
+                        process_link_event = False # Inicia bloqueado
+                        for cached in cached_interfaces:
+                            # A string salva é 'nome_real|alias' ou só 'nome_real'
+                            parts = cached.split('|')
+                            dp_name = parts[0].strip().lower()
+                            dp_alias = parts[1].strip().lower() if len(parts) > 1 else ''
+                            
+                            req_interface = str(interface).lower() if interface else ''
+                            req_alias = str(alias).lower() if alias else ''
+                            req_sla = str(sla_name).lower() if sla_name else ''
+                            
+                            if (req_interface and req_interface == dp_name) or \
+                               (req_alias and (req_alias == dp_name or req_alias == dp_alias)) or \
+                               (req_sla and (req_sla == dp_name or req_sla == dp_alias)):
+                                process_link_event = True
+                                break
+                    # Se não tiver NADA no redis, mantém process_link_event = True global
+                    
+                else:
+                    # Se TEM portas configuradas manualmente no DB, usar APENAS elas
+                    is_matched = False
+                    for p in configured_ports:
+                        p_name = str(p.get('name', '')).lower()
+                        p_alias = str(p.get('alias', '')).lower()
                         
-                if not is_matched:
-                    logger.info(f"IGNORANDO aleta de link para {interface}/{sla_name} pois não está na lista de portas monitoradas do dispositivo.")
-                    process_link_event = False
+                        req_interface = str(interface).lower() if interface else ''
+                        req_alias = str(alias).lower() if alias else ''
+                        req_sla = str(sla_name).lower() if sla_name else ''
+                        
+                        if p_name and (p_name == req_interface or p_name == req_alias or p_name == req_sla):
+                            is_matched = True
+                            break
+                        if p_alias and (p_alias == req_interface or p_alias == req_alias or p_alias == req_sla):
+                            is_matched = True
+                            break
+                            
+                    if not is_matched:
+                        process_link_event = False
+                        logger.info(f"Ignorando evento health-check pois porta {interface}/{alias} não esta configurada no banco.")
         except Exception as e:
-            logger.error(f"Erro ao avaliar portas monitoradas no dispositivo {devid}: {e}")
-
+            logger.error(f"Erro ao filtrar portas de health check: {e}")
         if process_link_event:
             if is_failure:
                 update_fields['link_status'] = 'alarme'
                 prefix = "Link Down"
+                desc = parsed_data.get('msg') or parsed_data.get('logdesc') or "Mudança de estado no link"
+                
+                # Formata o alerta final privilegiando o SLA Name se disponível
+                if sla_name and interface and str(sla_name).lower() != str(interface).lower():
+                    alert = f"{prefix} {sla_name} ({interface}): {desc}"
+                elif interface:
+                    alert = f"{prefix} ({interface}): {desc}"
+                elif sla_name:
+                    alert = f"{prefix} ({sla_name}): {desc}"
+                else:
+                    alert = f"{prefix}: {desc}"
             else:
+                # É uma recuperação (UP)
                 update_fields['link_status'] = 'normal'
-            prefix = "Link UP"
-
-        desc = parsed_data.get('msg') or parsed_data.get('logdesc') or "Mudança de estado no link"
-        
-        # Formata o alerta final privilegiando o SLA Name se disponível
-        if sla_name and interface and str(sla_name).lower() != str(interface).lower():
-            alert = f"{prefix} {sla_name} ({interface}): {desc}"
-        elif interface:
-            alert = f"{prefix} ({interface}): {desc}"
-        elif sla_name:
-            alert = f"{prefix} ({sla_name}): {desc}"
-        else:
-            alert = f"{prefix}: {desc}"
+                update_fields['last_alert_message'] = '' # Limpa o alarme anterior
+                alert = None # Garante que não crie um novo alerta
 
     if alert or update_fields:
         from integrations.models import KnownDevice
