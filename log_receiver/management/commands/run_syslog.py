@@ -594,9 +594,17 @@ def _process_system_alert(parsed_data, source_ip):
     if 'cpu' in raw_content and ('limit' in raw_content or 'high' in raw_content or 'exhaustion' in raw_content):
         alert = f"CPU Alta: {parsed_data.get('msg', 'Carga de CPU detectada')}"
         update_fields['cpu_status'] = 'alto'
+    elif 'cpu' in raw_content and ('below threshold' in raw_content or 'normal' in raw_content):
+        update_fields['cpu_status'] = 'normal'
     elif ('mem' in raw_content or 'ram' in raw_content) and ('limit' in raw_content or 'high' in raw_content or 'exhaustion' in raw_content):
         alert = f"Memória Alta: {parsed_data.get('msg', 'Carga de Memória detectada')}"
         update_fields['memory_status'] = 'alto'
+    elif ('mem' in raw_content or 'ram' in raw_content) and ('below threshold' in raw_content or 'normal' in raw_content):
+        update_fields['memory_status'] = 'normal'
+    elif 'conserve' in raw_content and ('exited' in raw_content or 'leave' in raw_content or 'left' in raw_content):
+        alert = None
+        update_fields['conserve_mode'] = False
+        update_fields['memory_status'] = 'normal'
     elif 'conserve' in raw_content:
         alert = f"Conserve Mode: {parsed_data.get('msg', 'Entrou em Conserve Mode')}"
         update_fields['conserve_mode'] = True

@@ -37,19 +37,36 @@ def format_volume(bytes_val):
     if gb >= 1:
         return f"{gb:.2f} GB"
     mb = bytes_val / (1024 * 1024)
-    return f"{mb:.2f} MB"
-
 from django.db import connection
+import os
 
 @register.simple_tag
 def get_db_size():
     try:
-        with connection.cursor() as cursor:
-            # PostgreSQL specific query
-            cursor.execute("SELECT pg_size_pretty(pg_database_size(current_database()));")
-            row = cursor.fetchone()
-            if row:
-                return row[0]
-    except Exception:
+        vendor = connection.vendor
+        if vendor == 'postgresql':
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_size_pretty(pg_database_size(current_database()));")
+                row = cursor.fetchone()
+                if row:
+                    return row[0]
+        elif vendor == 'sqlite':
+            db_path = connection.settings_dict.get('NAME')
+            if db_path and os.path.exists(db_path):
+                size_bytes = os.path.getsize(db_path)
+                return format_volume(size_bytes)
+        elif vendor == 'mysql':
+            with connection.cursor() as cursor:
+                # Retorna em MB
+                cursor.execute(
+                    "SELECT SUM(data_length + index_length) / 1024 / 1024 "
+                    "FROM information_schema.tables WHERE table_schema = DATABASE()"
+                )
+                row = cursor.fetchone()
+                if row and row[0]:
+                    return f"{float(row[0]):.2f} MB"
+                
+    except Exception as e:
+        print(f"Error getting db size: {e}")
         pass
-    return "Desconhecido"
+    return "Desconhecido (Tamanho não suportado pelo SGBD)"
