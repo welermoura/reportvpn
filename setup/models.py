@@ -26,6 +26,10 @@ class DatabaseConfiguration(models.Model):
     is_configured = models.BooleanField(default=False)
     configured_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # Retention Policy
+    is_retention_enabled = models.BooleanField(default=True, verbose_name="Ativar Limpeza Automática", help_text="Se ativado, logs antigos serão excluídos diariamente.")
+    retention_days = models.PositiveIntegerField(default=90, verbose_name="Dias de Retenção", help_text="Quantidade de dias que os logs permanecerão no banco de dados. (Ex: 90)")
     
     class Meta:
         verbose_name = 'Database Configuration'

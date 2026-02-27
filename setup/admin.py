@@ -20,6 +20,9 @@ class DatabaseConfigurationAdmin(admin.ModelAdmin):
         ('Status', {
             'fields': ('is_configured', 'configured_at', 'updated_at')
         }),
+        ('Política de Retenção', {
+            'fields': ('is_retention_enabled', 'retention_days')
+        }),
     )
 
 

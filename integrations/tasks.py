@@ -10,15 +10,15 @@ def cleanup_old_logs():
     """
     Deleta registros de logs mais antigos que o período de retenção configurado.
     """
-    from integrations.models import DataRetentionConfig
+    from setup.models import DatabaseConfiguration
     from vpn_logs.models import VPNLog, VPNFailure
     from security_events.models import SecurityEvent, ADAuthEvent
     from dashboard.models import DashboardMetric
     
-    config = DataRetentionConfig.load()
+    config = DatabaseConfiguration.get_active_config()
     
-    if not config.is_enabled:
-        logger.info("Limpeza automática de logs ignorada: configuração desativada.")
+    if not config or not config.is_retention_enabled:
+        logger.info("Limpeza automática de logs ignorada: configuração desativada ou não encontrada.")
         return "Desativado"
         
     days = config.retention_days
