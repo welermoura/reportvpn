@@ -59,9 +59,8 @@ class WebFilterViewSet(viewsets.ReadOnlyModelViewSet):
         
         if username_q:
             queryset = queryset.filter(
-                username__icontains=username_q
-            ) | queryset.filter(
-                ad_display_name__icontains=username_q
+                Q(username__icontains=username_q) | 
+                Q(ad_display_name__icontains=username_q)
             )
         
         if url_q:
