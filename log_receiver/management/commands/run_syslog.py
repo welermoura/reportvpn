@@ -143,6 +143,22 @@ def _log_processor_worker(worker_id: int):
                 parsed = parse_fortinet_syslog(raw_data)
                 log_type = parsed.get('type', '')
                 subtype  = parsed.get('subtype', '')
+                devid = parsed.get('devid', '')
+                
+                # Descoberta de Portas Dinâmica (para Health Check inteligente)
+                if devid and redis_client:
+                    # Tenta capturar qualquer interface do tráfego ou evento
+                    interfaces = []
+                    for k in ['srcintf', 'dstintf', 'interface', 'intf']:
+                        v = parsed.get(k)
+                        if v and v.lower() not in ['unknown', 'root', 'vdom']:
+                            interfaces.append(v)
+                    
+                    if interfaces:
+                        # Salva num Set do Redis, expira em 7 dias (604800s)
+                        key = f"device_interfaces_{devid}"
+                        redis_client.sadd(key, *interfaces)
+                        redis_client.expire(key, 604800)
 
                 # --- Eventos VPN ---
                 if log_type == 'event' and subtype == 'vpn':
@@ -600,15 +616,17 @@ def _process_system_alert(parsed_data, source_ip):
     
     # Peça chave: se o log tem status=up ou success, ignoramos qualquer palavra de falha na mensagem
     status_val = (parsed_data.get('status') or parsed_data.get('state') or '').lower()
-    is_up_msg = any(x in raw_content for x in [' up', 'up ', 'recovered', 'success', 'passed']) or status_val in ['up', 'success', 'passed']
+    is_down_msg = any(x in raw_content for x in ['down', 'dead', '100% packet loss', 'packet loss is 100%'])
+    is_up_msg = any(x in raw_content for x in [' is up', 'has recovered', 'successful', 'is successful'])
+    is_latency = 'latency' in raw_content or 'jitter' in raw_content
     
-    # Keywords de falha (latência só conta se não for um log de UP)
-    is_failure = any(x in raw_content for x in ['down', 'dead', 'fail', 'alarm'])
-    if 'latency' in raw_content and not is_up_msg:
+    # Validação Restrita do Cliente (Loss 100% ou DOWN)
+    is_failure = False
+    if is_down_msg:
         is_failure = True
-    
-    # Decisão final de estado
-    is_recovery = is_up_msg and not is_failure
+        
+    # Decisão final de estado: O Link se recuperou se temos uma msg de UP clara. Ignoramos latency para state DOWN.
+    is_recovery = is_up_msg
     
     if is_health_context and (is_failure or is_recovery) and not is_excluded:
         logger.info(f"ALERTA DETECTADO (LINK NOVO): context={is_health_context} fail={is_failure} recov={is_recovery} status={status_val}")
@@ -617,14 +635,14 @@ def _process_system_alert(parsed_data, source_ip):
         interface = parsed_data.get('interface') or parsed_data.get('intf') or \
                     parsed_data.get('member') or parsed_data.get('devname_vdom')
         
-        # Tenta pegar o nome do SLA/Health-Check como Alias
-        sla_name = parsed_data.get('health-check-name') or parsed_data.get('sla-name') or \
-                   parsed_data.get('service-name') or parsed_data.get('vlan')
+        # O campo alias pode vir nativamente no log 
+        alias = parsed_data.get('alias', '')
 
         # Se não achou em campo dedicado, tenta extrair da mensagem
         msg_val = parsed_data.get('msg', '')
+        
+        import re
         if not interface and msg_val:
-            import re
             intf_match = re.search(r'(?:interface|intf|monitor|member|port):\s*([^,"]+)', msg_val, re.I)
             if intf_match:
                 interface = intf_match.group(1).strip()
@@ -632,7 +650,26 @@ def _process_system_alert(parsed_data, source_ip):
                 intf_match = re.search(r'\s([a-zA-Z0-9_\-\.\s\(\);]+?)\s+(?:status|is|may|changed)', msg_val, re.I)
                 if intf_match:
                     interface = intf_match.group(1).strip()
+        
+        if interface and not alias and msg_val:
+            # Tentar extrair alias caso venha na string, ex: "Link (wan1) is down" -> O Fortigate não costuma mandar Alias explícito, masss
+            pass
 
+        if interface:
+            # Salvar interface no redis_client de forma preditiva para descoberta
+            try:
+                import redis
+                redis_client = redis.Redis(host='redis', port=6379, db=2, decode_responses=True)
+                key = f"device_interfaces_{devid}"
+                
+                # Formato: Nome|Alias
+                value_to_save = f"{interface}|{alias}" if alias else interface
+                
+                redis_client.sadd(key, value_to_save)
+                redis_client.expire(key, 86400 * 7) # 7 dias
+            except Exception as e:
+                logger.error(f"Erro ao salvar interface descoberta no Redis: {e}")
+        
         # Verifica filtro de Portas Monitoradas do KnownDevice
         process_link_event = True
         try:
@@ -646,7 +683,7 @@ def _process_system_alert(parsed_data, source_ip):
                 for p in configured_ports:
                     p_name = str(p.get('name', '')).lower()
                     
-                    if p_name and (p_name == str(interface).lower() or p_name == str(sla_name).lower()):
+                    if p_name and (p_name == str(interface).lower() or p_name == str(alias).lower()): # Changed sla_name to alias
                         is_matched = True
                         break
                         

@@ -725,3 +725,29 @@ def update_device_ports(request, device_id):
         return JsonResponse({'error': 'Device não encontrado'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+@require_http_methods(["GET"])
+def device_discovered_interfaces(request, device_id):
+    """
+    Retorna as interfaces descobertas e salvas ativamente no Redis pelo syslog.
+    """
+    import redis
+    from integrations.models import KnownDevice
+    
+    try:
+        device = KnownDevice.objects.get(id=device_id)
+        # Acessa o redis DB 2 igual ao syslog_receiver
+        redis_client = redis.Redis(host='redis', port=6379, db=2, decode_responses=True)
+        key = f"device_interfaces_{device.device_id}"
+        
+        # Recupera os membros do Set
+        interfaces = redis_client.smembers(key)
+        # Transforma num list ordenado 
+        data = sorted(list(interfaces)) if interfaces else []
+        
+        return JsonResponse({'interfaces': data})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'interfaces': []})

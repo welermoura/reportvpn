@@ -16,6 +16,7 @@ urlpatterns = [
     path('devices/', views.devices_dashboard, name='devices'),
     path('devices/api/', views.devices_api, name='devices-api'),
     path('devices/api/<int:device_id>/ports/', views.update_device_ports, name='update_device_ports'),
+    path('devices/api/<int:device_id>/interfaces/', views.device_discovered_interfaces, name='device_discovered_interfaces'),
     path('export/pdf/', views.export_events_pdf, name='export_pdf'),
     path('export/csv/', views.export_events_csv, name='export_csv'),
     path('export/webfilter/pdf/', views.export_webfilter_pdf, name='export_webfilter_pdf'),

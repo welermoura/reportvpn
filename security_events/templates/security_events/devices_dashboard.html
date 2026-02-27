@@ -357,6 +357,29 @@
         const [newPortName, setNewPortName] = useState('');
         const [newPortAlias, setNewPortAlias] = useState('');
         const [saving, setSaving] = useState(false);
+        const [discoveredPorts, setDiscoveredPorts] = useState([]);
+        const [loadingPorts, setLoadingPorts] = useState(false);
+
+        useEffect(() => {
+            if (editPorts) {
+                setLoadingPorts(true);
+                fetch(`/security/devices/api/${device.id}/interfaces/`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.interfaces) setDiscoveredPorts(data.interfaces);
+                    })
+                    .catch(e => console.error("Erro ao buscar interfaces", e))
+                    .finally(() => setLoadingPorts(false));
+            }
+        }, [editPorts, device.id]);
+
+        const handleDiscoveredClick = (dp) => {
+            const parts = dp.split('|');
+            const portName = parts[0];
+            const portAlias = parts.length > 1 ? parts[1] : '';
+            setNewPortName(portName);
+            if (portAlias) setNewPortAlias(portAlias);
+        };
 
         const handleAddPort = () => {
             if (!newPortName.trim()) return;
@@ -540,6 +563,53 @@
                                 <div style={{ fontSize: '0.85rem', color: '#d1d3e2', marginBottom: '12px' }}>
                                     Adicione as portas / SLAs que devem acionar o alarme de Saúde de Link neste dispositivo. Se vazio, monitora todas.
                                 </div>
+
+                                {/* Portas Descobertas Dinamicamente */}
+                                <div style={{ marginBottom: '16px' }}>
+                                    <div style={{ fontSize: '0.75rem', color: '#858796', textTransform: 'uppercase', marginBottom: '8px', fontWeight: 600 }}>
+                                        Portas Descobertas Ativas (Clique para auto-preencher)
+                                    </div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                        {loadingPorts ? (
+                                            <span style={{ fontSize: '0.8rem', color: '#858796' }}><i className="fa-solid fa-spinner fa-spin"></i> Buscando portas...</span>
+                                        ) : discoveredPorts.length === 0 ? (
+                                            <span style={{ fontSize: '0.8rem', color: '#858796', fontStyle: 'italic' }}>Nenhuma porta identificada recentemente pelo syslog.</span>
+                                        ) : (
+                                            discoveredPorts.map(dp => {
+                                                const parts = dp.split('|');
+                                                const dpName = parts[0];
+                                                const dpAlias = parts.length > 1 && parts[1] ? parts[1] : '';
+
+                                                const isConfigured = ports.some(p => p.name === dpName);
+
+                                                return (
+                                                    <div
+                                                        key={dp}
+                                                        onClick={() => !isConfigured && handleDiscoveredClick(dp)}
+                                                        style={{
+                                                            background: isConfigured ? 'rgba(255,255,255,0.05)' : 'rgba(28,200,138,0.15)',
+                                                            border: `1px solid ${isConfigured ? 'rgba(255,255,255,0.1)' : 'rgba(28,200,138,0.3)'}`,
+                                                            padding: '4px 10px',
+                                                            borderRadius: '16px',
+                                                            fontSize: '0.8rem',
+                                                            cursor: isConfigured ? 'default' : 'pointer',
+                                                            color: isConfigured ? '#858796' : '#1cc88a',
+                                                            transition: 'all 0.2s',
+                                                            userSelect: 'none',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '4px'
+                                                        }}>
+                                                        {dpAlias ? <span style={{ fontWeight: 600 }}>{dpAlias}</span> : null}
+                                                        <span style={{ opacity: dpAlias ? 0.8 : 1 }}>{dpAlias ? `(${dpName})` : dpName}</span>
+                                                        {isConfigured && <i className="fa-solid fa-check" style={{ marginLeft: 4 }}></i>}
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                </div>
+
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '10px', marginBottom: '16px' }}>
                                     <input
                                         type="text"
