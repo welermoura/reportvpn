@@ -133,6 +133,9 @@ class VPNLogListView(LoginRequiredMixin, ListView):
             elif ordering == '-user':
                  qs = qs.order_by('-user')
             # Add other fields as needed
+        else:
+            # Fallback ordering to avoid UnorderedObjectListWarning
+            qs = qs.order_by('-last_connection', 'user')
             
         return qs
 

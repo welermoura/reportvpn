@@ -146,7 +146,7 @@ class VPNLog(models.Model):
     class Meta:
         verbose_name = "Log de VPN"
         verbose_name_plural = "Logs de VPN"
-        ordering = ['-start_time']
+        ordering = ['-start_time', '-id']
         indexes = [
             models.Index(fields=['user', 'start_date']),
             models.Index(fields=['is_suspicious', 'start_date']),
@@ -206,7 +206,7 @@ class VPNFailure(models.Model):
     class Meta:
         verbose_name = "Falha de Login VPN"
         verbose_name_plural = "Falhas de Login VPN"
-        ordering = ['-timestamp']
+        ordering = ['-timestamp', '-id']
         indexes = [
             models.Index(fields=['user', 'timestamp']),
             models.Index(fields=['source_ip', 'timestamp']),
