@@ -47,7 +47,8 @@ class VPNLogViewSet(viewsets.ModelViewSet):
         base_qs = VPNLog.objects.filter(
             Q(raw_data__tunneltype__icontains='ssl') | 
             Q(raw_data__vpntype__icontains='ssl') |
-            Q(raw_data__service__icontains='SSL')
+            Q(raw_data__service__icontains='SSL') |
+            Q(raw_data__tunnelid__icontains='ssl')
         )
         
         if user_q:

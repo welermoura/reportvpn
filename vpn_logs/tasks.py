@@ -237,58 +237,6 @@ def fetch_vpn_logs_task(self):
                     logger.error(f"Erro ao processar log vpn {session_id}: {e}")
                     continue
 
-                # Below is the logic for NEW sessions exclusively
-                # Enrich with AD
-                ad_info = {}
-                if username and username not in ['unknown', 'N/A']:
-                    clean_user = username.split('\\')[-1]
-                    ad_info = ad_client.get_user_info(clean_user) or {}
-
-                # Enrich com dados geográficos — campos nativos do FortiGate
-                import urllib.parse
-                fa_country = urllib.parse.unquote(str(log.get('srccountry', '') or log.get('remcountry', '')).strip())
-                fa_city = urllib.parse.unquote(str(log.get('srccity', '') or log.get('remcity', '')).strip())
-                
-                # Elevando COUNTRY_MAP foi feito no topo do arquivo (via import utils ou logo acima do loop).
-                # Movemos a declaração pro começo do Try.
-
-                country_name_val = fa_country if fa_country.lower() not in ['reserved', 'n/a'] else ''
-                country_code_val = COUNTRY_MAP.get(country_name_val.lower(), '')
-                city_val = fa_city
-
-                # Determine suspicious
-                is_suspicious = False
-                if country_code_val:
-                    if country_code_val.upper() not in trusted_countries_list:
-                        is_suspicious = True
-                elif country_name_val and trusted_countries_list:
-                    # Fallback para string match
-                    is_suspicious = not any(v in country_name_val.upper() for v in trusted_countries_list)
-
-                log_entry = VPNLog(
-                    session_id=session_id,
-                    user=username,
-                    source_ip=source_ip,
-                    start_time=start_time,
-                    start_date=start_time.date(),
-                    end_time=end_time,
-                    duration=duration,
-                    bandwidth_in=int(log.get('rcvdbyte', 0)),
-                    bandwidth_out=int(log.get('sentbyte', 0)),
-                    status=status,
-                    raw_data=log,
-                    ad_department=ad_info.get('department'),
-                    ad_email=ad_info.get('email'),
-                    ad_title=ad_info.get('title'),
-                    ad_display_name=ad_info.get('display_name'),
-                    city=city_val,
-                    country_name=country_name_val,
-                    country_code=country_code_val,
-                    is_suspicious=is_suspicious
-                )
-                # Bypass DB check in save() method
-                log_entry.bypass_suspicious_check = True
-                log_entry.save()
             
             # --- Lógica de Falha (VPNFailure & Brute Force) ---
             elif action in ['negotiate-error', 'auth-failure', 'ssl-login-fail', 'ipsec-login-fail']:
