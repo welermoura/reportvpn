@@ -50,13 +50,8 @@ class FortiAnalyzerConfig(SingletonModel):
     is_enabled = models.BooleanField(default=True, help_text="Ativar a coleta ativa (Polling) via API do FortiAnalyzer?")
     
     def save(self, *args, **kwargs):
-        # Desativa Syslog se API estiver ativa (Mutual Exclusion reforçada)
-        if self.is_enabled:
-            SyslogConfig.objects.all().update(is_enabled=False)
-        
         # Sincroniza tarefas do Celery
         sync_celery_tasks(self.is_enabled)
-        
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -80,89 +75,4 @@ class ActiveDirectoryConfig(SingletonModel):
     class Meta:
         verbose_name = "Configuração Active Directory"
         verbose_name_plural = "Configuração Active Directory"
-
-class SyslogConfig(SingletonModel):
-    is_enabled = models.BooleanField(default=False, help_text="Ativar a recepção passiva de logs via Syslog UDP?")
-    port = models.IntegerField(default=5140, help_text="Porta UDP para escuta (Padrão 5140)")
-    
-    def save(self, *args, **kwargs):
-        # Aviso: Syslog não é recomendado para altos volumes
-        if self.is_enabled:
-            logger.warning("Syslog ativado. Note que isso pode causar alto consumo de recursos em redes de alto volume.")
-            fa_configs = FortiAnalyzerConfig.objects.all()
-            for config in fa_configs:
-                if config.is_enabled:
-                    config.is_enabled = False
-                    config.save() # This will call sync_celery_tasks(False)
-        
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return "Configuração: Coleta via Syslog (Real-time)"
-
-    class Meta:
-        verbose_name = "Coleta em Tempo Real (Syslog)"
-        verbose_name_plural = "Coleta em Tempo Real (Syslog)"
-
-class KnownDevice(models.Model):
-    device_id = models.CharField(max_length=100, unique=True, help_text="ID/Serial Number do Dispositivo (ex: FGT60E...)")
-    hostname = models.CharField(max_length=255, blank=True, null=True)
-    ip_address = models.GenericIPAddressField(help_text="Último IP de origem detectado")
-    device_type = models.CharField(max_length=50, default="fortigate", help_text="Fabricante/Tipo detectado")
-    last_seen = models.DateTimeField(auto_now=True)
-    is_authorized = models.BooleanField(default=True, help_text="Indica se este dispositivo é uma fonte confiável")
-    last_alert_message = models.CharField(max_length=500, blank=True, null=True, help_text="Último alerta de sistema (CPU/Memória/Link)")
-    last_alert_time = models.DateTimeField(blank=True, null=True)
-    
-    # Status Detalhado de Hardware
-    cpu_status = models.CharField(max_length=50, default="normal", help_text="Estado da CPU (normal/alto)")
-    memory_status = models.CharField(max_length=50, default="normal", help_text="Estado da Memória (normal/alto)")
-    link_status = models.CharField(max_length=50, default="normal", help_text="Estado dos Links (normal/alarme)")
-    conserve_mode = models.BooleanField(default=False, help_text="Indica se o dispositivo está em Conserve Mode")
-    
-    # Portas Monitoradas (SD-WAN / Health Checks)
-    monitored_ports = models.JSONField(default=list, blank=True, help_text="Lista de portas monitoradas: [{'name': 'wan1', 'alias': 'Internet'}]")
-    
-    def __str__(self):
-        return f"{self.hostname or self.device_id} ({self.ip_address})"
-
-    class Meta:
-        verbose_name = "Dispositivo Emissor (Inventory)"
-        verbose_name_plural = "Dispositivos Emissores (Inventory)"
-        ordering = ['-last_seen']
-
-from django.db.models.signals import pre_delete
-from django.dispatch import receiver
-
-@receiver(pre_delete, sender=KnownDevice)
-def delete_device_logs(sender, instance, **kwargs):
-    """
-    Cascades device deletion by manually wiping out logs associated with its IP address
-    to free up DB space and avoid orphans.
-    """
-    ip = instance.ip_address
-    dev_id = instance.device_id
-    
-    if not ip and not dev_id:
-        return
-        
-    try:
-        from vpn_logs.models import VPNLog, VPNFailure
-        from security_events.models import SecurityEvent, ADAuthEvent
-        
-        logger.info(f"Cascading delete for device {instance.hostname or dev_id} ({ip})")
-        
-        if ip:
-            # VPN Logs
-            vpn_deleted, _ = VPNLog.objects.filter(source_ip=ip).delete()
-            vpnf_deleted, _ = VPNFailure.objects.filter(source_ip=ip).delete()
-            logger.info(f"Deleted {vpn_deleted} VPNLogs and {vpnf_deleted} VPNFailures for {ip}")
-            
-            # Security Events
-            sec_deleted, _ = SecurityEvent.objects.filter(src_ip=ip).delete()
-            ad_deleted, _ = ADAuthEvent.objects.filter(src_ip=ip).delete()
-            logger.info(f"Deleted {sec_deleted} SecurityEvents and {ad_deleted} ADAuthEvents for {ip}")
-            
-    except Exception as e:
-        logger.error(f"Error cascading device deletion for {instance}: {e}")
 

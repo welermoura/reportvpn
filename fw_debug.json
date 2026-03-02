@@ -1,0 +1,12 @@
+[
+  {
+    "id": 47,
+    "hostname": "FWMTZ03",
+    "device_id": "FG4H0ETB21903821",
+    "cpu_status": "normal",
+    "memory_status": "normal",
+    "link_status": "normal",
+    "conserve_mode": false,
+    "last_alert_message": ""
+  }
+]

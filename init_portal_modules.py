@@ -86,16 +86,6 @@ modules = [
         'order': 8,
         'is_active': False,
         'color': 'text-gray-400'
-    },
-    {
-        'title': 'Dispositivos',
-        'slug': 'devices',
-        'icon': 'fa-solid fa-router',
-        'description': 'Inventário de dispositivos emissores de Syslog.',
-        'url_name': 'security_events:devices',
-        'order': 9,
-        'is_active': True,
-        'color': 'text-teal-400'
     }
 ]
 

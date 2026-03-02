@@ -54,7 +54,6 @@ INSTALLED_APPS = [
     'integrations.apps.IntegrationsConfig',
     'vpn_logs.apps.VpnLogsConfig',
     'dashboard.apps.DashboardConfig',
-    'log_receiver.apps.LogReceiverConfig',
 ]
 
 MIDDLEWARE = [
@@ -291,8 +290,6 @@ JAZZMIN_SETTINGS = {
         "security_events.ADAuthEvent": "fas fa-fingerprint",
         "integrations.FortiAnalyzerConfig": "fas fa-database",
         "integrations.ActiveDirectoryConfig": "fas fa-id-card",
-        "integrations.SyslogConfig": "fas fa-stream",
-        "integrations.KnownDevice": "fas fa-microchip",
     },
     
     "default_icon_parents": "fas fa-chevron-circle-right",
