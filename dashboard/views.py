@@ -356,11 +356,8 @@ def export_logs_xlsx(request):
 
 @login_required
 def dashboard_stats_api(request):
-    # Base QuerySet for Stats (Strict SSL Only)
-    base_qs = VPNLog.objects.filter(
-        Q(raw_data__tunneltype__startswith='ssl') | 
-        Q(raw_data__vpntype__icontains='ssl')
-    )
+    # Base QuerySet for Stats - Include all VPN types
+    base_qs = VPNLog.objects.all()
 
     # --- Apply Filters ---
     user_q = request.GET.get('user_q')
