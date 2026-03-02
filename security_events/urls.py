@@ -13,7 +13,6 @@ urlpatterns = [
     path('webfilter-old/', views.webfilter_dashboard, name='webfilter_old'), # Keep old for backup if needed
     path('app-control/', views.appcontrol_react_dashboard, name='app-control'),
     path('ad-audit/', views.ad_audit_react_dashboard, name='ad-audit'),
-    path('ad-audit/', views.ad_audit_react_dashboard, name='ad-audit'),
     path('export/pdf/', views.export_events_pdf, name='export_pdf'),
     path('export/csv/', views.export_events_csv, name='export_csv'),
     path('export/webfilter/pdf/', views.export_webfilter_pdf, name='export_webfilter_pdf'),

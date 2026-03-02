@@ -355,3 +355,264 @@ def webfilter_dashboard(request):
     }
     
     return render(request, 'security_events/webfilter_v2.html', context)
+
+
+@login_required
+def webfilter_react_dashboard(request):
+    """React-based webfilter dashboard - data loaded via API"""
+    return render(request, 'security_events/webfilter_react.html')
+
+@login_required
+def appcontrol_react_dashboard(request):
+    """React-based App Control dashboard - data loaded via API"""
+    return render(request, 'security_events/appcontrol_react.html')
+
+@login_required
+def ad_audit_react_dashboard(request):
+    """React-based AD Audit dashboard - data loaded via API"""
+    return render(request, 'security_events/ad_audit_react.html')
+
+
+@login_required
+def export_events_pdf(request):
+    """Export security events to PDF"""
+    # 1. Filter Logic (Reused from index)
+    days = int(request.GET.get('days', 7))
+    start_date = timezone.now() - timedelta(days=days)
+    
+    event_type = request.GET.get('event_type', '')
+    severity = request.GET.get('severity', '')
+    search = request.GET.get('search', '')
+    
+    events = SecurityEvent.objects.filter(timestamp__gte=start_date).order_by('-timestamp')
+    
+    if event_type:
+        events = events.filter(event_type=event_type)
+    if severity:
+        events = events.filter(severity=severity)
+    if search:
+        events = events.filter(
+            Q(src_ip__icontains=search) |
+            Q(dst_ip__icontains=search) |
+            Q(username__icontains=search) |
+            Q(attack_name__icontains=search) |
+            Q(virus_name__icontains=search) |
+            Q(url__icontains=search)
+        )
+
+    # 2. Context Preparation
+    filter_desc = []
+    filter_desc.append(f"Últimos {days} dias")
+    if event_type: filter_desc.append(f"Tipo: {event_type}")
+    if severity: filter_desc.append(f"Severidade: {severity}")
+    if search: filter_desc.append(f"Busca: {search}")
+    
+    context = {
+        'events': events[:1000], # Limit to 1000 for PDF performance
+        'filter_desc': " | ".join(filter_desc)
+    }
+
+    # 3. Render PDF
+    template = get_template('security_events/pdf_report.html')
+    html = template.render(context)
+    result = BytesIO()
+    
+    try:
+        from xhtml2pdf import pisa
+        pdf = pisa.pisaDocument(BytesIO(html.encode("UTF-8")), result)
+        if not pdf.err:
+            response = HttpResponse(result.getvalue(), content_type='application/pdf')
+            filename = f"security_report_{timezone.now().strftime('%Y%m%d_%H%M')}.pdf"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+    except ImportError:
+        return HttpResponse("Library 'xhtml2pdf' not installed.", status=500)
+    except Exception as e:
+        return HttpResponse(f"Erro ao gerar PDF: {str(e)}", status=500)
+
+    return HttpResponse("Erro ao gerar PDF", status=500)
+
+
+@login_required
+def export_events_csv(request):
+    """Export security events to CSV"""
+    # 1. Filter Logic
+    days = int(request.GET.get('days', 7))
+    start_date = timezone.now() - timedelta(days=days)
+    
+    event_type = request.GET.get('event_type', '')
+    severity = request.GET.get('severity', '')
+    search = request.GET.get('search', '')
+    
+    events = SecurityEvent.objects.filter(timestamp__gte=start_date).order_by('-timestamp')
+    
+    if event_type:
+        events = events.filter(event_type=event_type)
+    if severity:
+        events = events.filter(severity=severity)
+    if search:
+        events = events.filter(
+            Q(src_ip__icontains=search) |
+            Q(dst_ip__icontains=search) |
+            Q(username__icontains=search) |
+            Q(attack_name__icontains=search) |
+            Q(virus_name__icontains=search) |
+            Q(url__icontains=search)
+        )
+        
+    response = HttpResponse(content_type='text/csv')
+    filename = f"security_events_{timezone.now().strftime('%Y%m%d_%H%M')}.csv"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    writer = csv.writer(response)
+    writer.writerow(['Data/Hora', 'Tipo', 'Severidade', 'Origem', 'País Origem', 'Destino', 'País Destino', 'Usuário', 'Detalhes'])
+    
+    # Export up to 5000 records for CSV
+    for event in events[:5000]:
+        details = ""
+        if event.event_type == 'ips':
+            details = f"Attack: {event.attack_name} (CVE: {event.cve})"
+        elif event.event_type == 'antivirus':
+            details = f"Virus: {event.virus_name} (File: {event.file_name})"
+        elif event.event_type == 'webfilter':
+            details = f"URL: {event.url} (Cat: {event.category})"
+            
+        writer.writerow([
+            event.timestamp.strftime("%d/%m/%Y %H:%M:%S"),
+            event.get_event_type_display(),
+            event.severity,
+            event.src_ip,
+            event.src_country,
+            event.dst_ip,
+            event.dst_country,
+            event.username,
+            details
+        ])
+        
+    return response
+
+@login_required
+def export_webfilter_xlsx(request):
+    """Export Webfilter events to XLSX"""
+    # Base queryset
+    events = SecurityEvent.objects.filter(event_type='webfilter')
+    
+    # Filters matching API/React Dashboard
+    username_q = request.GET.get('username')
+    if username_q:
+        events = events.filter(Q(username__icontains=username_q) | Q(ad_display_name__icontains=username_q))
+        
+    url_q = request.GET.get('url')
+    if url_q:
+        events = events.filter(url__icontains=url_q)
+        
+    dept_q = request.GET.get('department')
+    if dept_q:
+        events = events.filter(user_department__icontains=dept_q)
+        
+    category = request.GET.get('category')
+    if category:
+        events = events.filter(category=category)
+        
+    action = request.GET.get('action')
+    if action:
+        events = events.filter(action=action)
+        
+    # Date Filtering (Handle both 'days' and 'start_date'/'end_date')
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    
+    if start_date_str:
+        events = events.filter(timestamp__gte=start_date_str)
+    elif request.GET.get('days'): # Fallback to days if no specific start date
+        days = int(request.GET.get('days', 7))
+        events = events.filter(timestamp__gte=timezone.now() - timedelta(days=days))
+        
+    if end_date_str:
+        events = events.filter(timestamp__lte=f"{end_date_str} 23:59:59")
+        
+    events = events.order_by('-timestamp')[:5000] # Limit 5k
+    
+    headers = ['Data/Hora', 'Usuário', 'Depto', 'IP Origem', 'Categoria', 'URL', 'Ação']
+    field_mapping = [
+        lambda x: x.timestamp.strftime('%d/%m/%Y %H:%M:%S'),
+        lambda x: x.ad_display_name or x.username,
+        'user_department',
+        'src_ip',
+        'category',
+        'url',
+        'action'
+    ]
+    
+    filename = f"webfilter_report_{timezone.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return export_to_xlsx(events, filename, headers, field_mapping)
+
+@login_required
+def export_webfilter_pdf(request):
+    """Export Webfilter events to PDF"""
+    # Reuse filter logic (Copy-paste for now to keep independent)
+    events = SecurityEvent.objects.filter(event_type='webfilter')
+    
+    username_q = request.GET.get('username')
+    if username_q:
+        events = events.filter(Q(username__icontains=username_q) | Q(ad_display_name__icontains=username_q))
+        
+    url_q = request.GET.get('url')
+    if url_q:
+        events = events.filter(url__icontains=url_q)
+        
+    dept_q = request.GET.get('department')
+    if dept_q:
+        events = events.filter(user_department__icontains=dept_q)
+        
+    category = request.GET.get('category')
+    if category:
+        events = events.filter(category=category)
+        
+    action = request.GET.get('action')
+    if action:
+        events = events.filter(action=action)
+        
+    start_date_str = request.GET.get('start_date')
+    if start_date_str:
+        events = events.filter(timestamp__gte=start_date_str)
+    elif request.GET.get('days'):
+        days = int(request.GET.get('days', 7))
+        events = events.filter(timestamp__gte=timezone.now() - timedelta(days=days))
+        
+    end_date_str = request.GET.get('end_date')
+    if end_date_str:
+        events = events.filter(timestamp__lte=f"{end_date_str} 23:59:59")
+        
+    events = events.order_by('-timestamp')[:1000] # Limit 1k for PDF
+    
+    # Context
+    filter_desc = []
+    if category: filter_desc.append(f"Cat: {category}")
+    if action: filter_desc.append(f"Ação: {action}")
+    if username_q: filter_desc.append(f"User: {username_q}")
+    
+    context = {
+        'events': events,
+        'filter_desc': " | ".join(filter_desc) or "Todos os eventos",
+        'title': 'Relatório de Filtro Web'
+    }
+    
+    template = get_template('security_events/pdf_report.html')
+    html = template.render(context)
+    result = BytesIO()
+    
+    try:
+        from xhtml2pdf import pisa
+        pdf = pisa.pisaDocument(BytesIO(html.encode("UTF-8")), result)
+        if not pdf.err:
+            response = HttpResponse(result.getvalue(), content_type='application/pdf')
+            filename = f"webfilter_report_{timezone.now().strftime('%Y%m%d_%H%M')}.pdf"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+    except ImportError:
+        return HttpResponse("Library 'xhtml2pdf' not installed.", status=500)
+    except Exception as e:
+        return HttpResponse(f"Erro ao gerar PDF: {str(e)}", status=500)
+    
+    return HttpResponse("Erro ao gerar PDF", status=500)
