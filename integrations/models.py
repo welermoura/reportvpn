@@ -50,11 +50,11 @@ class FortiAnalyzerConfig(SingletonModel):
     is_enabled = models.BooleanField(default=True, help_text="Ativar a coleta ativa (Polling) via API do FortiAnalyzer?")
     
     def save(self, *args, **kwargs):
-        # Mutual Exclusion
+        # Desativa Syslog se API estiver ativa (Mutual Exclusion reforçada)
         if self.is_enabled:
             SyslogConfig.objects.all().update(is_enabled=False)
         
-        # Sync Tasks
+        # Sincroniza tarefas do Celery
         sync_celery_tasks(self.is_enabled)
         
         super().save(*args, **kwargs)
@@ -86,8 +86,9 @@ class SyslogConfig(SingletonModel):
     port = models.IntegerField(default=5140, help_text="Porta UDP para escuta (Padrão 5140)")
     
     def save(self, *args, **kwargs):
-        # Mutual Exclusion
+        # Aviso: Syslog não é recomendado para altos volumes
         if self.is_enabled:
+            logger.warning("Syslog ativado. Note que isso pode causar alto consumo de recursos em redes de alto volume.")
             fa_configs = FortiAnalyzerConfig.objects.all()
             for config in fa_configs:
                 if config.is_enabled:

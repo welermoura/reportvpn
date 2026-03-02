@@ -68,10 +68,14 @@ def get_db_size():
         elif vendor in ('mssql', 'microsoft'):
             with connection.cursor() as cursor:
                 # size column in sys.database_files is in 8-KB pages
-                cursor.execute("SELECT SUM(size) * 8.0 / 1024 FROM sys.database_files")
+                cursor.execute("SELECT SUM(size) * 8.0 * 1024 FROM sys.database_files")
                 row = cursor.fetchone()
                 if row and row[0]:
-                    return f"{float(row[0]):.2f} MB"
+                    size_bytes = float(row[0])
+                    # Reusing format_volume logic if available, or manual convert
+                    if size_bytes >= 1024*1024*1024:
+                        return f"{size_bytes / (1024*1024*1024):.2f} GB"
+                    return f"{size_bytes / (1024*1024):.2f} MB"
                 
     except Exception as e:
         print(f"Error getting db size: {e}")

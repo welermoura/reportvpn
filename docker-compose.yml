@@ -64,20 +64,20 @@ services:
   #   networks:
   #     - app-network
 
-  syslog_receiver:
-    build: .
-    command: python -u manage.py run_syslog
-    restart: always
-    volumes:
-      - .:/app
-    ports:
-      - "5140:5140/udp"
-    environment:
-      - DJANGO_SETTINGS_MODULE=vpn_dashboard.settings
-    depends_on:
-      - redis
-    networks:
-      - app-network
+  # syslog_receiver:
+  #   build: .
+  #   command: python -u manage.py run_syslog
+  #   restart: always
+  #   volumes:
+  #     - .:/app
+  #   ports:
+  #     - "5140:5140/udp"
+  #   environment:
+  #     - DJANGO_SETTINGS_MODULE=vpn_dashboard.settings
+  #   depends_on:
+  #     - redis
+  #   networks:
+  #     - app-network
 
 volumes:
   static_volume:
