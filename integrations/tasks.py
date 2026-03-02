@@ -5,7 +5,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-@shared_task(name="Limpeza Automática de Logs (Retenção)")
+@shared_task(name='integrations.tasks.cleanup_old_logs')
 def cleanup_old_logs():
     """
     Deleta registros de logs mais antigos que o período de retenção configurado.

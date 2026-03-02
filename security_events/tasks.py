@@ -258,27 +258,27 @@ def fetch_security_events_task(self, target_subtype=None):
         release_lock()
 
 
-@shared_task(name='Coleta de Eventos IPS')
+@shared_task(name='security_events.tasks.fetch_ips_task')
 def fetch_ips_task():
     return fetch_security_events_task(target_subtype='ips')
 
 
-@shared_task(name='Coleta de Eventos Antivirus')
+@shared_task(name='security_events.tasks.fetch_antivirus_task')
 def fetch_antivirus_task():
     return fetch_security_events_task(target_subtype='antivirus')
 
 
-@shared_task(name='Coleta de Eventos Web Filter')
+@shared_task(name='security_events.tasks.fetch_webfilter_task')
 def fetch_webfilter_task():
     return fetch_security_events_task(target_subtype='webfilter')
 
 
-@shared_task(name='Coleta de Eventos App Control')
+@shared_task(name='security_events.tasks.fetch_appcontrol_task')
 def fetch_appcontrol_task():
     return fetch_security_events_task(target_subtype='app-control')
 
 
-@shared_task(name='Varredura de Risco LDAP (Radar AD)')
+@shared_task(name='security_events.tasks.run_ad_radar_scan_task')
 def run_ad_radar_scan_task():
     """
     Executa a verificação completa de inatividade e caminhos de delegacão do AD (Radar AD).

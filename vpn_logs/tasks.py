@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 LOCK_EXPIRE = 60 * 10  # Lock expires in 10 minutes
 
-@shared_task(bind=True, name='Coleta de Logs VPN')
+@shared_task(bind=True, name='vpn_logs.tasks.fetch_vpn_logs_task')
 def fetch_vpn_logs_task(self):
     lock_id = "fetch_vpn_logs_lock"
     acquire_lock = lambda: cache.add(lock_id, "true", LOCK_EXPIRE)
@@ -394,7 +394,7 @@ def fetch_vpn_logs_task(self):
     finally:
         release_lock()
 
-@shared_task(name='Consolidar Conexões VPN à Meia-Noite')
+@shared_task(name='vpn_logs.tasks.consolidar_conexoes_virada_dia')
 def consolidar_conexoes_virada_dia():
     """
     Task de consolidação noturna.
