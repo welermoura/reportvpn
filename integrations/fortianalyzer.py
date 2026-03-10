@@ -82,7 +82,7 @@ class FortiAnalyzerClient:
         
         try:
             session = self.get_session()
-            response = session.post(url, json=payload, timeout=10)
+            response = session.post(url, json=payload, timeout=90)
             response.raise_for_status()
             result = response.json()
             
@@ -123,7 +123,7 @@ class FortiAnalyzerClient:
         
         try:
             session = self.get_session()
-            response = session.post(url, json=payload, timeout=5)
+            response = session.post(url, json=payload, timeout=15)
             result = response.json()
             
             # Parse result for status
@@ -163,7 +163,7 @@ class FortiAnalyzerClient:
         
         try:
             session = self.get_session()
-            response = session.post(url, json=payload, timeout=30)
+            response = session.post(url, json=payload, timeout=90)
             return response.json()
         except Exception as e:
             print(f"Erro ao baixar resultados da task {tid}: {e}")

@@ -238,6 +238,11 @@ CELERY_BEAT_SCHEDULE = {
         # Configurado para rodar diariamente às 23:59
         'schedule': __import__('celery.schedules').schedules.crontab(minute=59, hour=23),
     },
+    'Relatório de Fidelidade VPN (D-1)': {
+        'task': 'vpn_logs.tasks.daily_fidelity_vpn_report_task',
+        # Agendado para rodar diariamente às 00:05
+        'schedule': __import__('celery.schedules').schedules.crontab(minute=5, hour=0),
+    },
 }
 
 # Cache Configuration (Redis)

@@ -43,13 +43,8 @@ class VPNLogViewSet(viewsets.ModelViewSet):
         dept_q = request.query_params.get('dept_q')
         date_str = request.query_params.get('date')
 
-        # 0. Initial Queryset for base filtering
-        base_qs = VPNLog.objects.filter(
-            Q(raw_data__tunneltype__icontains='ssl') | 
-            Q(raw_data__vpntype__icontains='ssl') |
-            Q(raw_data__service__icontains='SSL') |
-            Q(raw_data__tunnelid__icontains='ssl')
-        )
+        # 0. Initial Queryset for base filtering - Including all VPN types
+        base_qs = VPNLog.objects.all()
         
         if user_q:
             base_qs = base_qs.filter(Q(user__icontains=user_q) | Q(ad_display_name__icontains=user_q))

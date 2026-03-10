@@ -34,10 +34,19 @@ class VPNLogListView(LoginRequiredMixin, ListView):
     
     def get_queryset(self):
         # Start with base queryset
-        # Start with base queryset (Strict SSL Only)
+        # Detect days that already have finalized fidelity reports
+        days_with_fidelity = VPNLog.objects.filter(
+            session_id__startswith='fidelity_'
+        ).values_list('start_date', flat=True).distinct()
+
+        # Base queryset (Strict SSL Only)
+        # Exclude regular logs for days that have fidelity logs to avoid doubling stats
         queryset = VPNLog.objects.filter(
             Q(raw_data__tunneltype__startswith='ssl') | 
             Q(raw_data__vpntype__icontains='ssl')
+        ).exclude(
+            ~Q(session_id__startswith='fidelity_'),
+            start_date__in=days_with_fidelity
         )
         
         # Load Trusted Countries (keeping logic if needed for future, but row coloring might need adjustment)
