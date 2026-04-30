@@ -10,7 +10,7 @@ services:
       - static_volume:/app/staticfiles
       - feeds_volume:/app/feeds_data
     ports:
-      - "8000:8000"
+      - "800:8000"
     environment:
       - DJANGO_SETTINGS_MODULE=vpn_dashboard.settings
     depends_on:
