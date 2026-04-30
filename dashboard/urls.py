@@ -25,4 +25,6 @@ urlpatterns = [
     path('export/pdf/', views.export_logs_pdf, name='export_pdf'),
     path('export/bruteforce/pdf/', views.export_bruteforce_pdf, name='export_bruteforce_pdf'),
     path('export/xlsx/', views.export_logs_xlsx, name='export_xlsx'),
+    path('fortigate-feeds/', views.fortigate_feeds, name='fortigate_feeds'),
+    path('feeds/<str:filename>', views.serve_feed, name='serve_feed'),
 ]

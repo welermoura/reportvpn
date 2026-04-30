@@ -1,0 +1,279 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Report VPN - FortiGate Feeds{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Custom Variables adapted to mix with base.html */
+    :root {
+        --fg-panel: rgba(15, 23, 42, 0.85); /* #0f172a with transparency */
+        --fg-border: rgba(255, 255, 255, 0.08);
+        --fg-green: #16a34a;
+        --fg-red: #dc2626;
+        --fg-muted: #9ca3af;
+    }
+    
+    .fg-shell {
+        background: var(--fg-panel);
+        border-radius: 12px;
+        border: 1px solid var(--fg-border);
+        overflow: hidden;
+        backdrop-filter: blur(10px);
+        margin-top: 20px;
+    }
+    
+    .fg-tabs {
+        display: flex;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 10px;
+        gap: 10px;
+    }
+    
+    .fg-tab {
+        padding: 10px 20px;
+        cursor: pointer;
+        border-radius: 8px;
+        color: var(--fg-muted);
+        font-weight: bold;
+        transition: all 0.3s;
+    }
+    
+    .fg-tab.active {
+        background: rgba(37, 99, 235, 0.2);
+        color: #fff;
+        border: 1px solid var(--fg-border);
+    }
+    
+    .fg-section {
+        display: none;
+        padding: 20px;
+    }
+    
+    .fg-section.active {
+        display: block;
+    }
+    
+    .fg-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+    }
+    
+    .fg-card {
+        background: rgba(255, 255, 255, 0.03);
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid var(--fg-border);
+    }
+    
+    .fg-example-text {
+        display: block;
+        font-size: 11px;
+        color: #64748b;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 6px;
+        border-radius: 4px;
+        margin: 8px 0;
+        line-height: 1.4;
+        border-left: 3px solid #334155;
+    }
+    
+    .fg-textarea {
+        width: 100%;
+        height: 150px;
+        background: #020617;
+        color: #fff;
+        border: 1px solid var(--fg-border);
+        border-radius: 8px;
+        padding: 10px;
+        font-family: monospace;
+        resize: none;
+        font-size: 13px;
+        box-sizing: border-box;
+    }
+    
+    .fg-textarea:focus {
+        outline: none;
+        border-color: rgba(37, 99, 235, 0.5);
+    }
+    
+    .fg-btn {
+        background: var(--fg-green);
+        color: #fff;
+        border: none;
+        padding: 12px 25px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background 0.3s;
+    }
+    
+    .fg-btn:hover {
+        background: #15803d;
+    }
+    
+    .fg-urlbox {
+        font-size: 11px;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 8px;
+        border-radius: 5px;
+        display: block;
+        margin: 10px 0;
+        word-break: break-all;
+        color: #3b82f6;
+        border: 1px dashed rgba(59, 130, 246, 0.3);
+    }
+    
+    .fg-copy {
+        font-size: 12px;
+        cursor: pointer;
+        color: #fff;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid var(--fg-border);
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-weight: bold;
+        transition: background 0.3s;
+    }
+    
+    .fg-copy:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .fg-topbar {
+        padding: 20px;
+        background: rgba(0, 0, 0, 0.2);
+        border-bottom: 1px solid var(--fg-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+</style>
+
+<script>
+    function showTab(t) {
+        var sections = document.getElementsByClassName('fg-section');
+        var tabs = document.getElementsByClassName('fg-tab');
+        for (var i = 0; i < sections.length; i++) {
+            sections[i].classList.remove('active');
+            tabs[i].classList.remove('active');
+        }
+        document.getElementById('tab-' + t).classList.add('active');
+        document.getElementById('sec-' + t).classList.add('active');
+    }
+    
+    function copyText(id) {
+        var text = document.getElementById(id).innerText;
+        var elem = document.createElement("textarea");
+        document.body.appendChild(elem);
+        elem.value = text;
+        elem.select();
+        document.execCommand("copy");
+        document.body.removeChild(elem);
+        
+        // Visual feedback
+        var btn = event.target;
+        var originalText = btn.innerText;
+        btn.innerText = "Copiado!";
+        btn.style.background = "#16a34a";
+        setTimeout(function() {
+            btn.innerText = originalText;
+            btn.style.background = "rgba(255,255,255,0.1)";
+        }, 2000);
+    }
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="welcome-section" style="margin-bottom: 20px;">
+    <h1 style="font-size: 2rem; margin-bottom: 5px;">FortiGate <span style="color: var(--accent-color);">Feeds Manager</span></h1>
+    <p class="text-secondary" style="margin-bottom: 0; font-size: 0.9rem;">Gerencie as listas de acesso (Blacklist e Whitelist) consumidas dinamicamente pelo FortiGate</p>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    <div class="fg-shell">
+        <div class="fg-topbar">
+            <div>
+                <div style="font-size:18px; font-weight:bold;">Listas de Acesso Externas</div>
+                <div style="font-size:12px; color:var(--fg-muted);">As URLs abaixo não exigem autenticação e podem ser consumidas como Fabric Connectors (External Threat Feeds).</div>
+            </div>
+            <div style="font-size:12px; color:var(--fg-muted); text-align: right;">
+                <div>Usuário: <strong>{{ request.user.username }}</strong></div>
+                <div>Última atualização: <strong>{{ last_update }}</strong></div>
+            </div>
+        </div>
+
+        <div class="fg-tabs">
+            <div id="tab-bl" class="fg-tab active" onclick="showTab('bl')">🔴 Blacklist</div>
+            <div id="tab-wl" class="fg-tab" onclick="showTab('wl')">🟢 Whitelist</div>
+        </div>
+
+        <div id="sec-bl" class="fg-section active">
+            <div class="fg-grid">
+                <div class="fg-card">
+                    <h3 style="color:var(--fg-red); margin-top:0; font-size:1.1rem;"><i class="fas fa-ban"></i> Blacklist - Domínios</h3>
+                    <div class="fg-example-text"><b>Exemplo:</b><br/>uol.com.br<br/>facebook.com</div>
+                    <textarea name="txtBLDomains" class="fg-textarea">{{ data.bld }}</textarea>
+                    <span class="fg-urlbox" id="url-bld">{{ base_url }}blacklist-domains.txt</span>
+                    <button type="button" class="fg-copy" onclick="copyText('url-bld')">Copiar URL</button>
+                </div>
+
+                <div class="fg-card">
+                    <h3 style="color:var(--fg-red); margin-top:0; font-size:1.1rem;"><i class="fas fa-link"></i> Blacklist - URLs</h3>
+                    <div class="fg-example-text"><b>Exemplo:</b><br/>http://site.com/fake-login<br/>https://malware.org/bad.exe</div>
+                    <textarea name="txtBLUrls" class="fg-textarea">{{ data.blu }}</textarea>
+                    <span class="fg-urlbox" id="url-blu">{{ base_url }}blacklist-urls.txt</span>
+                    <button type="button" class="fg-copy" onclick="copyText('url-blu')">Copiar URL</button>
+                </div>
+
+                <div class="fg-card">
+                    <h3 style="color:var(--fg-red); margin-top:0; font-size:1.1rem;"><i class="fas fa-network-wired"></i> Blacklist - IPs</h3>
+                    <div class="fg-example-text"><b>Exemplo:</b><br/>192.64.117.225<br/>47.253.63.21</div>
+                    <textarea name="txtBLIps" class="fg-textarea">{{ data.bli }}</textarea>
+                    <span class="fg-urlbox" id="url-bli">{{ base_url }}blacklist-ips.txt</span>
+                    <button type="button" class="fg-copy" onclick="copyText('url-bli')">Copiar URL</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="sec-wl" class="fg-section">
+            <div class="fg-grid">
+                <div class="fg-card">
+                    <h3 style="color:var(--fg-green); margin-top:0; font-size:1.1rem;"><i class="fas fa-check-circle"></i> Whitelist - Domínios</h3>
+                    <div class="fg-example-text"><b>Exemplo:</b><br/>minhaempresa.com.br<br/>gov.br</div>
+                    <textarea name="txtWLDomains" class="fg-textarea">{{ data.wld }}</textarea>
+                    <span class="fg-urlbox" id="url-wld">{{ base_url }}whitelist-domains.txt</span>
+                    <button type="button" class="fg-copy" onclick="copyText('url-wld')">Copiar URL</button>
+                </div>
+                
+                <div class="fg-card">
+                    <h3 style="color:var(--fg-green); margin-top:0; font-size:1.1rem;"><i class="fas fa-link"></i> Whitelist - URLs</h3>
+                    <div class="fg-example-text"><b>Exemplo:</b><br/>https://portal.parceiro.com/api</div>
+                    <textarea name="txtWLUrls" class="fg-textarea">{{ data.wlu }}</textarea>
+                    <span class="fg-urlbox" id="url-wlu">{{ base_url }}whitelist-urls.txt</span>
+                    <button type="button" class="fg-copy" onclick="copyText('url-wlu')">Copiar URL</button>
+                </div>
+                
+                <div class="fg-card">
+                    <h3 style="color:var(--fg-green); margin-top:0; font-size:1.1rem;"><i class="fas fa-network-wired"></i> Whitelist - IPs</h3>
+                    <div class="fg-example-text"><b>Exemplo:</b><br/>200.150.10.1</div>
+                    <textarea name="txtWLIps" class="fg-textarea">{{ data.wli }}</textarea>
+                    <span class="fg-urlbox" id="url-wli">{{ base_url }}whitelist-ips.txt</span>
+                    <button type="button" class="fg-copy" onclick="copyText('url-wli')">Copiar URL</button>
+                </div>
+            </div>
+        </div>
+
+        <div style="padding:20px; border-top:1px solid var(--fg-border); background:rgba(0,0,0,.1); display:flex; align-items:center; gap:20px;">
+            <button type="submit" class="fg-btn"><i class="fas fa-save"></i> Publicar Feeds (Gera TXT)</button>
+            {% if status_msg %}
+            <span style="font-weight:bold; color: #16a34a; background: rgba(22, 163, 74, 0.1); padding: 8px 15px; border-radius: 5px; border: 1px solid #16a34a;">{{ status_msg }}</span>
+            {% endif %}
+        </div>
+    </div>
+</form>
+{% endblock %}

@@ -79,7 +79,30 @@ class Command(BaseCommand):
         if created:
             self.stdout.write(self.style.SUCCESS(f"Created task: {stale_task.name}"))
 
-        # 5. Data Retention Cleanup (Daily at 02:00)
+        # 5. VPN Fidelity Daily Report (Daily at 00:05 for D-1)
+        crontab_0005, created = CrontabSchedule.objects.get_or_create(
+            minute='5',
+            hour='0',
+            day_of_week='*',
+            day_of_month='*',
+            month_of_year='*',
+        )
+
+        fidelity_task, created = PeriodicTask.objects.get_or_create(
+            name='Relatório de Fidelidade VPN (D-1)',
+            defaults={
+                'task': 'vpn_logs.tasks.daily_fidelity_vpn_report_task',
+                'crontab': crontab_0005,
+                'enabled': True,
+                'description': 'Geração noturna do Relatório de Fidelidade de VPN (consolida os acessos fechados nas faturas do dia anterior D-1)'
+            }
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS(f"Created task: {fidelity_task.name}"))
+        else:
+            self.stdout.write(f"Task already exists: {fidelity_task.name}")
+
+        # 6. Data Retention Cleanup (Daily at 02:00)
         crontab_0200, created = CrontabSchedule.objects.get_or_create(
             minute='0',
             hour='2',

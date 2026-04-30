@@ -13,6 +13,10 @@ from django.http import HttpResponse, JsonResponse
 from django.template.loader import get_template
 from io import BytesIO
 import datetime
+import os
+import re
+from django.conf import settings
+from urllib.parse import urlparse
 
 @login_required
 def portal(request):
@@ -619,3 +623,154 @@ def risk_stats_api(request):
         'distribution': dist_data,
         'top_risk': top_data
     })
+
+# ---- FORTIGATE FEEDS LOGIC ----
+FEEDS_DIR = os.path.join(settings.BASE_DIR, 'feeds_data')
+BACKUP_DIR = os.path.join(FEEDS_DIR, '_backup')
+AUDIT_FILE = os.path.join(FEEDS_DIR, '_audit.log')
+
+def ensure_feed_dirs():
+    os.makedirs(FEEDS_DIR, exist_ok=True)
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+
+def is_valid_domain(d):
+    return bool(re.match(r'^(?!-)([a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,}$', d))
+
+def is_valid_url(u):
+    try:
+        result = urlparse(u)
+        return all([result.scheme in ['http', 'https'], result.netloc])
+    except:
+        return False
+
+def is_valid_ip(i):
+    return bool(re.match(r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?\d\d?)$', i))
+
+def normalize_feed(raw_data, type_str):
+    if not raw_data: return []
+    out = []
+    seen = set()
+    for line in raw_data.replace('\r\n', '\n').replace('\r', '\n').split('\n'):
+        val = line.strip()
+        if not val: continue
+        
+        ok = False
+        if type_str == 'domain':
+            val = val.lower()
+            ok = is_valid_domain(val)
+        elif type_str == 'url':
+            ok = is_valid_url(val)
+        elif type_str == 'ip':
+            ok = is_valid_ip(val)
+            
+        if ok and val not in seen:
+            seen.add(val)
+            out.append(val)
+    return out
+
+def backup_if_exists(filename):
+    path = os.path.join(FEEDS_DIR, filename)
+    if os.path.exists(path):
+        stamp = timezone.now().strftime("%Y%m%d-%H%M%S")
+        backup_name = f"{stamp}__{filename}"
+        backup_path = os.path.join(BACKUP_DIR, backup_name)
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        with open(backup_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+def save_feed(filename, data_list):
+    ensure_feed_dirs()
+    backup_if_exists(filename)
+    
+    content = "\n".join(data_list)
+    if data_list: content += "\n"
+    
+    with open(os.path.join(FEEDS_DIR, filename), 'w', encoding='utf-8', newline='\n') as f:
+        f.write(content)
+
+def load_feed(filename):
+    path = os.path.join(FEEDS_DIR, filename)
+    if os.path.exists(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read().strip()
+    return ""
+
+def get_last_update(filename):
+    path = os.path.join(FEEDS_DIR, filename)
+    if os.path.exists(path):
+        dt = datetime.datetime.fromtimestamp(os.path.getmtime(path))
+        return dt.strftime("%d/%m/%Y %H:%M:%S")
+    return "—"
+
+def audit_feed_action(user, ip, bld, blu, bli, wld, wlu, wli):
+    ensure_feed_dirs()
+    stamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S")
+    line = f"{stamp} | {user} | ip={ip} | PUBLISH | BL(d={bld},u={blu},ip={bli}) | WL(d={wld},u={wlu},ip={wli})\n"
+    with open(AUDIT_FILE, 'a', encoding='utf-8') as f:
+        f.write(line)
+
+def serve_feed(request, filename):
+    # Security: prevent directory traversal
+    if not re.match(r'^[a-zA-Z0-9_-]+\.txt$', filename):
+        return HttpResponse("Invalid filename", status=400)
+    
+    path = os.path.join(FEEDS_DIR, filename)
+    if os.path.exists(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return HttpResponse(content, content_type="text/plain; charset=utf-8")
+    return HttpResponse("", content_type="text/plain; charset=utf-8", status=404)
+
+@login_required
+def fortigate_feeds(request):
+    files = {
+        'bld': 'blacklist-domains.txt',
+        'blu': 'blacklist-urls.txt',
+        'bli': 'blacklist-ips.txt',
+        'wld': 'whitelist-domains.txt',
+        'wlu': 'whitelist-urls.txt',
+        'wli': 'whitelist-ips.txt',
+    }
+    
+    status_msg = ""
+    
+    if request.method == 'POST':
+        # Process and save
+        bld_list = normalize_feed(request.POST.get('txtBLDomains', ''), 'domain')
+        blu_list = normalize_feed(request.POST.get('txtBLUrls', ''), 'url')
+        bli_list = normalize_feed(request.POST.get('txtBLIps', ''), 'ip')
+        
+        wld_list = normalize_feed(request.POST.get('txtWLDomains', ''), 'domain')
+        wlu_list = normalize_feed(request.POST.get('txtWLUrls', ''), 'url')
+        wli_list = normalize_feed(request.POST.get('txtWLIps', ''), 'ip')
+        
+        save_feed(files['bld'], bld_list)
+        save_feed(files['blu'], blu_list)
+        save_feed(files['bli'], bli_list)
+        save_feed(files['wld'], wld_list)
+        save_feed(files['wlu'], wlu_list)
+        save_feed(files['wli'], wli_list)
+        
+        ip = request.META.get('REMOTE_ADDR', 'unknown')
+        user_name = request.user.username if request.user.is_authenticated else 'unknown'
+        audit_feed_action(user_name, ip, len(bld_list), len(blu_list), len(bli_list), len(wld_list), len(wlu_list), len(wli_list))
+        
+        status_msg = "✅ Feeds publicados com sucesso."
+
+    # Load data for form
+    data = {k: load_feed(v) for k, v in files.items()}
+    
+    # Base URL for copying
+    host = request.get_host()
+    scheme = request.scheme
+    base_url = f"{scheme}://{host}/feeds/"
+    
+    context = {
+        'data': data,
+        'status_msg': status_msg,
+        'last_update': get_last_update(files['bld']),
+        'base_url': base_url
+    }
+    
+    return render(request, 'dashboard/fortigate_feeds.html', context)

@@ -8,6 +8,7 @@ services:
     volumes:
       - .:/app
       - static_volume:/app/staticfiles
+      - feeds_volume:/app/feeds_data
     ports:
       - "8000:8000"
     environment:
@@ -66,6 +67,7 @@ services:
 
 volumes:
   static_volume:
+  feeds_volume:
     # postgres_data:  # Descomente se usar PostgreSQL
 
 networks:

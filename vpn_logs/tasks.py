@@ -32,15 +32,17 @@ def daily_fidelity_vpn_report_task(target_date_str=None):
     
     start_time = target_dt.replace(hour=0, minute=0, second=0, microsecond=0)
     end_time = target_dt.replace(hour=23, minute=59, second=59, microsecond=999999)
+    # Tolerância maciça de 8 horas para pegar stats e túnel-down de quem desconectou de madrugada (offset GMT também ajusta a falha).
+    end_tolerance = end_time + datetime.timedelta(hours=8)
     
-    logger.info(f"Processando período: {start_time} até {end_time}")
+    logger.info(f"Processando período: {start_time} até {end_time} (C/ margem madrugada)")
 
-    # Janelas de 4 horas (6 janelas) para evitar timeouts e garantir captura total
+    # Janelas de 4 horas (cobrindo 32 horas totais até amanhã de manhã)
     intervals = []
     curr = start_time
-    while curr < end_time:
+    while curr < end_tolerance:
         next_curr = curr + datetime.timedelta(hours=4)
-        intervals.append((curr, min(next_curr, end_time)))
+        intervals.append((curr, min(next_curr, end_tolerance)))
         curr = next_curr
 
     import re
@@ -79,7 +81,7 @@ def daily_fidelity_vpn_report_task(target_date_str=None):
         time.sleep(10) 
         
         offset = 0
-        batch_size = 150
+        batch_size = 500
         while offset < 5000:
             try:
                 response = None
@@ -163,6 +165,7 @@ def daily_fidelity_vpn_report_task(target_date_str=None):
                 'raw_log': t_data['raw_log']
             }
             
+        # O FA manda a duração em stats mas se for um túnel novo, ele deve somar as sessões na conta diária (Como de fato faz aqui).
         report_data[key]['dur'] += t_data['dur']
         report_data[key]['vol_in'] += t_data['vol_in']
         report_data[key]['vol_out'] += t_data['vol_out']
