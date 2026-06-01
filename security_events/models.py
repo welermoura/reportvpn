@@ -118,6 +118,16 @@ class SecurityEvent(models.Model):
         }
         return colors.get(self.severity, 'secondary')
 
+    def save(self, *args, **kwargs):
+        # Convert all None values for CharField/TextField/EmailField to empty strings to avoid SQL Server NOT NULL integrity errors
+        for field in self._meta.fields:
+            if isinstance(field, (models.CharField, models.TextField, models.EmailField)):
+                value = getattr(self, field.name)
+                if value is None:
+                    setattr(self, field.name, '')
+        super().save(*args, **kwargs)
+
+
 
 class ADAuthEvent(models.Model):
     """Model for Active Directory Authentication Events (Logon/Logoff/Lockout)"""
@@ -159,6 +169,16 @@ class ADAuthEvent(models.Model):
 
     def __str__(self):
         return f"{self.username} - {self.get_status_display()} ({self.timestamp})"
+
+    def save(self, *args, **kwargs):
+        # Convert all None values for CharField/TextField/EmailField to empty strings to avoid SQL Server NOT NULL integrity errors
+        for field in self._meta.fields:
+            if isinstance(field, (models.CharField, models.TextField, models.EmailField)):
+                value = getattr(self, field.name)
+                if value is None:
+                    setattr(self, field.name, '')
+        super().save(*args, **kwargs)
+
 
 
 # =========================================================

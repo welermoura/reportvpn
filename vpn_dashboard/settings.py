@@ -214,19 +214,19 @@ CELERY_TIMEZONE = TIME_ZONE
 # Celery Beat Schedule - Automatic Tasks
 CELERY_BEAT_SCHEDULE = {
     'Coleta de Logs VPN (10 min)': {
-        'task': 'Coleta de Logs VPN',
+        'task': 'vpn_logs.tasks.fetch_vpn_logs_task',
         'schedule': 600.0,
     },
     'Coleta de Eventos IPS (10 min)': {
-        'task': 'Coleta de Eventos IPS',
+        'task': 'security_events.tasks.fetch_ips_task',
         'schedule': 600.0,
     },
     'Coleta de Eventos Antivirus (10 min)': {
-        'task': 'Coleta de Eventos Antivirus',
+        'task': 'security_events.tasks.fetch_antivirus_task',
         'schedule': 600.0,
     },
     'Coleta de Eventos Web Filter (10 min)': {
-        'task': 'Coleta de Eventos Web Filter',
+        'task': 'security_events.tasks.fetch_webfilter_task',
         'schedule': 600.0,
     },
     'Atualização de Score de Risco (30 min)': {
@@ -234,7 +234,7 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 1800.0,
     },
     'Consolidação de Conexões (Meia-noite)': {
-        'task': 'Consolidar Conexões VPN à Meia-Noite',
+        'task': 'vpn_logs.tasks.consolidar_conexoes_virada_dia',
         # Configurado para rodar diariamente às 23:59
         'schedule': __import__('celery.schedules').schedules.crontab(minute=59, hour=23),
     },

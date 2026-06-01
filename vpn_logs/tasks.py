@@ -278,8 +278,8 @@ def fetch_vpn_logs_task(self):
         except:
             trusted_countries_list = []
 
-        # Configurações de busca
-        days_ago = 365
+        # Configurações de busca - focado apenas no dado recente para alta performance (D-3 a D-0)
+        days_ago = 3
         start_date = timezone.now() - datetime.timedelta(days=days_ago)
         fetch_limit = 10000 
         filter_str = 'subtype=="vpn"'
@@ -330,6 +330,9 @@ def fetch_vpn_logs_task(self):
 
         logger.info(f'Encontrados {len(logs_data)} registros brutos após paginação.')
         
+        import re
+        ip_pattern = re.compile(r'^\d{1,3}(\.\d{1,3}){3}$')
+        
         count_new = 0
         for log in logs_data:
             session_id = str(log.get('sessionid') or '')
@@ -343,6 +346,10 @@ def fetch_vpn_logs_task(self):
             username = log.get('user', 'unknown')
             if username == 'N/A':
                 username = log.get('xauthuser', 'N/A')
+
+            # Descarta acessos cujo usuário reportado é apenas um endereço IP (túneis Site-to-Site ou logs de ruído)
+            if username and ip_pattern.match(username):
+                continue
 
             source_ip = log.get('remip')
             if not source_ip or source_ip == '0.0.0.0':
