@@ -228,6 +228,25 @@
         background: #b91c1c;
     }
     
+    /* Success Modal Overrides */
+    .fg-modal.success {
+        border-color: rgba(22, 163, 74, 0.4);
+    }
+    .fg-modal-header.success {
+        background: rgba(22, 163, 74, 0.08);
+        border-bottom-color: rgba(22, 163, 74, 0.15);
+        color: #22c55e;
+    }
+    .fg-modal-title.success {
+        color: #22c55e;
+    }
+    .fg-modal-close-btn.success {
+        background: #16a34a;
+    }
+    .fg-modal-close-btn.success:hover {
+        background: #15803d;
+    }
+    
     @keyframes fadeIn {
         from { opacity: 0; }
         to { opacity: 1; }
@@ -271,8 +290,8 @@
         }, 2000);
     }
 
-    function closeModal() {
-        var modal = document.getElementById('error-modal');
+    function closeModal(id) {
+        var modal = document.getElementById(id);
         if (modal) {
             modal.style.display = 'none';
         }
@@ -365,9 +384,6 @@
         <div style="padding:20px; border-top:1px solid var(--fg-border); background:rgba(0,0,0,.1); display:flex; flex-direction:column; align-items:flex-start; gap:15px;">
             <div style="display:flex; align-items:center; gap:20px; width:100%;">
                 <button type="submit" class="fg-btn"><i class="fas fa-save"></i> Publicar Feeds (Gera TXT)</button>
-                {% if status_msg %}
-                <span style="font-weight:bold; color: #16a34a; background: rgba(22, 163, 74, 0.1); padding: 8px 15px; border-radius: 5px; border: 1px solid #16a34a;">{{ status_msg }}</span>
-                {% endif %}
             </div>
         </div>
     </div>
@@ -384,7 +400,24 @@
             <div style="white-space: pre-wrap; font-family: inherit; font-size: 14px; text-align: left;">{{ error_msg }}</div>
         </div>
         <div class="fg-modal-footer">
-            <button type="button" class="fg-modal-close-btn" onclick="closeModal()">Entendido, Corrigir</button>
+            <button type="button" class="fg-modal-close-btn" onclick="closeModal('error-modal')">Entendido, Corrigir</button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if status_msg %}
+<div id="success-modal" class="fg-modal-overlay">
+    <div class="fg-modal success">
+        <div class="fg-modal-header success">
+            <span style="font-size: 24px;"><i class="fas fa-check-circle"></i></span>
+            <h2 class="fg-modal-title success">Sucesso</h2>
+        </div>
+        <div class="fg-modal-body">
+            <div style="font-size: 15px; text-align: left; line-height: 1.5;">{{ status_msg }}</div>
+        </div>
+        <div class="fg-modal-footer">
+            <button type="button" class="fg-modal-close-btn success" onclick="closeModal('success-modal')">Excelente</button>
         </div>
     </div>
 </div>
