@@ -8,7 +8,7 @@ from vpn_logs.models import VPNLog
 from integrations.models import FortiAnalyzerConfig
 from .utils import export_to_xlsx
 from django.db.models import Sum, Count, Max, Q, Subquery, OuterRef, IntegerField, Case, When, Value
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.http import HttpResponse, JsonResponse
 from django.template.loader import get_template
 from io import BytesIO
@@ -770,12 +770,6 @@ def fortigate_feeds(request):
         'wli': 'whitelist-ips.txt',
     }
     
-    status_msg = ""
-    error_msg = ""
-    concurrency_error = False
-    syntax_error = False
-    raw_submitted_data = {}
-    
     if request.method == 'POST':
         raw_bld = request.POST.get('txtBLDomains', '')
         raw_blu = request.POST.get('txtBLUrls', '')
@@ -792,6 +786,11 @@ def fortigate_feeds(request):
             'wlu': raw_wlu,
             'wli': raw_wli,
         }
+        
+        status_msg = ""
+        error_msg = ""
+        concurrency_error = False
+        syntax_error = False
         
         # 1. Concurrency check
         submitted_version = request.POST.get('feeds_version')
@@ -835,7 +834,21 @@ def fortigate_feeds(request):
             audit_feed_action(user_name, ip, len(bld_list), len(blu_list), len(bli_list), len(wld_list), len(wlu_list), len(wli_list))
             
             status_msg = "✅ Feeds publicados com sucesso."
+            
+        request.session['feed_status_msg'] = status_msg
+        request.session['feed_error_msg'] = error_msg
+        request.session['feed_concurrency_error'] = concurrency_error
+        request.session['feed_syntax_error'] = syntax_error
+        request.session['feed_raw_submitted_data'] = raw_submitted_data
+        return redirect('dashboard:fortigate_feeds')
 
+    # GET request
+    status_msg = request.session.pop('feed_status_msg', '')
+    error_msg = request.session.pop('feed_error_msg', '')
+    concurrency_error = request.session.pop('feed_concurrency_error', False)
+    syntax_error = request.session.pop('feed_syntax_error', False)
+    raw_submitted_data = request.session.pop('feed_raw_submitted_data', {})
+    
     # Load data for form: use submitted raw data if there was an error, else load from disk
     if concurrency_error or syntax_error:
         data = raw_submitted_data
