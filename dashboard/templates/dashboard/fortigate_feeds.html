@@ -195,6 +195,7 @@
 
 <form method="post">
     {% csrf_token %}
+    <input type="hidden" name="feeds_version" value="{{ feeds_version }}">
     <div class="fg-shell">
         <div class="fg-topbar">
             <div>
@@ -268,10 +269,15 @@
             </div>
         </div>
 
-        <div style="padding:20px; border-top:1px solid var(--fg-border); background:rgba(0,0,0,.1); display:flex; align-items:center; gap:20px;">
-            <button type="submit" class="fg-btn"><i class="fas fa-save"></i> Publicar Feeds (Gera TXT)</button>
-            {% if status_msg %}
-            <span style="font-weight:bold; color: #16a34a; background: rgba(22, 163, 74, 0.1); padding: 8px 15px; border-radius: 5px; border: 1px solid #16a34a;">{{ status_msg }}</span>
+        <div style="padding:20px; border-top:1px solid var(--fg-border); background:rgba(0,0,0,.1); display:flex; flex-direction:column; align-items:flex-start; gap:15px;">
+            <div style="display:flex; align-items:center; gap:20px; width:100%;">
+                <button type="submit" class="fg-btn"><i class="fas fa-save"></i> Publicar Feeds (Gera TXT)</button>
+                {% if status_msg %}
+                <span style="font-weight:bold; color: #16a34a; background: rgba(22, 163, 74, 0.1); padding: 8px 15px; border-radius: 5px; border: 1px solid #16a34a;">{{ status_msg }}</span>
+                {% endif %}
+            </div>
+            {% if error_msg %}
+            <div style="font-weight:bold; color: #dc2626; background: rgba(220, 38, 38, 0.1); padding: 12px 20px; border-radius: 8px; border: 1px solid #dc2626; white-space: pre-wrap; text-align: left; width: 100%; box-sizing: border-box; font-family: monospace; font-size: 13px; line-height: 1.5;">{{ error_msg }}</div>
             {% endif %}
         </div>
     </div>

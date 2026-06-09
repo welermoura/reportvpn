@@ -668,6 +668,43 @@ def normalize_feed(raw_data, type_str):
             out.append(val)
     return out
 
+import hashlib
+
+def get_feeds_version(files):
+    ensure_feed_dirs()
+    version_str = ""
+    for filename in files.values():
+        path = os.path.join(FEEDS_DIR, filename)
+        if os.path.exists(path):
+            version_str += f"{filename}:{os.path.getmtime(path)}|"
+    return hashlib.md5(version_str.encode('utf-8')).hexdigest()
+
+def validate_and_normalize_feed(raw_data, type_str):
+    if not raw_data: return [], []
+    valid = []
+    invalid = []
+    seen = set()
+    for line in raw_data.replace('\r\n', '\n').replace('\r', '\n').split('\n'):
+        val = line.strip()
+        if not val: continue
+        
+        ok = False
+        if type_str == 'domain':
+            val = val.lower()
+            ok = is_valid_domain(val)
+        elif type_str == 'url':
+            ok = is_valid_url(val)
+        elif type_str == 'ip':
+            ok = is_valid_ip(val)
+            
+        if ok:
+            if val not in seen:
+                seen.add(val)
+                valid.append(val)
+        else:
+            invalid.append(line.strip())
+    return valid, invalid
+
 def backup_if_exists(filename):
     path = os.path.join(FEEDS_DIR, filename)
     if os.path.exists(path):
@@ -734,32 +771,78 @@ def fortigate_feeds(request):
     }
     
     status_msg = ""
+    error_msg = ""
+    concurrency_error = False
+    syntax_error = False
+    raw_submitted_data = {}
     
     if request.method == 'POST':
-        # Process and save
-        bld_list = normalize_feed(request.POST.get('txtBLDomains', ''), 'domain')
-        blu_list = normalize_feed(request.POST.get('txtBLUrls', ''), 'url')
-        bli_list = normalize_feed(request.POST.get('txtBLIps', ''), 'ip')
+        raw_bld = request.POST.get('txtBLDomains', '')
+        raw_blu = request.POST.get('txtBLUrls', '')
+        raw_bli = request.POST.get('txtBLIps', '')
+        raw_wld = request.POST.get('txtWLDomains', '')
+        raw_wlu = request.POST.get('txtWLUrls', '')
+        raw_wli = request.POST.get('txtWLIps', '')
         
-        wld_list = normalize_feed(request.POST.get('txtWLDomains', ''), 'domain')
-        wlu_list = normalize_feed(request.POST.get('txtWLUrls', ''), 'url')
-        wli_list = normalize_feed(request.POST.get('txtWLIps', ''), 'ip')
+        raw_submitted_data = {
+            'bld': raw_bld,
+            'blu': raw_blu,
+            'bli': raw_bli,
+            'wld': raw_wld,
+            'wlu': raw_wlu,
+            'wli': raw_wli,
+        }
         
-        save_feed(files['bld'], bld_list)
-        save_feed(files['blu'], blu_list)
-        save_feed(files['bli'], bli_list)
-        save_feed(files['wld'], wld_list)
-        save_feed(files['wlu'], wlu_list)
-        save_feed(files['wli'], wli_list)
-        
-        ip = request.META.get('REMOTE_ADDR', 'unknown')
-        user_name = request.user.username if request.user.is_authenticated else 'unknown'
-        audit_feed_action(user_name, ip, len(bld_list), len(blu_list), len(bli_list), len(wld_list), len(wlu_list), len(wli_list))
-        
-        status_msg = "✅ Feeds publicados com sucesso."
+        # 1. Concurrency check
+        submitted_version = request.POST.get('feeds_version')
+        current_version = get_feeds_version(files)
+        if submitted_version and submitted_version != current_version:
+            concurrency_error = True
+            error_msg = "❌ Erro de Concorrência: As listas foram alteradas por outro usuário (ou em outra aba) desde que você abriu esta página. Para não perder suas alterações, copie seus textos, atualize a página e mescle os dados."
+            
+        # 2. Syntax Check
+        if not concurrency_error:
+            bld_list, bld_invalid = validate_and_normalize_feed(raw_bld, 'domain')
+            blu_list, blu_invalid = validate_and_normalize_feed(raw_blu, 'url')
+            bli_list, bli_invalid = validate_and_normalize_feed(raw_bli, 'ip')
+            wld_list, wld_invalid = validate_and_normalize_feed(raw_wld, 'domain')
+            wlu_list, wlu_invalid = validate_and_normalize_feed(raw_wlu, 'url')
+            wli_list, wli_invalid = validate_and_normalize_feed(raw_wli, 'ip')
+            
+            invalid_summary = []
+            if bld_invalid: invalid_summary.append(f"Blacklist Domínios: {', '.join(bld_invalid)}")
+            if blu_invalid: invalid_summary.append(f"Blacklist URLs: {', '.join(blu_invalid)}")
+            if bli_invalid: invalid_summary.append(f"Blacklist IPs: {', '.join(bli_invalid)}")
+            if wld_invalid: invalid_summary.append(f"Whitelist Domínios: {', '.join(wld_invalid)}")
+            if wlu_invalid: invalid_summary.append(f"Whitelist URLs: {', '.join(wlu_invalid)}")
+            if wli_invalid: invalid_summary.append(f"Whitelist IPs: {', '.join(wli_invalid)}")
+            
+            if invalid_summary:
+                syntax_error = True
+                error_msg = "❌ Erro de Sintaxe: Os seguintes itens possuem formato inválido e devem ser corrigidos antes de salvar:\n- " + "\n- ".join(invalid_summary)
+                
+        # 3. Save if no errors
+        if not concurrency_error and not syntax_error:
+            save_feed(files['bld'], bld_list)
+            save_feed(files['blu'], blu_list)
+            save_feed(files['bli'], bli_list)
+            save_feed(files['wld'], wld_list)
+            save_feed(files['wlu'], wlu_list)
+            save_feed(files['wli'], wli_list)
+            
+            ip = request.META.get('REMOTE_ADDR', 'unknown')
+            user_name = request.user.username if request.user.is_authenticated else 'unknown'
+            audit_feed_action(user_name, ip, len(bld_list), len(blu_list), len(bli_list), len(wld_list), len(wlu_list), len(wli_list))
+            
+            status_msg = "✅ Feeds publicados com sucesso."
 
-    # Load data for form
-    data = {k: load_feed(v) for k, v in files.items()}
+    # Load data for form: use submitted raw data if there was an error, else load from disk
+    if concurrency_error or syntax_error:
+        data = raw_submitted_data
+    else:
+        data = {k: load_feed(v) for k, v in files.items()}
+        
+    feeds_version = get_feeds_version(files)
     
     # Base URL for copying
     host = request.get_host()
@@ -769,8 +852,10 @@ def fortigate_feeds(request):
     context = {
         'data': data,
         'status_msg': status_msg,
+        'error_msg': error_msg,
         'last_update': get_last_update(files['bld']),
-        'base_url': base_url
+        'base_url': base_url,
+        'feeds_version': feeds_version
     }
     
     return render(request, 'dashboard/fortigate_feeds.html', context)
