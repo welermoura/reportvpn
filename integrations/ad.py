@@ -1,7 +1,8 @@
-from ldap3 import Server, Connection, ALL
-from .models import ActiveDirectoryConfig
+from ldap3 import Server, Connection, ALL, Tls
+import ssl
 import json
 import logging
+from .models import ActiveDirectoryConfig
 
 logger = logging.getLogger(__name__)
 
@@ -20,10 +21,22 @@ class ActiveDirectoryClient:
         if not self.config.server:
             return None
             
+        tls_config = None
+        if self.config.use_ssl and getattr(self.config, 'validate_certificate', False) and getattr(self.config, 'ca_cert_file', None):
+            try:
+                tls_config = Tls(
+                    validate=ssl.CERT_REQUIRED,
+                    ca_certs_file=self.config.ca_cert_file.path,
+                    ciphers='DEFAULT@SECLEVEL=1'
+                )
+            except Exception as e:
+                logger.error(f"Erro ao carregar certificado LDAPs: {e}")
+            
         server = Server(
             self.config.server, 
             port=self.config.port, 
             use_ssl=self.config.use_ssl,
+            tls=tls_config,
             get_info=ALL
         )
         # Se for necessário autenticação

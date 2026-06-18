@@ -27,10 +27,10 @@ class FortiAnalyzerConfigAdmin(SingletonModelAdmin):
 
 @admin.register(ActiveDirectoryConfig)
 class ActiveDirectoryConfigAdmin(SingletonModelAdmin):
-    list_display = ('server', 'port', 'use_ssl', 'base_dn')
+    list_display = ('server', 'port', 'use_ssl', 'validate_certificate', 'base_dn')
     fieldsets = (
         ('Servidor', {
-            'fields': ('server', 'port', 'use_ssl')
+            'fields': ('server', 'port', 'use_ssl', 'validate_certificate', 'ca_cert_file')
         }),
         ('Autenticação e Busca', {
             'fields': ('base_dn', 'bind_user', 'bind_password')

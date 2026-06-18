@@ -68,6 +68,8 @@ class ActiveDirectoryConfig(SingletonModel):
     base_dn = models.CharField(max_length=255, default="DC=example,DC=com")
     bind_user = models.CharField(max_length=255, help_text="Usuário para bind (ex: CN=BindUser,OU=ServiceAccounts,DC=example,DC=com)")
     bind_password = models.CharField(max_length=255, help_text="Senha do usuário de bind")
+    validate_certificate = models.BooleanField(default=False, verbose_name="Validar Certificado SSL/TLS", help_text="Exigir validação do certificado do AD (requer upload do certificado CA)")
+    ca_cert_file = models.FileField(upload_to='certs/', null=True, blank=True, verbose_name="Certificado CA (PEM/CRT)", help_text="Faça o upload do certificado raiz da CA (formato .pem, .crt ou .cer)")
     
     def __str__(self):
         return "Configuração do Active Directory"

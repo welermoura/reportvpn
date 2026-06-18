@@ -24,7 +24,19 @@ class ADLdap3Backend(ModelBackend):
             return None
 
         try:
-            server = ldap3.Server(config.server, port=config.port, use_ssl=config.use_ssl, get_info=ldap3.ALL)
+            import ssl
+            tls_config = None
+            if config.use_ssl and getattr(config, 'validate_certificate', False) and getattr(config, 'ca_cert_file', None):
+                try:
+                    tls_config = ldap3.Tls(
+                        validate=ssl.CERT_REQUIRED,
+                        ca_certs_file=config.ca_cert_file.path,
+                        ciphers='DEFAULT@SECLEVEL=1'
+                    )
+                except Exception as e:
+                    debug_logger.error(f"Erro ao carregar certificado LDAPs no backend: {e}")
+                    
+            server = ldap3.Server(config.server, port=config.port, use_ssl=config.use_ssl, tls=tls_config, get_info=ldap3.ALL)
             conn = ldap3.Connection(server, user=config.bind_user, password=config.bind_password, auto_bind=True)
             debug_logger.info("Bind successful with service account.")
         except Exception as e:
