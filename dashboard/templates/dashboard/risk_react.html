@@ -231,7 +231,15 @@
     }
 </style>
 
-<script type="text/babel" data-preset-options='{"react": {"runtime": "classic"}}'>
+<script>
+    Babel.registerPreset("classic-react", {
+        presets: [
+            [Babel.availablePresets["react"], { runtime: "classic" }],
+            [Babel.availablePresets["env"]]
+        ]
+    });
+</script>
+<script type="text/babel" data-presets="classic-react">
     {% verbatim %}
     window.RISK_DASHBOARD_VERSION = '1.0.1'; // Debug signal
     const { useState, useEffect, useCallback, useRef } = React;

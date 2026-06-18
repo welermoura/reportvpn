@@ -259,7 +259,15 @@
     }
 </style>
 
-<script type="text/babel" data-preset-options='{"react": {"runtime": "classic"}}'>
+<script>
+    Babel.registerPreset("classic-react", {
+        presets: [
+            [Babel.availablePresets["react"], { runtime: "classic" }],
+            [Babel.availablePresets["env"]]
+        ]
+    });
+</script>
+<script type="text/babel" data-presets="classic-react">
     {% verbatim %}
     const { useState, useEffect, useCallback, useRef } = React;
 
