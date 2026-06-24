@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
+from django.views.generic import RedirectView
 from dashboard import views
 from integrations import views as integration_views
 
@@ -10,6 +11,7 @@ urlpatterns = [
     path('setup/', include('setup.urls')),
     path('admin/utils/ad-groups/', integration_views.search_ad_groups, name='search_ad_groups'),
     path('admin/', admin.site.urls),
+    path('login/', RedirectView.as_view(url='/admin/login/', permanent=True)),
     path('', include('dashboard.urls')),
     path('security/', include('security_events.urls')),
     path('api/security-events/', include('security_events.api.urls')),  # API routes
