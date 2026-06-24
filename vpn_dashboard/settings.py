@@ -343,3 +343,18 @@ JAZZMIN_UI_CONFIG = {
         "success": "btn-success"
     }
 }
+
+# Proxy SSL header configuration
+# Permite que o Django reconheça HTTPS atrás de um proxy reverso
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Configurações de cookies seguros condicionais baseadas na variável HTTPS_ENABLED do .env
+# Se for True, exige conexões HTTPS para trafegar os cookies de sessão/CSRF.
+# Se for False, permite tráfego em HTTP comum.
+HTTPS_ENABLED = config('HTTPS_ENABLED', default=False, cast=bool)
+SESSION_COOKIE_SECURE = HTTPS_ENABLED
+CSRF_COOKIE_SECURE = HTTPS_ENABLED
+
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
+
