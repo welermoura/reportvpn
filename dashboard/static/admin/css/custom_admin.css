@@ -1,11 +1,564 @@
-/* Custom Admin CSS to fix small Permission/Filter boxes */
-.selector-available select,
-.selector-chosen select {
-    height: 700px !important;
-    min-height: 700px !important;
+/*
+ * Custom Admin CSS for Report VPN
+ * Harmonized with the Premium Dashboard (Dark Glassmorphism)
+ */
+
+:root {
+    --bg-color: #0d0e12;
+    --card-bg: rgba(30, 41, 59, 0.7);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --accent-color: #3b82f6;
+    --accent-glow: rgba(59, 130, 246, 0.4);
+    --success-color: #10b981;
+    --danger-color: #ef4444;
+    --warning-color: #f59e0b;
+    --border-color: rgba(255, 255, 255, 0.08);
+    --glass-bg: rgba(17, 19, 31, 0.85);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+    --font-main: 'Inter', sans-serif;
 }
 
-/* Take ABSOLUTE full page width */
+/* Global Background and Fonts */
+body {
+    background-color: var(--bg-color) !important;
+    color: var(--text-primary) !important;
+    font-family: var(--font-main) !important;
+    background-image:
+        radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 45%),
+        radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 45%) !important;
+    background-attachment: fixed !important;
+}
+
+/* AdminLTE Main Content Wrapper */
+.content-wrapper {
+    background-color: transparent !important;
+    color: var(--text-primary) !important;
+}
+
+.content-header {
+    padding: 25px 30px 10px !important;
+}
+
+.content {
+    padding: 10px 30px 30px !important;
+}
+
+/* Top Navbar / Header */
+.main-header.navbar,
+.main-header {
+    background: rgba(15, 23, 42, 0.75) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-bottom: var(--border-color) !important;
+    color: var(--text-primary) !important;
+    padding: 8px 20px !important;
+}
+
+.main-header a,
+.main-header .nav-link {
+    color: var(--text-secondary) !important;
+    font-weight: 500 !important;
+    transition: color 0.3s;
+}
+
+.main-header a:hover,
+.main-header .nav-link:hover {
+    color: #ffffff !important;
+}
+
+/* Sidebar Styling */
+.main-sidebar {
+    background-color: #090a0f !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.5) !important;
+}
+
+.brand-link {
+    background-color: #090a0f !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    color: var(--text-primary) !important;
+    font-weight: 700 !important;
+    font-size: 1.25rem !important;
+    padding: 15px 20px !important;
+}
+
+.brand-link .brand-image {
+    filter: drop-shadow(0 0 5px var(--accent-glow));
+}
+
+.sidebar {
+    background-color: #090a0f !important;
+    padding: 15px 10px !important;
+}
+
+/* Sidebar Menu Items */
+.nav-sidebar .nav-item {
+    margin-bottom: 3px !important;
+}
+
+.nav-sidebar .nav-link {
+    border-radius: 8px !important;
+    margin: 2px 4px !important;
+    padding: 10px 14px !important;
+    color: var(--text-secondary) !important;
+    font-weight: 500 !important;
+    font-size: 0.9rem !important;
+    transition: all 0.3s ease !important;
+}
+
+.nav-sidebar .nav-link i {
+    margin-right: 10px !important;
+    font-size: 1.1rem !important;
+    width: 20px;
+    text-align: center;
+}
+
+.nav-sidebar .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+    color: #ffffff !important;
+}
+
+/* Active Sidebar Menu Item */
+.nav-sidebar .nav-item > .nav-link.active,
+.sidebar-dark-primary .nav-sidebar > .nav-item > .nav-link.active {
+    background: var(--accent-color) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.3) !important;
+    font-weight: 600 !important;
+}
+
+.user-panel {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    padding-bottom: 15px !important;
+    margin-bottom: 15px !important;
+}
+
+.user-panel .info a {
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+}
+
+/* Breadcrumbs */
+.breadcrumb {
+    background: transparent !important;
+    padding: 0 !important;
+    margin-bottom: 20px !important;
+    font-size: 0.85rem !important;
+}
+
+.breadcrumb-item a {
+    color: var(--accent-color) !important;
+    text-decoration: none !important;
+}
+
+.breadcrumb-item a:hover {
+    color: #ffffff !important;
+}
+
+.breadcrumb-item.active {
+    color: var(--text-secondary) !important;
+}
+
+/* Cards / Boxes (Dashboard Apps) */
+.card,
+.box {
+    background: var(--card-bg) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: var(--glass-border) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
+    margin-bottom: 25px !important;
+    overflow: hidden !important;
+}
+
+.card-header {
+    background: rgba(15, 23, 42, 0.4) !important;
+    border-bottom: var(--border-color) !important;
+    padding: 15px 20px !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.card-title {
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    color: #ffffff !important;
+    margin: 0 !important;
+}
+
+.card-body {
+    padding: 20px !important;
+}
+
+/* Tables Styling */
+.table {
+    background-color: transparent !important;
+    width: 100% !important;
+    margin-bottom: 0 !important;
+}
+
+thead th,
+.table th {
+    background-color: rgba(0, 0, 0, 0.25) !important;
+    color: var(--text-secondary) !important;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.05) !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    font-size: 0.75rem !important;
+    letter-spacing: 0.5px !important;
+    padding: 14px 16px !important;
+}
+
+.table td {
+    border-top: none !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
+    padding: 14px 16px !important;
+    color: #d1d3e2 !important;
+    font-size: 0.875rem !important;
+    vertical-align: middle !important;
+}
+
+.table tbody tr {
+    transition: background-color 0.25s ease;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Model Links inside Cards */
+.table td a {
+    color: #a5c2f4 !important;
+    font-weight: 500 !important;
+    transition: color 0.2s ease;
+}
+
+.table td a:hover {
+    color: #ffffff !important;
+    text-decoration: none !important;
+}
+
+/* Premium Badges for Add/Change actions in model table */
+.btn-xs,
+.btn-group-xs > .btn,
+.table td .btn {
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+    font-size: 0.75rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.3px !important;
+    padding: 4px 12px !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    margin: 2px !important;
+    display: inline-flex !important;
+    align-items: center;
+    gap: 4px;
+}
+
+/* 'Adicionar' action badge */
+.btn-success {
+    background: rgba(16, 185, 129, 0.12) !important;
+    color: #10b981 !important;
+    border: 1px solid rgba(16, 185, 129, 0.3) !important;
+    box-shadow: none !important;
+}
+
+.btn-success:hover {
+    background: rgba(16, 185, 129, 0.25) !important;
+    color: #34d399 !important;
+    border-color: #10b981 !important;
+    transform: translateY(-1px) !important;
+}
+
+/* 'Alterar' action badge */
+.btn-info,
+.btn-primary {
+    background: rgba(59, 130, 246, 0.12) !important;
+    color: #3b82f6 !important;
+    border: 1px solid rgba(59, 130, 246, 0.3) !important;
+    box-shadow: none !important;
+}
+
+.btn-info:hover,
+.btn-primary:hover {
+    background: rgba(59, 130, 246, 0.25) !important;
+    color: #60a5fa !important;
+    border-color: #3b82f6 !important;
+    transform: translateY(-1px) !important;
+}
+
+/* Action Timeline / Ações Recentes */
+.timeline {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.timeline::before {
+    background: rgba(255, 255, 255, 0.08) !important;
+    left: 20px !important;
+}
+
+.timeline > div {
+    margin-right: 0 !important;
+    margin-bottom: 20px !important;
+}
+
+.timeline > div > .timeline-item {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 10px !important;
+    color: #d1d3e2 !important;
+    box-shadow: none !important;
+    padding: 14px !important;
+    margin-left: 45px !important;
+    margin-right: 0 !important;
+}
+
+.timeline > div > .timeline-item > .time {
+    color: var(--text-secondary) !important;
+    font-size: 0.72rem !important;
+}
+
+.timeline > div > .timeline-item > .timeline-header {
+    color: #ffffff !important;
+    border-bottom: none !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    padding: 0 0 6px 0 !important;
+}
+
+.timeline > div > .timeline-item > .timeline-body {
+    padding: 6px 0 0 0 !important;
+    font-size: 0.8rem !important;
+    color: var(--text-secondary) !important;
+    line-height: 1.4;
+}
+
+.timeline > div > .timeline-item > .timeline-header a {
+    color: #60a5fa !important;
+    font-weight: 600;
+}
+
+.timeline > div > .fa,
+.timeline > div > .fas,
+.timeline > div > .far {
+    background-color: var(--accent-color) !important;
+    color: #ffffff !important;
+    width: 28px !important;
+    height: 28px !important;
+    line-height: 28px !important;
+    font-size: 11px !important;
+    border-radius: 50% !important;
+    left: 6px !important;
+}
+
+/* Form Inputs, Labels & Fields */
+label {
+    color: var(--text-secondary) !important;
+    font-weight: 500 !important;
+    font-size: 0.875rem !important;
+}
+
+.form-control,
+.filter-input,
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="image"]):not([type="file"]),
+textarea,
+select,
+.custom-select,
+select.form-control,
+select.custom-select {
+    background: rgba(15, 23, 42, 0.6) !important;
+    background-color: rgba(15, 23, 42, 0.6) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: var(--text-primary) !important;
+    border-radius: 8px !important;
+    font-size: 0.875rem !important;
+    padding: 10px 14px !important;
+    height: auto !important;
+    transition: all 0.3s ease !important;
+    outline: none !important;
+}
+
+.form-control:focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="image"]):not([type="file"]):focus,
+textarea:focus,
+select:focus,
+.custom-select:focus,
+select.form-control:focus,
+select.custom-select:focus {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 2px var(--accent-glow) !important;
+    background-color: rgba(15, 23, 42, 0.8) !important;
+}
+
+/* Custom Select Dropdowns & Arrows */
+.custom-select,
+select.custom-select,
+select.form-control {
+    background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3E%3Cpath fill='%2360a5fa' d='M2 0L0 2h4zm0 5L0 3h4z'/%3E%3C/svg%3E") !important;
+    background-position: right .75rem center !important;
+    background-size: 8px 10px !important;
+    background-repeat: no-repeat !important;
+    padding-right: 2rem !important;
+}
+
+select option,
+.custom-select option,
+select.form-control option {
+    background-color: #0f172a !important;
+    color: var(--text-primary) !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* Standard Buttons for forms */
+.button,
+input[type="submit"],
+.btn-primary,
+.submit-row input {
+    background-color: var(--accent-color) !important;
+    border-color: var(--accent-color) !important;
+    color: #ffffff !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.3px !important;
+    padding: 10px 20px !important;
+    font-size: 0.875rem !important;
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.25) !important;
+    transition: all 0.2s ease !important;
+}
+
+.button:hover,
+input[type="submit"]:hover,
+.btn-primary:hover,
+.submit-row input:hover {
+    background-color: #2563eb !important;
+    border-color: #2563eb !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4) !important;
+}
+
+/* Changelist Filter Panel */
+#changelist-filter {
+    background: rgba(21, 25, 36, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
+    margin-left: 20px !important;
+}
+
+#changelist-filter h2 {
+    background: rgba(59, 130, 246, 0.1) !important;
+    color: #60a5fa !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    padding: 12px 18px !important;
+    border-radius: 12px 12px 0 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+#changelist-filter h3 {
+    color: #ffffff !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    margin: 15px 18px 5px !important;
+}
+
+#changelist-filter ul {
+    padding: 0 18px 15px !important;
+}
+
+#changelist-filter li {
+    margin-bottom: 5px !important;
+}
+
+#changelist-filter a {
+    color: var(--text-secondary) !important;
+    font-size: 0.8rem !important;
+    transition: color 0.2s ease;
+}
+
+#changelist-filter a:hover {
+    color: #ffffff !important;
+    text-decoration: none !important;
+}
+
+#changelist-filter li.selected {
+    border-left: 3px solid var(--accent-color) !important;
+    padding-left: 8px !important;
+    margin-left: -11px !important;
+}
+
+#changelist-filter li.selected a {
+    color: #60a5fa !important;
+    font-weight: 600 !important;
+}
+
+/* Pagination Row */
+.paginator {
+    background: rgba(0, 0, 0, 0.1) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+    padding: 15px !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.8rem !important;
+    border-radius: 0 0 12px 12px !important;
+}
+
+.paginator a {
+    color: var(--accent-color) !important;
+    padding: 4px 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 6px !important;
+    margin: 0 2px !important;
+    background: rgba(255, 255, 255, 0.01) !important;
+    transition: all 0.2s ease;
+}
+
+.paginator a:hover {
+    background: rgba(59, 130, 246, 0.15) !important;
+    border-color: var(--accent-color) !important;
+    color: #ffffff !important;
+    text-decoration: none !important;
+}
+
+.paginator .this-page {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    padding: 4px 10px !important;
+    background: rgba(59, 130, 246, 0.2) !important;
+    border: 1px solid rgba(59, 130, 246, 0.4) !important;
+    border-radius: 6px !important;
+}
+
+/* Stacked selectors (M2M controls) - Fixed permission/filter boxes */
+.selector-available select,
+.selector-chosen select {
+    height: 450px !important;
+    min-height: 450px !important;
+    background: rgba(0, 0, 0, 0.3) !important;
+    border-radius: 8px !important;
+}
+
 .selector {
     width: 100% !important;
     max-width: none !important;
@@ -16,33 +569,272 @@
     justify-content: space-between !important;
 }
 
-/* Boxes take exactly 48% each to avoid overflow */
 .selector .selector-available,
 .selector .selector-chosen {
-    width: 48% !important;
+    width: 47% !important;
     margin: 0 !important;
     float: none !important;
 }
 
 .selector .selector-filter {
     width: 100% !important;
+    background: rgba(0, 0, 0, 0.2) !important;
+    border-bottom: none !important;
+    padding: 8px !important;
+    border-radius: 8px 8px 0 0 !important;
 }
 
-/* Ensure the arrows in the middle don't get squashed */
 .selector ul.selector-chooser {
     padding: 0 1% !important;
     margin: 0 !important;
-    width: 4% !important;
+    width: 5% !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
 }
 
 .selector ul.selector-chooser li {
-    margin: 10px 0 !important;
+    margin: 12px 0 !important;
     list-style-type: none !important;
+}
+
+.selector ul.selector-chooser li a {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 6px !important;
+    width: 32px !important;
+    height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: var(--text-primary) !important;
+    transition: all 0.2s ease;
+}
+
+.selector ul.selector-chooser li a:hover {
+    background: var(--accent-color) !important;
+    color: white !important;
+    transform: scale(1.05);
 }
 
 .stacked {
     width: 100% !important;
+}
+
+/* Tabs & Tab panes in Change Forms */
+.nav-tabs {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    margin-bottom: 20px !important;
+}
+
+.nav-tabs .nav-link {
+    color: var(--text-secondary) !important;
+    border: none !important;
+    border-bottom: 2px solid transparent !important;
+    font-weight: 500 !important;
+    padding: 10px 20px !important;
+    transition: all 0.2s ease;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.02) !important;
+}
+
+.nav-tabs .nav-link.active,
+.nav-tabs .nav-item.show .nav-link {
+    background-color: transparent !important;
+    color: #60a5fa !important;
+    border-bottom: 2px solid var(--accent-color) !important;
+    font-weight: 600 !important;
+}
+
+/* Fix delete links in forms */
+.deletelink {
+    background: rgba(239, 68, 68, 0.1) !important;
+    color: var(--danger-color) !important;
+    border: 1px solid rgba(239, 68, 68, 0.25) !important;
+    padding: 8px 16px !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    font-size: 0.8rem !important;
+    display: inline-flex !important;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.deletelink:hover {
+    background: rgba(239, 68, 68, 0.2) !important;
+    border-color: var(--danger-color) !important;
+    color: #ff8787 !important;
+    text-decoration: none !important;
+}
+
+/* Hide legacy elements and unused widgets */
+button.theme-toggle {
+    display: none !important;
+}
+
+/* Main Footer Styling */
+.main-footer,
+footer.main-footer,
+#footer {
+    background: rgba(15, 23, 42, 0.75) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-top: var(--border-color) !important;
+    color: var(--text-secondary) !important;
+    padding: 15px 30px !important;
+    font-size: 0.85rem !important;
+    font-family: var(--font-main) !important;
+}
+
+.main-footer a,
+footer.main-footer a {
+    color: var(--accent-color) !important;
+    font-weight: 500 !important;
+    transition: color 0.3s ease;
+}
+
+.main-footer a:hover,
+footer.main-footer a:hover {
+    color: #ffffff !important;
+    text-decoration: none !important;
+}
+
+/* Top Navbar Search Buttons */
+.navbar .input-group .btn,
+.navbar .input-group-append .btn,
+.main-header .input-group-append .btn {
+    background: var(--accent-color) !important;
+    border-color: var(--accent-color) !important;
+    color: #ffffff !important;
+    border-radius: 0 8px 8px 0 !important;
+    padding: 6px 14px !important;
+    transition: all 0.2s ease !important;
+}
+
+.navbar .input-group .btn:hover,
+.navbar .input-group-append .btn:hover,
+.main-header .input-group-append .btn:hover {
+    background: #2563eb !important;
+    border-color: #2563eb !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 10px var(--accent-glow) !important;
+}
+
+.navbar .input-group .btn i,
+.navbar .input-group-append .btn i,
+.main-header .input-group-append .btn i {
+    color: #ffffff !important;
+}
+
+/* Select2 Dark Theme Harmonization */
+.select2-container--default .select2-selection--single,
+.select2-selection--single,
+.select2-container--default .select2-selection--multiple,
+.select2-selection--multiple {
+    background-color: rgba(15, 23, 42, 0.6) !important;
+    background: rgba(15, 23, 42, 0.6) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 8px !important;
+    height: auto !important;
+    min-height: calc(1.5em + .75rem + 2px) !important;
+    padding: 5px 10px !important;
+    transition: all 0.3s ease !important;
+}
+
+/* Rendered Text */
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: var(--text-primary) !important;
+    font-size: 0.875rem !important;
+    line-height: 1.5 !important;
+    padding-left: 4px !important;
+}
+
+/* Multiple Selection Tags */
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background-color: var(--accent-color) !important;
+    border: 1px solid var(--accent-color) !important;
+    color: #ffffff !important;
+    border-radius: 4px !important;
+    font-size: 0.8rem !important;
+    padding: 2px 8px !important;
+    margin-top: 3px !important;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    color: rgba(255, 255, 255, 0.7) !important;
+    margin-right: 5px !important;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+    color: #ffffff !important;
+}
+
+/* Arrow styling */
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 100% !important;
+    top: 0 !important;
+    right: 10px !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow b {
+    border-color: #60a5fa transparent transparent transparent !important;
+    border-width: 6px 4px 0 4px !important;
+}
+
+.select2-container--default .select2-selection--single[aria-expanded="true"] .select2-selection__arrow b {
+    border-color: transparent transparent #60a5fa transparent !important;
+    border-width: 0 4px 6px 4px !important;
+}
+
+/* Select2 Dropdown List */
+.select2-dropdown {
+    background-color: #0f172a !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+    z-index: 9999 !important;
+}
+
+/* Search inside dropdown */
+.select2-search--dropdown {
+    background-color: #0f172a !important;
+    padding: 8px !important;
+}
+
+.select2-container--default .select2-search--dropdown .select2-search__field {
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: var(--text-primary) !important;
+    border-radius: 6px !important;
+    padding: 6px 10px !important;
+    outline: none !important;
+}
+
+/* Options / Results */
+.select2-results__option {
+    padding: 8px 12px !important;
+    color: var(--text-secondary) !important;
+    font-size: 0.875rem !important;
+    background-color: transparent !important;
+}
+
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: var(--accent-color) !important;
+    color: #ffffff !important;
+}
+
+.select2-container--default .select2-results__option[aria-selected="true"] {
+    background-color: rgba(59, 130, 246, 0.15) !important;
+    color: #60a5fa !important;
+}
+
+/* Border focus states */
+.select2-container--default.select2-container--focus .select2-selection--single,
+.select2-container--default.select2-container--focus .select2-selection--multiple {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 2px var(--accent-glow) !important;
 }

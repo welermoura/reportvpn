@@ -210,12 +210,13 @@
 
     // --- Utils ---
     const formatBytes = (bytes, decimals = 2) => {
-        if (bytes === 0) return '0 Bytes';
+        if (!bytes || bytes === 0) return '0 Bytes';
         const k = 1024;
         const dm = decimals < 0 ? 0 : decimals;
         const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        const i = Math.floor(Math.log(Math.abs(bytes)) / Math.log(k));
+        const index = Math.min(Math.max(i, 0), sizes.length - 1);
+        return parseFloat((bytes / Math.pow(k, index)).toFixed(dm)) + ' ' + sizes[index];
     };
 
     // --- Components ---
@@ -245,13 +246,13 @@
                         borderColor: 'rgba(255, 255, 255, 0.1)',
                         borderWidth: 1,
                         callbacks: {
-                            label: (context) => `Volume: ${formatBytes(context.raw)}`
+                            label: (context) => `Bloqueios: ${context.raw.toLocaleString()}`
                         }
                     }
                 },
                 scales: {
                     y: { ticks: { color: '#858796', font: { family: 'Inter' } }, grid: { display: false } },
-                    x: { ticks: { color: '#858796', font: { family: 'Inter' }, callback: (v) => formatBytes(v, 0) }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    x: { ticks: { color: '#858796', font: { family: 'Inter' }, callback: (v) => v.toLocaleString() }, grid: { color: 'rgba(255,255,255,0.05)' } }
                 }
             };
 
@@ -262,8 +263,8 @@
                 data: {
                     labels: topCats.map(item => item.category),
                     datasets: [{
-                        label: 'Volume',
-                        data: topCats.map(item => item.volume),
+                        label: 'Bloqueios',
+                        data: topCats.map(item => item.count || 0),
                         backgroundColor: 'rgba(54, 185, 204, 0.8)',
                         borderRadius: 4,
                         barThickness: 15
@@ -288,8 +289,8 @@
                 data: {
                     labels: topSites.map(item => (item.url || '').substring(0, 30)),
                     datasets: [{
-                        label: 'Volume',
-                        data: topSites.map(item => item.volume),
+                        label: 'Bloqueios',
+                        data: topSites.map(item => item.count || 0),
                         backgroundColor: 'rgba(239, 68, 68, 0.8)',
                         borderRadius: 4,
                         barThickness: 15
@@ -314,8 +315,8 @@
                 data: {
                     labels: topUsers.map(item => item.username),
                     datasets: [{
-                        label: 'Volume',
-                        data: topUsers.map(item => item.volume),
+                        label: 'Bloqueios',
+                        data: topUsers.map(item => item.count || 0),
                         backgroundColor: 'rgba(78, 115, 223, 0.8)',
                         borderRadius: 4,
                         barThickness: 15
@@ -339,15 +340,15 @@
         return (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '20px', marginBottom: '30px' }}>
                 <div className="chart-box" style={{ height: '350px' }}>
-                    <div className="chart-title">Categorias Bloqueadas (Volume)</div>
+                    <div className="chart-title">Categorias Bloqueadas (Bloqueios)</div>
                     <div style={{ height: '290px' }}><canvas ref={catRef}></canvas></div>
                 </div>
                 <div className="chart-box" style={{ height: '350px' }}>
-                    <div className="chart-title">Top 10 Sites Bloqueados (Volume)</div>
+                    <div className="chart-title">Top 10 Sites Bloqueados (Bloqueios)</div>
                     <div style={{ height: '290px' }}><canvas ref={siteRef}></canvas></div>
                 </div>
                 <div className="chart-box" style={{ height: '350px' }}>
-                    <div className="chart-title">Top 10 Usuários Bloqueados (Volume)</div>
+                    <div className="chart-title">Top 10 Usuários Bloqueados (Bloqueios)</div>
                     <div style={{ height: '290px' }}><canvas ref={userRef}></canvas></div>
                 </div>
             </div>
@@ -485,6 +486,47 @@
         const [showCharts, setShowCharts] = useState(false);
         const [categoryOptions, setCategoryOptions] = useState([]);
         const [selectedEvent, setSelectedEvent] = useState(null);
+        const [sortField, setSortField] = useState('timestamp');
+        const [sortOrder, setSortOrder] = useState('desc');
+
+        const handleSort = (field) => {
+            if (sortField === field) {
+                setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+            } else {
+                setSortField(field);
+                setSortOrder('asc');
+            }
+            setPage(1);
+        };
+
+        const SortHeader = ({ field, label, style = {} }) => {
+            const isSorted = sortField === field;
+            return (
+                <th 
+                    onClick={() => handleSort(field)} 
+                    style={{ 
+                        cursor: 'pointer', 
+                        userSelect: 'none', 
+                        transition: 'all 0.2s ease',
+                        color: isSorted ? '#4e73df' : 'var(--text-secondary)',
+                        ...style 
+                    }}
+                >
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <span>{label}</span>
+                        {isSorted ? (
+                            sortOrder === 'asc' ? (
+                                <i className="fas fa-sort-up" style={{ color: '#4e73df' }}></i>
+                            ) : (
+                                <i className="fas fa-sort-down" style={{ color: '#4e73df' }}></i>
+                            )
+                        ) : (
+                            <i className="fas fa-sort" style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.8rem' }}></i>
+                        )}
+                    </div>
+                </th>
+            );
+        };
 
         const getTodayDate = () => {
             const today = new Date();
@@ -513,13 +555,15 @@
             fetchData();
             const interval = setInterval(() => fetchData(), 60000);
             return () => clearInterval(interval);
-        }, [page, filters]);
+        }, [page, filters, sortField, sortOrder]);
 
         const fetchData = async () => {
             setLoading(true);
             try {
+                const orderingParam = sortOrder === 'asc' ? sortField : `-${sortField}`;
                 const params = new URLSearchParams({
                     page: page,
+                    ordering: orderingParam,
                     ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== ''))
                 });
 
@@ -589,7 +633,7 @@
                 </div>
 
                 <div className="premium-card" style={{ marginBottom: '20px', padding: '10px 20px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }} onClick={() => setShowCharts(!showCharts)}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>📊 Visualizar Gráficos e Estatísticas de Volume</span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>📊 Visualizar Gráficos e Estatísticas de Bloqueios</span>
                     <span>{showCharts ? '▲' : '▼'}</span>
                 </div>
 
@@ -598,21 +642,21 @@
                         <StatsCharts stats={stats} onFilterChange={handleFilterChange} />
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '30px' }}>
                             <div className="premium-card" style={{ padding: '24px' }}>
-                                <div className="stat-label">Total Geral (Volume)</div>
+                                <div className="stat-label">Total Geral (Eventos)</div>
                                 <div className="stat-value-premium" style={{ color: '#36b9cc' }}>
-                                    {formatBytes(stats?.total_volume || 0)}
+                                    {(stats?.total_events || 0).toLocaleString()}
                                 </div>
                             </div>
                             <div className="premium-card" style={{ padding: '24px' }}>
-                                <div className="stat-label">Total Bloqueados (Volume)</div>
+                                <div className="stat-label">Total Bloqueados (Acessos)</div>
                                 <div className="stat-value-premium" style={{ color: '#dc3545' }}>
-                                    {formatBytes(stats?.blocked_volume || 0)}
+                                    {(stats?.blocked_events || 0).toLocaleString()}
                                 </div>
                             </div>
                             <div className="premium-card" style={{ padding: '24px' }}>
-                                <div className="stat-label">Total Liberados (Volume)</div>
+                                <div className="stat-label">Total Liberados (Acessos)</div>
                                 <div className="stat-value-premium" style={{ color: '#1cc88a' }}>
-                                    {formatBytes(stats?.allowed_volume || 0)}
+                                    {(stats?.allowed_events || 0).toLocaleString()}
                                 </div>
                             </div>
                         </div>
@@ -681,14 +725,14 @@
                         <table className="table-premium">
                             <thead>
                                 <tr>
-                                    <th>Data/Hora</th>
-                                    <th>Usuário</th>
-                                    <th>IP Origem</th>
-                                    <th>Categoria</th>
-                                    <th>URL / Site</th>
-                                    <th>Volume</th>
-                                    <th>Ação</th>
-                                    <th style={{ textAlign: 'center' }}>Detalhes</th>
+                                    <SortHeader field="timestamp" label="Data/Hora" />
+                                    <SortHeader field="username" label="Usuário" />
+                                    <SortHeader field="src_ip" label="IP Origem" />
+                                    <SortHeader field="category" label="Categoria" />
+                                    <SortHeader field="url" label="URL / Site" />
+                                    <SortHeader field="volume" label="Volume" />
+                                    <SortHeader field="action" label="Ação" />
+                                    <th style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>Detalhes</th>
                                 </tr>
                             </thead>
                             <tbody>

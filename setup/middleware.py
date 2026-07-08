@@ -15,6 +15,7 @@ class SetupRequiredMiddleware:
             '/setup/',
             '/static/',
             '/media/',
+            '/health/',
         ]
     
     def __call__(self, request):

@@ -1,410 +1,840 @@
-/* Admin Interface Custom Styling - VPN Analytics (Premium Glassmorphism) */
+/*
+ * Custom Admin CSS for Report VPN
+ * Harmonized with the Premium Dashboard (Dark Glassmorphism)
+ */
 
 :root {
-    --bg-color: #0f172a;
+    --bg-color: #0d0e12;
     --card-bg: rgba(30, 41, 59, 0.7);
     --text-primary: #f8fafc;
     --text-secondary: #94a3b8;
     --accent-color: #3b82f6;
-    --accent-glow: rgba(59, 130, 246, 0.5);
+    --accent-glow: rgba(59, 130, 246, 0.4);
     --success-color: #10b981;
     --danger-color: #ef4444;
     --warning-color: #f59e0b;
-    --border-color: rgba(255, 255, 255, 0.1);
-    --glass-bg: rgba(25, 28, 41, 0.8);
+    --border-color: rgba(255, 255, 255, 0.08);
+    --glass-bg: rgba(17, 19, 31, 0.85);
     --glass-border: 1px solid rgba(255, 255, 255, 0.08);
     --font-main: 'Inter', sans-serif;
 }
 
-/* Global Standard */
+/* Global Background and Fonts */
 body {
     background-color: var(--bg-color) !important;
     color: var(--text-primary) !important;
     font-family: var(--font-main) !important;
     background-image:
-        radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 40%) !important;
+        radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 45%),
+        radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 45%) !important;
+    background-attachment: fixed !important;
 }
 
-/* Typography */
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-    font-family: var(--font-main) !important;
-}
-
-/* Header */
-#header {
-    background: rgba(15, 23, 42, 0.7) !important;
-    backdrop-filter: blur(12px);
-    border-bottom: var(--glass-border) !important;
+/* AdminLTE Main Content Wrapper */
+.content-wrapper {
+    background-color: transparent !important;
     color: var(--text-primary) !important;
-    padding: 15px 40px !important;
+}
+
+.content-header {
+    padding: 25px 30px 10px !important;
+}
+
+.content {
+    padding: 10px 30px 30px !important;
+}
+
+/* Top Navbar / Header */
+.main-header.navbar,
+.main-header {
+    background: rgba(15, 23, 42, 0.75) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-bottom: var(--border-color) !important;
+    color: var(--text-primary) !important;
+    padding: 8px 20px !important;
+}
+
+.main-header a,
+.main-header .nav-link {
+    color: var(--text-secondary) !important;
+    font-weight: 500 !important;
+    transition: color 0.3s;
+}
+
+.main-header a:hover,
+.main-header .nav-link:hover {
+    color: #ffffff !important;
+}
+
+/* Sidebar Styling */
+.main-sidebar {
+    background-color: #090a0f !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.5) !important;
+}
+
+.brand-link {
+    background-color: #090a0f !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    color: var(--text-primary) !important;
+    font-weight: 700 !important;
+    font-size: 1.25rem !important;
+    padding: 15px 20px !important;
+}
+
+.brand-link .brand-image {
+    filter: drop-shadow(0 0 5px var(--accent-glow));
+}
+
+.sidebar {
+    background-color: #090a0f !important;
+    padding: 15px 10px !important;
+}
+
+/* Sidebar Menu Items */
+.nav-sidebar .nav-item {
+    margin-bottom: 3px !important;
+}
+
+.nav-sidebar .nav-link {
+    border-radius: 8px !important;
+    margin: 2px 4px !important;
+    padding: 10px 14px !important;
+    color: var(--text-secondary) !important;
+    font-weight: 500 !important;
+    font-size: 0.9rem !important;
+    transition: all 0.3s ease !important;
+}
+
+.nav-sidebar .nav-link i {
+    margin-right: 10px !important;
+    font-size: 1.1rem !important;
+    width: 20px;
+    text-align: center;
+}
+
+.nav-sidebar .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+    color: #ffffff !important;
+}
+
+/* Active Sidebar Menu Item */
+.nav-sidebar .nav-item > .nav-link.active,
+.sidebar-dark-primary .nav-sidebar > .nav-item > .nav-link.active {
+    background: var(--accent-color) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.3) !important;
+    font-weight: 600 !important;
+}
+
+.user-panel {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    padding-bottom: 15px !important;
+    margin-bottom: 15px !important;
+}
+
+.user-panel .info a {
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+}
+
+/* Breadcrumbs */
+.breadcrumb {
+    background: transparent !important;
+    padding: 0 !important;
+    margin-bottom: 20px !important;
+    font-size: 0.85rem !important;
+}
+
+.breadcrumb-item a {
+    color: var(--accent-color) !important;
+    text-decoration: none !important;
+}
+
+.breadcrumb-item a:hover {
+    color: #ffffff !important;
+}
+
+.breadcrumb-item.active {
+    color: var(--text-secondary) !important;
+}
+
+/* Cards / Boxes (Dashboard Apps) */
+.card,
+.box {
+    background: var(--card-bg) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: var(--glass-border) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
+    margin-bottom: 25px !important;
+    overflow: hidden !important;
+}
+
+.card-header {
+    background: rgba(15, 23, 42, 0.4) !important;
+    border-bottom: var(--border-color) !important;
+    padding: 15px 20px !important;
     display: flex;
     align-items: center;
     justify-content: space-between;
 }
 
-#branding h1 {
-    font-weight: 700 !important;
-    font-size: 1.4rem !important;
-    background: linear-gradient(to right, #3b82f6, #8b5cf6);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+.card-title {
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    color: #ffffff !important;
     margin: 0 !important;
 }
 
-/* Hide Theme Toggle (Moon/Sun) */
-button.theme-toggle {
-    display: none !important;
+.card-body {
+    padding: 20px !important;
 }
 
-#user-tools {
-    font-weight: 500 !important;
-    font-size: 0.9rem !important;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-#user-tools a {
-    color: var(--text-secondary) !important;
-    transition: color 0.3s;
-}
-
-#user-tools a:hover {
-    color: var(--accent-color) !important;
-}
-
-/* Breadcrumbs */
-div.breadcrumbs {
-    background: transparent !important;
-    color: var(--text-secondary) !important;
-    padding: 15px 40px !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-    font-size: 0.85rem !important;
-}
-
-div.breadcrumbs a {
-    color: var(--accent-color) !important;
-    text-decoration: none;
-}
-
-div.breadcrumbs a:hover {
-    color: #fff !important;
-}
-
-/* Content Container */
-#content {
-    background: transparent !important;
-    padding: 30px 40px !important;
-    max-width: 1600px !important;
-    margin: 0 auto !important;
-}
-
-/* Modules & Cards */
-.module,
-.card {
-    background: var(--card-bg) !important;
-    backdrop-filter: blur(16px);
-    border: var(--glass-border) !important;
-    border-radius: 12px !important;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
-    margin-bottom: 25px !important;
-    overflow: hidden !important;
-}
-
-.module h2,
-.module caption,
-.inline-group h2 {
-    background: rgba(15, 23, 42, 0.4) !important;
-    color: var(--text-primary) !important;
-    border-bottom: var(--glass-border) !important;
-    font-size: 1rem !important;
-    padding: 12px 20px !important;
-    font-weight: 600 !important;
-    text-transform: none !important;
-    letter-spacing: normal !important;
-}
-
-/* Tables */
-table {
+/* Tables Styling */
+.table {
+    background-color: transparent !important;
     width: 100% !important;
-    background: transparent !important;
-    border-collapse: collapse !important;
+    margin-bottom: 0 !important;
 }
 
-thead th {
-    background: rgba(0, 0, 0, 0.2) !important;
+thead th,
+.table th {
+    background-color: rgba(0, 0, 0, 0.25) !important;
     color: var(--text-secondary) !important;
-    border-bottom: var(--glass-border) !important;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.05) !important;
+    font-weight: 600 !important;
     text-transform: uppercase !important;
     font-size: 0.75rem !important;
-    padding: 12px 15px !important;
-    font-weight: 600 !important;
+    letter-spacing: 0.5px !important;
+    padding: 14px 16px !important;
 }
 
-tbody td,
-tbody th {
-    background: transparent !important;
+.table td {
+    border-top: none !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
-    padding: 12px 15px !important;
+    padding: 14px 16px !important;
     color: #d1d3e2 !important;
-    font-size: 0.9rem !important;
+    font-size: 0.875rem !important;
     vertical-align: middle !important;
 }
 
-tbody tr:hover {
-    background-color: rgba(255, 255, 255, 0.03) !important;
+.table tbody tr {
+    transition: background-color 0.25s ease;
 }
 
-/* Links inside tables */
-tbody td a,
-tbody th a {
-    color: var(--accent-color) !important;
+.table tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Model Links inside Cards */
+.table td a {
+    color: #a5c2f4 !important;
     font-weight: 500 !important;
+    transition: color 0.2s ease;
 }
 
-/* Buttons */
-.button,
-input[type="submit"],
-input[type="button"],
-.submit-row input,
-button {
-    background: var(--accent-color) !important;
-    color: white !important;
-    border: none !important;
+.table td a:hover {
+    color: #ffffff !important;
+    text-decoration: none !important;
+}
+
+/* Premium Badges for Add/Change actions in model table */
+.btn-xs,
+.btn-group-xs > .btn,
+.table td .btn {
     border-radius: 6px !important;
-    padding: 8px 16px !important;
+    font-weight: 600 !important;
+    font-size: 0.75rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.3px !important;
+    padding: 4px 12px !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    margin: 2px !important;
+    display: inline-flex !important;
+    align-items: center;
+    gap: 4px;
+}
+
+/* 'Adicionar' action badge */
+.btn-success {
+    background: rgba(16, 185, 129, 0.12) !important;
+    color: #10b981 !important;
+    border: 1px solid rgba(16, 185, 129, 0.3) !important;
+    box-shadow: none !important;
+}
+
+.btn-success:hover {
+    background: rgba(16, 185, 129, 0.25) !important;
+    color: #34d399 !important;
+    border-color: #10b981 !important;
+    transform: translateY(-1px) !important;
+}
+
+/* 'Alterar' action badge */
+.btn-info,
+.btn-primary {
+    background: rgba(59, 130, 246, 0.12) !important;
+    color: #3b82f6 !important;
+    border: 1px solid rgba(59, 130, 246, 0.3) !important;
+    box-shadow: none !important;
+}
+
+.btn-info:hover,
+.btn-primary:hover {
+    background: rgba(59, 130, 246, 0.25) !important;
+    color: #60a5fa !important;
+    border-color: #3b82f6 !important;
+    transform: translateY(-1px) !important;
+}
+
+/* Action Timeline / Ações Recentes */
+.timeline {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.timeline::before {
+    background: rgba(255, 255, 255, 0.08) !important;
+    left: 20px !important;
+}
+
+.timeline > div {
+    margin-right: 0 !important;
+    margin-bottom: 20px !important;
+}
+
+.timeline > div > .timeline-item {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 10px !important;
+    color: #d1d3e2 !important;
+    box-shadow: none !important;
+    padding: 14px !important;
+    margin-left: 45px !important;
+    margin-right: 0 !important;
+}
+
+.timeline > div > .timeline-item > .time {
+    color: var(--text-secondary) !important;
+    font-size: 0.72rem !important;
+}
+
+.timeline > div > .timeline-item > .timeline-header {
+    color: #ffffff !important;
+    border-bottom: none !important;
     font-size: 0.85rem !important;
     font-weight: 600 !important;
-    text-transform: uppercase !important;
-    cursor: pointer !important;
-    transition: all 0.3s !important;
-    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3) !important;
+    padding: 0 0 6px 0 !important;
 }
 
-.button:hover,
-input[type="submit"]:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 6px 15px rgba(59, 130, 246, 0.4) !important;
+.timeline > div > .timeline-item > .timeline-body {
+    padding: 6px 0 0 0 !important;
+    font-size: 0.8rem !important;
+    color: var(--text-secondary) !important;
+    line-height: 1.4;
 }
 
-.deletelink {
-    background: transparent !important;
-    color: var(--danger-color) !important;
-    box-shadow: none !important;
-    padding: 8px 16px !important;
+.timeline > div > .timeline-item > .timeline-header a {
+    color: #60a5fa !important;
+    font-weight: 600;
 }
 
-.deletelink:hover {
-    background: rgba(239, 68, 68, 0.1) !important;
-    transform: none !important;
-    color: #ff6b6b !important;
+.timeline > div > .fa,
+.timeline > div > .fas,
+.timeline > div > .far {
+    background-color: var(--accent-color) !important;
+    color: #ffffff !important;
+    width: 28px !important;
+    height: 28px !important;
+    line-height: 28px !important;
+    font-size: 11px !important;
+    border-radius: 50% !important;
+    left: 6px !important;
 }
 
-/* Form Inputs */
-input[type="text"],
-input[type="password"],
-input[type="email"],
+/* Form Inputs, Labels & Fields */
+label {
+    color: var(--text-secondary) !important;
+    font-weight: 500 !important;
+    font-size: 0.875rem !important;
+}
+
+.form-control,
+.filter-input,
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="image"]):not([type="file"]),
 textarea,
-.vTextField {
-    background: rgba(0, 0, 0, 0.2) !important;
+select,
+.custom-select,
+select.form-control,
+select.custom-select {
+    background: rgba(15, 23, 42, 0.6) !important;
+    background-color: rgba(15, 23, 42, 0.6) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     color: var(--text-primary) !important;
-    padding: 8px 12px !important;
-    border-radius: 6px !important;
-    font-family: var(--font-main) !important;
-    font-size: 0.9rem !important;
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-    border-color: var(--accent-color) !important;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+    border-radius: 8px !important;
+    font-size: 0.875rem !important;
+    padding: 10px 14px !important;
+    height: auto !important;
+    transition: all 0.3s ease !important;
     outline: none !important;
 }
 
-select {
-    appearance: none !important;
-    -webkit-appearance: none !important;
-    -moz-appearance: none !important;
-    background-color: rgba(0, 0, 0, 0.2) !important;
-    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E") !important;
+.form-control:focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="image"]):not([type="file"]):focus,
+textarea:focus,
+select:focus,
+.custom-select:focus,
+select.form-control:focus,
+select.custom-select:focus {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 2px var(--accent-glow) !important;
+    background-color: rgba(15, 23, 42, 0.8) !important;
+}
+
+/* Custom Select Dropdowns & Arrows */
+.custom-select,
+select.custom-select,
+select.form-control {
+    background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3E%3Cpath fill='%2360a5fa' d='M2 0L0 2h4zm0 5L0 3h4z'/%3E%3C/svg%3E") !important;
+    background-position: right .75rem center !important;
+    background-size: 8px 10px !important;
     background-repeat: no-repeat !important;
-    background-position: right 12px center !important;
-    background-size: 10px auto !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: var(--text-primary) !important;
-    padding: 10px 30px 10px 12px !important;
-    border-radius: 6px !important;
-    font-family: var(--font-main) !important;
-    font-size: 0.9rem !important;
-    line-height: 1.5 !important;
-    cursor: pointer !important;
-    min-height: 44px !important;
-    height: 44px !important;
+    padding-right: 2rem !important;
 }
 
-select::-ms-expand {
-    display: none !important;
-}
-
-select option {
-    background-color: #1e293b !important;
+select option,
+.custom-select option,
+select.form-control option {
+    background-color: #0f172a !important;
     color: var(--text-primary) !important;
 }
 
-/* Dashboard Actions List (Recent/My Actions) */
-#content-related {
-    background: transparent !important;
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
 }
 
-.module ul.actionlist {
-    margin-left: 0 !important;
-    color: var(--text-primary) !important;
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
 }
 
-.module ul.actionlist li {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-    padding: 8px 0 !important;
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
 }
 
-/* Messages */
-.messagelist li {
-    border-radius: 6px !important;
-    margin-bottom: 10px !important;
-    background: rgba(30, 41, 59, 0.9) !important;
-    border-left: 4px solid !important;
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
 }
 
-.messagelist li.success {
-    border-color: var(--success-color) !important;
-    color: var(--success-color) !important;
+/* Standard Buttons for forms */
+.button,
+input[type="submit"],
+.btn-primary,
+.submit-row input {
+    background-color: var(--accent-color) !important;
+    border-color: var(--accent-color) !important;
+    color: #ffffff !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.3px !important;
+    padding: 10px 20px !important;
+    font-size: 0.875rem !important;
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.25) !important;
+    transition: all 0.2s ease !important;
 }
 
-.messagelist li.warning {
-    border-color: var(--warning-color) !important;
-    color: var(--warning-color) !important;
+.button:hover,
+input[type="submit"]:hover,
+.btn-primary:hover,
+.submit-row input:hover {
+    background-color: #2563eb !important;
+    border-color: #2563eb !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4) !important;
 }
 
-.messagelist li.error {
-    border-color: var(--danger-color) !important;
-    color: var(--danger-color) !important;
-}
-
-/* Filter Sidebar */
+/* Changelist Filter Panel */
 #changelist-filter {
-    background: var(--card-bg) !important;
-    border-left: none !important;
+    background: rgba(21, 25, 36, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
     border-radius: 12px !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3) !important;
     margin-left: 20px !important;
 }
 
 #changelist-filter h2 {
     background: rgba(59, 130, 246, 0.1) !important;
-    color: var(--accent-color) !important;
+    color: #60a5fa !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    padding: 12px 18px !important;
     border-radius: 12px 12px 0 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+#changelist-filter h3 {
+    color: #ffffff !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    margin: 15px 18px 5px !important;
+}
+
+#changelist-filter ul {
+    padding: 0 18px 15px !important;
+}
+
+#changelist-filter li {
+    margin-bottom: 5px !important;
+}
+
+#changelist-filter a {
+    color: var(--text-secondary) !important;
+    font-size: 0.8rem !important;
+    transition: color 0.2s ease;
+}
+
+#changelist-filter a:hover {
+    color: #ffffff !important;
+    text-decoration: none !important;
+}
+
+#changelist-filter li.selected {
+    border-left: 3px solid var(--accent-color) !important;
+    padding-left: 8px !important;
+    margin-left: -11px !important;
 }
 
 #changelist-filter li.selected a {
-    color: var(--accent-color) !important;
-    border-left: 3px solid var(--accent-color) !important;
-    padding-left: 10px !important;
+    color: #60a5fa !important;
+    font-weight: 600 !important;
 }
 
-/* Pagination */
+/* Pagination Row */
 .paginator {
+    background: rgba(0, 0, 0, 0.1) !important;
     border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-    background: transparent !important;
+    padding: 15px !important;
     color: var(--text-secondary) !important;
+    font-size: 0.8rem !important;
+    border-radius: 0 0 12px 12px !important;
 }
 
-/* Calendar & Clock Widgets (Dark Mode Fixes) */
-.calendarbox,
-.clockbox {
-    background: #1e293b !important;
-    border: 1: 1px solid rgba(255, 255, 255, 0.1) !important;
+.paginator a {
+    color: var(--accent-color) !important;
+    padding: 4px 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 6px !important;
+    margin: 0 2px !important;
+    background: rgba(255, 255, 255, 0.01) !important;
+    transition: all 0.2s ease;
+}
+
+.paginator a:hover {
+    background: rgba(59, 130, 246, 0.15) !important;
+    border-color: var(--accent-color) !important;
+    color: #ffffff !important;
+    text-decoration: none !important;
+}
+
+.paginator .this-page {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    padding: 4px 10px !important;
+    background: rgba(59, 130, 246, 0.2) !important;
+    border: 1px solid rgba(59, 130, 246, 0.4) !important;
+    border-radius: 6px !important;
+}
+
+/* Stacked selectors (M2M controls) - Fixed permission/filter boxes */
+.selector-available select,
+.selector-chosen select {
+    height: 450px !important;
+    min-height: 450px !important;
+    background: rgba(0, 0, 0, 0.3) !important;
     border-radius: 8px !important;
+}
+
+.selector {
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+}
+
+.selector .selector-available,
+.selector .selector-chosen {
+    width: 47% !important;
+    margin: 0 !important;
+    float: none !important;
+}
+
+.selector .selector-filter {
+    width: 100% !important;
+    background: rgba(0, 0, 0, 0.2) !important;
+    border-bottom: none !important;
+    padding: 8px !important;
+    border-radius: 8px 8px 0 0 !important;
+}
+
+.selector ul.selector-chooser {
+    padding: 0 1% !important;
+    margin: 0 !important;
+    width: 5% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+}
+
+.selector ul.selector-chooser li {
+    margin: 12px 0 !important;
+    list-style-type: none !important;
+}
+
+.selector ul.selector-chooser li a {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 6px !important;
+    width: 32px !important;
+    height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     color: var(--text-primary) !important;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
-    padding: 10px !important;
-    min-width: 250px !important;
-    /* Ensure enough width */
-    width: auto !important;
+    transition: all 0.2s ease;
+}
+
+.selector ul.selector-chooser li a:hover {
+    background: var(--accent-color) !important;
+    color: white !important;
+    transform: scale(1.05);
+}
+
+.stacked {
+    width: 100% !important;
+}
+
+/* Tabs & Tab panes in Change Forms */
+.nav-tabs {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    margin-bottom: 20px !important;
+}
+
+.nav-tabs .nav-link {
+    color: var(--text-secondary) !important;
+    border: none !important;
+    border-bottom: 2px solid transparent !important;
+    font-weight: 500 !important;
+    padding: 10px 20px !important;
+    transition: all 0.2s ease;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.02) !important;
+}
+
+.nav-tabs .nav-link.active,
+.nav-tabs .nav-item.show .nav-link {
+    background-color: transparent !important;
+    color: #60a5fa !important;
+    border-bottom: 2px solid var(--accent-color) !important;
+    font-weight: 600 !important;
+}
+
+/* Fix delete links in forms */
+.deletelink {
+    background: rgba(239, 68, 68, 0.1) !important;
+    color: var(--danger-color) !important;
+    border: 1px solid rgba(239, 68, 68, 0.25) !important;
+    padding: 8px 16px !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    font-size: 0.8rem !important;
+    display: inline-flex !important;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.deletelink:hover {
+    background: rgba(239, 68, 68, 0.2) !important;
+    border-color: var(--danger-color) !important;
+    color: #ff8787 !important;
+    text-decoration: none !important;
+}
+
+/* Hide legacy elements and unused widgets */
+button.theme-toggle {
+    display: none !important;
+}
+
+/* Main Footer Styling */
+.main-footer,
+footer.main-footer,
+#footer {
+    background: rgba(15, 23, 42, 0.75) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-top: var(--border-color) !important;
+    color: var(--text-secondary) !important;
+    padding: 15px 30px !important;
+    font-size: 0.85rem !important;
+    font-family: var(--font-main) !important;
+}
+
+.main-footer a,
+footer.main-footer a {
+    color: var(--accent-color) !important;
+    font-weight: 500 !important;
+    transition: color 0.3s ease;
+}
+
+.main-footer a:hover,
+footer.main-footer a:hover {
+    color: #ffffff !important;
+    text-decoration: none !important;
+}
+
+/* Top Navbar Search Buttons */
+.navbar .input-group .btn,
+.navbar .input-group-append .btn,
+.main-header .input-group-append .btn {
+    background: var(--accent-color) !important;
+    border-color: var(--accent-color) !important;
+    color: #ffffff !important;
+    border-radius: 0 8px 8px 0 !important;
+    padding: 6px 14px !important;
+    transition: all 0.2s ease !important;
+}
+
+.navbar .input-group .btn:hover,
+.navbar .input-group-append .btn:hover,
+.main-header .input-group-append .btn:hover {
+    background: #2563eb !important;
+    border-color: #2563eb !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 10px var(--accent-glow) !important;
+}
+
+.navbar .input-group .btn i,
+.navbar .input-group-append .btn i,
+.main-header .input-group-append .btn i {
+    color: #ffffff !important;
+}
+
+/* Select2 Dark Theme Harmonization */
+.select2-container--default .select2-selection--single,
+.select2-selection--single,
+.select2-container--default .select2-selection--multiple,
+.select2-selection--multiple {
+    background-color: rgba(15, 23, 42, 0.6) !important;
+    background: rgba(15, 23, 42, 0.6) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 8px !important;
+    height: auto !important;
+    min-height: calc(1.5em + .75rem + 2px) !important;
+    padding: 5px 10px !important;
+    transition: all 0.3s ease !important;
+}
+
+/* Rendered Text */
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: var(--text-primary) !important;
+    font-size: 0.875rem !important;
+    line-height: 1.5 !important;
+    padding-left: 4px !important;
+}
+
+/* Multiple Selection Tags */
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background-color: var(--accent-color) !important;
+    border: 1px solid var(--accent-color) !important;
+    color: #ffffff !important;
+    border-radius: 4px !important;
+    font-size: 0.8rem !important;
+    padding: 2px 8px !important;
+    margin-top: 3px !important;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    color: rgba(255, 255, 255, 0.7) !important;
+    margin-right: 5px !important;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+    color: #ffffff !important;
+}
+
+/* Arrow styling */
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 100% !important;
+    top: 0 !important;
+    right: 10px !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow b {
+    border-color: #60a5fa transparent transparent transparent !important;
+    border-width: 6px 4px 0 4px !important;
+}
+
+.select2-container--default .select2-selection--single[aria-expanded="true"] .select2-selection__arrow b {
+    border-color: transparent transparent #60a5fa transparent !important;
+    border-width: 0 4px 6px 4px !important;
+}
+
+/* Select2 Dropdown List */
+.select2-dropdown {
+    background-color: #0f172a !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
     z-index: 9999 !important;
 }
 
-.calendar table {
-    background: transparent !important;
-    width: 100% !important;
-    /* Fill container */
+/* Search inside dropdown */
+.select2-search--dropdown {
+    background-color: #0f172a !important;
+    padding: 8px !important;
 }
 
-.calendar caption,
-.calendarbox h2 {
-    background: transparent !important;
+.select2-container--default .select2-search--dropdown .select2-search__field {
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
     color: var(--text-primary) !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 6px !important;
+    padding: 6px 10px !important;
+    outline: none !important;
 }
 
-.calendar th {
-    background: transparent !important;
+/* Options / Results */
+.select2-results__option {
+    padding: 8px 12px !important;
     color: var(--text-secondary) !important;
+    font-size: 0.875rem !important;
+    background-color: transparent !important;
 }
 
-.calendar td {
-    background: transparent !important;
-    color: var(--text-primary) !important;
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: var(--accent-color) !important;
+    color: #ffffff !important;
 }
 
-.calendar td a {
-    color: var(--text-primary) !important;
-    font-weight: normal !important;
+.select2-container--default .select2-results__option[aria-selected="true"] {
+    background-color: rgba(59, 130, 246, 0.15) !important;
+    color: #60a5fa !important;
 }
 
-.calendar td.selected a {
-    background: var(--accent-color) !important;
-    color: white !important;
-}
-
-.calendar td.noday {
-    background: transparent !important;
-}
-
-.calendar-shortcuts {
-    background: transparent !important;
-    color: var(--text-secondary) !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-}
-
-.calendar-shortcuts a {
-    color: var(--accent-color) !important;
-}
-
-.clockbox h2 {
-    background: transparent !important;
-    color: var(--text-primary) !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-}
-
-.clockbox a {
-    color: var(--accent-color) !important;
-}
-
-/* Help text */
-.help {
-    color: #64748b !important;
-    font-size: 0.8rem !important;
-}
-
-/* Footer (if exists) */
-#footer {
-    display: none !important;
+/* Border focus states */
+.select2-container--default.select2-container--focus .select2-selection--single,
+.select2-container--default.select2-container--focus .select2-selection--multiple {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 2px var(--accent-glow) !important;
 }

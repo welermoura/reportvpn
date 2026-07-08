@@ -1,0 +1,268 @@
+{% extends 'dashboard/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard de Anomalias - Report VPN{% endblock %}
+
+{% block content %}
+<div id="anomaly-dashboard-root"></div>
+
+<script src="{% static 'dashboard/js/react.production.min.js' %}"></script>
+<script src="{% static 'dashboard/js/react-dom.production.min.js' %}"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+    :root {
+        --glass-bg: rgba(25, 28, 41, 0.6);
+        --glass-border: rgba(255, 255, 255, 0.08);
+        --accent-blue: #4e73df;
+        --accent-green: #1cc88a;
+        --accent-red: #e74a3b;
+        --accent-yellow: #f6c23e;
+        --accent-orange: #fd7e14;
+        --text-secondary: #858796;
+    }
+    body { font-family: 'Inter', sans-serif; }
+    .premium-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(15px);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px 0 rgba(0,0,0,0.4);
+    }
+    .stat-value-premium { font-size: 1.8rem; font-weight: 700; color: white; }
+    .stat-label { color: var(--text-secondary); font-size: 0.85rem; font-weight: 500; margin-bottom: 8px; }
+    .table-premium { width: 100%; font-size: 14px; color: rgb(248,250,252); border-collapse: collapse; }
+    .table-premium th {
+        background: rgba(255,255,255,0.05); color: var(--text-secondary);
+        font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+        letter-spacing: 0.05em; padding: 12px 16px; text-align: left;
+        border-bottom: 1px solid var(--glass-border);
+    }
+    .table-premium td { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+    .table-premium tr:hover td { background: rgba(255,255,255,0.03); }
+    .badge {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600;
+    }
+    .badge-red    { background: rgba(231,74,59,0.18);   color: #e74a3b; border: 1px solid rgba(231,74,59,0.3); }
+    .badge-orange { background: rgba(253,126,20,0.18);  color: #fd7e14; border: 1px solid rgba(253,126,20,0.3); }
+    .badge-yellow { background: rgba(246,194,62,0.18);  color: #f6c23e; border: 1px solid rgba(246,194,62,0.3); }
+    .badge-green  { background: rgba(28,200,138,0.18);  color: #1cc88a; border: 1px solid rgba(28,200,138,0.3); }
+    .badge-gray   { background: rgba(133,135,150,0.18); color: #858796; border: 1px solid rgba(133,135,150,0.3); }
+    .signal-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; }
+    .signal-dot-red    { background: #e74a3b; box-shadow: 0 0 6px rgba(231,74,59,0.6); }
+    .signal-dot-orange { background: #fd7e14; box-shadow: 0 0 6px rgba(253,126,20,0.6); }
+    .signal-dot-gray   { background: #858796; }
+    .filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
+    .filter-select {
+        background: rgba(255,255,255,0.07); border: 1px solid var(--glass-border);
+        color: white; border-radius: 8px; padding: 8px 12px; font-size: 0.85rem; outline: none;
+    }
+    .filter-select option { background: #1a1d2e; }
+    .search-input {
+        background: rgba(255,255,255,0.07); border: 1px solid var(--glass-border);
+        color: white; border-radius: 8px; padding: 8px 14px; font-size: 0.85rem; outline: none; min-width: 200px;
+    }
+    .search-input::placeholder { color: var(--text-secondary); }
+    .empty-state { text-align: center; padding: 48px 0; color: var(--text-secondary); }
+    .pulse { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+    .btn-refresh {
+        background: rgba(78,115,223,0.2); border: 1px solid rgba(78,115,223,0.4);
+        color: #4e73df; border-radius: 8px; padding: 8px 16px; cursor: pointer; font-size: 0.85rem;
+    }
+    .btn-refresh:hover { background: rgba(78,115,223,0.35); }
+</style>
+
+<script>
+(function() {
+    var e = React.createElement;
+    var API_URL = "{% url 'dashboard:anomaly_stats_api' %}";
+
+    var state = {
+        data: null,
+        loading: true,
+        days: 7,
+        search: '',
+        filterSignal: 'all'
+    };
+
+    var rootEl = document.getElementById('anomaly-dashboard-root');
+
+    function setState(patch) {
+        Object.assign(state, patch);
+        render();
+    }
+
+    function fetchData() {
+        setState({ loading: true });
+        fetch(API_URL + '?days=' + state.days)
+            .then(function(r) { return r.json(); })
+            .then(function(d) { setState({ data: d, loading: false }); })
+            .catch(function() { setState({ loading: false }); });
+    }
+
+    function formatDate(iso) {
+        if (!iso) return '—';
+        var d = new Date(iso);
+        return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function riskColor(level) {
+        return level === 'Critical' ? 'badge-red' : level === 'High' ? 'badge-orange' : level === 'Medium' ? 'badge-yellow' : level === 'Low' ? 'badge-green' : 'badge-gray';
+    }
+
+    function dotClass(i, signals) {
+        if (i >= signals) return 'signal-dot signal-dot-gray';
+        return signals >= 3 ? 'signal-dot signal-dot-red' : 'signal-dot signal-dot-orange';
+    }
+
+    function StatCard(icon, label, value, color, pulse) {
+        return e('div', { className: 'premium-card', style: { padding: '20px 24px', flex: 1, minWidth: 140 } },
+            e('div', { className: 'stat-label' }, label),
+            e('div', { style: { display: 'flex', alignItems: 'center', gap: 10 } },
+                e('span', { style: { fontSize: '1.4rem' } }, icon),
+                e('span', { className: 'stat-value-premium' + (pulse ? ' pulse' : ''), style: { color: color || 'white' } }, value)
+            )
+        );
+    }
+
+    function SignalBar(signals) {
+        return e('div', { style: { display: 'flex', gap: 4, alignItems: 'center' } },
+            e('span', { className: dotClass(0, signals) }),
+            e('span', { className: dotClass(1, signals) }),
+            e('span', { className: dotClass(2, signals) }),
+            e('span', { style: { color: signals >= 2 ? '#e74a3b' : '#858796', fontSize: '0.75rem', marginLeft: 4 } }, signals + '/3')
+        );
+    }
+
+    function TrendIcon(trend) {
+        if (trend === 'Up')   return e('span', { style: { color: '#e74a3b' } }, '▲');
+        if (trend === 'Down') return e('span', { style: { color: '#1cc88a' } }, '▼');
+        return e('span', { style: { color: '#858796' } }, '–');
+    }
+
+    function getFiltered() {
+        var users = (state.data && state.data.users) || [];
+        return users.filter(function(u) {
+            var s = state.search.toLowerCase();
+            var matchSearch = !s || (u.username||'').toLowerCase().indexOf(s) >= 0
+                || (u.display_name||'').toLowerCase().indexOf(s) >= 0
+                || (u.department||'').toLowerCase().indexOf(s) >= 0;
+            var matchSig = state.filterSignal === 'all' || u.active_signals >= parseInt(state.filterSignal);
+            return matchSearch && matchSig;
+        });
+    }
+
+    function render() {
+        var s = (state.data && state.data.summary) || {};
+        var filtered = getFiltered();
+
+        var header = e('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 } },
+            e('div', null,
+                e('h1', { style: { color: 'white', fontWeight: 700, fontSize: '1.4rem', margin: 0 } }, '🚨 Dashboard de Anomalias'),
+                e('p', { style: { color: 'var(--text-secondary)', fontSize: '0.85rem', margin: '4px 0 0' } }, 'Correlação de viagem impossível e falhas de autenticação VPN por usuário')
+            ),
+            e('button', { className: 'btn-refresh', onClick: fetchData }, '↺ Atualizar')
+        );
+
+        var cards = e('div', { style: { display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' } },
+            StatCard('⚠️', 'Usuários Anômalos',      state.loading ? '…' : (s.total_anomalous_users || 0),  '#f6c23e', false),
+            StatCard('✈️', 'Viagem Impossível',       state.loading ? '…' : (s.impossible_travel_users || 0), '#e74a3b', s.impossible_travel_users > 0),
+            StatCard('🔨', 'Brute Force (≥5 falhas)', state.loading ? '…' : (s.brute_force_users || 0),       '#fd7e14', false),
+            StatCard('🎯', 'Multi-Sinal (≥2)',        state.loading ? '…' : (s.multi_signal_users || 0),      '#4e73df', false)
+        );
+
+        var filters = e('div', { className: 'filter-bar' },
+            e('input', {
+                className: 'search-input',
+                placeholder: 'Buscar usuário, nome ou depto...',
+                value: state.search,
+                onInput: function(ev) { setState({ search: ev.target.value }); }
+            }),
+            e('select', { className: 'filter-select', value: state.days, onChange: function(ev) { setState({ days: parseInt(ev.target.value) }); fetchData(); } },
+                e('option', { value: 1  }, 'Últimas 24h'),
+                e('option', { value: 7  }, 'Últimos 7 dias'),
+                e('option', { value: 15 }, 'Últimos 15 dias'),
+                e('option', { value: 30 }, 'Últimos 30 dias')
+            ),
+            e('select', { className: 'filter-select', value: state.filterSignal, onChange: function(ev) { setState({ filterSignal: ev.target.value }); } },
+                e('option', { value: 'all' }, 'Todos os sinais'),
+                e('option', { value: '1'   }, '≥ 1 sinal'),
+                e('option', { value: '2'   }, '≥ 2 sinais (multi-sinal)'),
+                e('option', { value: '3'   }, '3 sinais (máximo risco)')
+            ),
+            e('span', { style: { color: 'var(--text-secondary)', fontSize: '0.82rem' } }, filtered.length + ' usuário' + (filtered.length !== 1 ? 's' : ''))
+        );
+
+        var tableBody;
+        if (state.loading) {
+            tableBody = e('div', { className: 'empty-state' }, e('span', { className: 'pulse' }, 'Carregando...'));
+        } else if (filtered.length === 0) {
+            tableBody = e('div', { className: 'empty-state' },
+                e('div', { style: { fontSize: '2.5rem', marginBottom: 12 } }, '✅'),
+                e('div', { style: { color: '#1cc88a', fontWeight: 600 } }, 'Nenhuma anomalia detectada'),
+                e('div', { style: { fontSize: '0.82rem', marginTop: 4 } }, 'para o período e filtros selecionados')
+            );
+        } else {
+            var rows = filtered.map(function(u, i) {
+                var travelCell = u.impossible_travel > 0
+                    ? e('div', null,
+                        e('span', { className: 'badge badge-red' }, '⚠ ' + u.impossible_travel + 'x'),
+                        u.last_travel ? e('div', { style: { color: 'var(--text-secondary)', fontSize: '0.72rem', marginTop: 3 } }, formatDate(u.last_travel)) : null
+                      )
+                    : e('span', { style: { color: 'var(--text-secondary)' } }, '—');
+
+                var bfCell = u.brute_force_failures >= 5
+                    ? e('div', null,
+                        e('span', { className: 'badge badge-orange' }, '🔨 ' + u.brute_force_failures + ' falhas'),
+                        u.last_failure ? e('div', { style: { color: 'var(--text-secondary)', fontSize: '0.72rem', marginTop: 3 } }, formatDate(u.last_failure)) : null
+                      )
+                    : u.brute_force_failures > 0
+                        ? e('span', { className: 'badge badge-gray' }, u.brute_force_failures + ' falhas')
+                        : e('span', { style: { color: 'var(--text-secondary)' } }, '—');
+
+                return e('tr', { key: i },
+                    e('td', null, SignalBar(u.active_signals)),
+                    e('td', null,
+                        e('div', { style: { fontWeight: 600, color: 'white' } }, u.display_name || u.username),
+                        e('div', { style: { color: 'var(--text-secondary)', fontSize: '0.75rem' } }, u.username)
+                    ),
+                    e('td', { style: { color: 'var(--text-secondary)', fontSize: '0.85rem' } }, u.department || '—'),
+                    e('td', null, travelCell),
+                    e('td', null, bfCell)
+                );
+            });
+
+            tableBody = e('div', { style: { overflowX: 'auto' } },
+                e('table', { className: 'table-premium' },
+                    e('thead', null, e('tr', null,
+                        e('th', null, 'Sinais'),
+                        e('th', null, 'Usuário'),
+                        e('th', null, 'Departamento'),
+                        e('th', null, '✈️ Viagem Impossível'),
+                        e('th', null, '🔨 Brute Force')
+                    )),
+                    e('tbody', null, rows)
+                )
+            );
+        }
+
+        var table = e('div', { className: 'premium-card', style: { padding: 0, overflow: 'hidden' } },
+            e('div', { style: { padding: '16px 20px 12px', borderBottom: '1px solid var(--glass-border)' } },
+                e('span', { style: { fontWeight: 600, color: 'white', fontSize: '1rem' } }, '👤 Usuários com Sinais de Anomalia')
+            ),
+            tableBody
+        );
+
+        var app = e('div', { style: { padding: '0 0 40px' } }, header, cards, filters, table);
+        _root.render(app);
+    }
+
+    var _root = ReactDOM.createRoot(rootEl);
+
+    // Initial fetch
+    fetchData();
+})();
+</script>
+{% endblock %}

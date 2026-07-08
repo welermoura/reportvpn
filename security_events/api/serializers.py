@@ -11,6 +11,7 @@ class SecurityEventSerializer(serializers.ModelSerializer):
     severity_display = serializers.CharField(source='get_severity_display', read_only=True)
     action_display = serializers.SerializerMethodField()
     details = serializers.SerializerMethodField()
+    volume = serializers.IntegerField(read_only=True, required=False)
     
     class Meta:
         model = SecurityEvent
@@ -23,7 +24,7 @@ class SecurityEventSerializer(serializers.ModelSerializer):
             'cve',
             'virus_name', 'file_name', 'file_hash',
             'app_name', 'app_category', 'app_risk', 'bytes_in', 'bytes_out',
-            'details'
+            'volume', 'details'
         ]
     
     def get_action_display(self, obj):

@@ -1,10 +1,9 @@
 from django.contrib import admin
-from .models import FortiAnalyzerConfig, ActiveDirectoryConfig
+from .models import FortiAnalyzerConfig, ActiveDirectoryConfig, ConfigAuditLog
+
 
 class SingletonModelAdmin(admin.ModelAdmin):
-    """
-    Prevents deletion and adding new instances if one already exists.
-    """
+    """Prevents deletion and adding new instances if one already exists."""
     def has_add_permission(self, request):
         if self.model.objects.exists():
             return False
@@ -12,6 +11,11 @@ class SingletonModelAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+    def save_model(self, request, obj, form, change):
+        obj._audit_user = request.user
+        super().save_model(request, obj, form, change)
+
 
 @admin.register(FortiAnalyzerConfig)
 class FortiAnalyzerConfigAdmin(SingletonModelAdmin):
@@ -25,6 +29,7 @@ class FortiAnalyzerConfigAdmin(SingletonModelAdmin):
         }),
     )
 
+
 @admin.register(ActiveDirectoryConfig)
 class ActiveDirectoryConfigAdmin(SingletonModelAdmin):
     list_display = ('server', 'port', 'use_ssl', 'validate_certificate', 'base_dn')
@@ -36,6 +41,27 @@ class ActiveDirectoryConfigAdmin(SingletonModelAdmin):
             'fields': ('base_dn', 'bind_user', 'bind_password')
         }),
     )
+
+
+@admin.register(ConfigAuditLog)
+class ConfigAuditLogAdmin(admin.ModelAdmin):
+    list_display = ('config_type', 'changed_by', 'changed_at', 'changed_fields_summary')
+    list_filter = ('config_type', 'changed_by')
+    readonly_fields = ('config_type', 'changed_by', 'changed_at', 'changes')
+    ordering = ('-changed_at',)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def changed_fields_summary(self, obj):
+        return ', '.join(obj.changes.keys()) if obj.changes else '—'
+    changed_fields_summary.short_description = "Campos Alterados"
 
 # Customized Group Admin to allow AD Search
 from django.contrib.auth.models import Group

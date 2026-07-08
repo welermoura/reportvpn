@@ -325,30 +325,30 @@ class MetricsService:
             defaults={'volume': allowed_vol, 'count': allowed_qs.count()}
         )
         
-        # 4. Top Categories (by Blocked Volume - Limit 10)
-        top_cats = blocked_qs.values('category').annotate(v=Sum(volume_expr)).order_by('-v')[:10]
+        # 4. Top Categories (by Blocked Count - Limit 10)
+        top_cats = blocked_qs.values('category').annotate(c=Count('id'), v=Sum(volume_expr)).order_by('-c')[:10]
         for item in top_cats:
             DashboardMetric.objects.update_or_create(
-                date=date, group='webfilter', metric_name='top_categories_volume', key=item['category'] or 'Unknown',
-                defaults={'volume': item['v']}
+                date=date, group='webfilter', metric_name='top_categories_count', key=item['category'] or 'Unknown',
+                defaults={'count': item['c'], 'volume': item['v']}
             )
 
-        # 5. Top Sites (by Blocked Volume - Limit 20)
-        top_sites = blocked_qs.values('hostname').annotate(v=Sum(volume_expr)).order_by('-v')[:20]
+        # 5. Top Sites (by Blocked Count - Limit 20)
+        top_sites = blocked_qs.values('hostname').annotate(c=Count('id'), v=Sum(volume_expr)).order_by('-c')[:20]
         for item in top_sites:
             # Fallback for sites that might not have a hostname parsed yet
             host_key = item['hostname'] if item['hostname'] else 'Unknown'
             DashboardMetric.objects.update_or_create(
-                date=date, group='webfilter', metric_name='top_sites_volume', key=host_key,
-                defaults={'volume': item['v']}
+                date=date, group='webfilter', metric_name='top_sites_count', key=host_key,
+                defaults={'count': item['c'], 'volume': item['v']}
             )
 
-        # 6. Top Users (by Blocked Volume - Limit 20)
-        top_users = blocked_qs.values('username').annotate(v=Sum(volume_expr)).order_by('-v')[:20]
+        # 6. Top Users (by Blocked Count - Limit 20)
+        top_users = blocked_qs.values('username').annotate(c=Count('id'), v=Sum(volume_expr)).order_by('-c')[:20]
         for item in top_users:
             DashboardMetric.objects.update_or_create(
-                date=date, group='webfilter', metric_name='top_users_volume', key=item['username'] or 'Unknown',
-                defaults={'volume': item['v']}
+                date=date, group='webfilter', metric_name='top_users_count', key=item['username'] or 'Unknown',
+                defaults={'count': item['c'], 'volume': item['v']}
             )
 
     @staticmethod

@@ -6,12 +6,29 @@ from dateutil.parser import parse
 from integrations.fortianalyzer import FortiAnalyzerClient
 from integrations.ad import ActiveDirectoryClient
 from vpn_logs.models import VPNLog
+from vpn_logs.geoip import batch_geoip
 import datetime
 import logging
 import pytz
 import time
 
 logger = logging.getLogger(__name__)
+
+
+def _fa_call_with_retry(fn, max_retries=3, backoff_base=30):
+    """Tenta chamar fn() até max_retries vezes com backoff exponencial."""
+    for attempt in range(max_retries):
+        try:
+            result = fn()
+            if result is not None:
+                return result
+        except Exception as e:
+            logger.warning(f"FA call falhou (tentativa {attempt + 1}/{max_retries}): {e}")
+        if attempt < max_retries - 1:
+            wait = backoff_base * (2 ** attempt)  # 30s, 60s, 120s
+            logger.info(f"Aguardando {wait}s antes de tentar novamente...")
+            time.sleep(wait)
+    return None
 
 @shared_task(name='vpn_logs.tasks.daily_fidelity_vpn_report_task')
 def daily_fidelity_vpn_report_task(target_date_str=None):
@@ -284,10 +301,12 @@ def fetch_vpn_logs_task(self):
         fetch_limit = 10000 
         filter_str = 'subtype=="vpn"'
         
-        tid = fa_client.start_log_task(log_type="event", start_time=start_date, limit=fetch_limit, log_filter=filter_str)
-        
+        tid = _fa_call_with_retry(
+            lambda: fa_client.start_log_task(log_type="event", start_time=start_date, limit=fetch_limit, log_filter=filter_str)
+        )
+
         if not tid:
-            error_msg = 'Falha ao obter TID do FortiAnalyzer.'
+            error_msg = 'Falha ao obter TID do FortiAnalyzer após 3 tentativas.'
             logger.error(error_msg)
             return error_msg
             
@@ -329,10 +348,19 @@ def fetch_vpn_logs_task(self):
                 break # Reached the end before fetch_limit
 
         logger.info(f'Encontrados {len(logs_data)} registros brutos após paginação.')
-        
+
+        # Pré-carrega GeoIP em lote para todos os IPs únicos (evita N requests individuais)
+        unique_ips = {
+            str(log.get('remip') or log.get('srcip', ''))
+            for log in logs_data
+            if log.get('remip') or log.get('srcip')
+        }
+        geo_cache = batch_geoip(list(unique_ips))
+        logger.info(f'GeoIP pré-carregado para {len(geo_cache)} IPs únicos.')
+
         import re
         ip_pattern = re.compile(r'^\d{1,3}(\.\d{1,3}){3}$')
-        
+
         count_new = 0
         for log in logs_data:
             session_id = str(log.get('sessionid') or '')
@@ -416,7 +444,18 @@ def fetch_vpn_logs_task(self):
                     fa_city = urllib.parse.unquote(str(log.get('srccity', '') or log.get('remcity', '')).strip())
                     country_name_val = fa_country if fa_country.lower() not in ['reserved', 'n/a'] else ''
                     country_code_val = COUNTRY_MAP.get(country_name_val.lower(), '')
-                    
+
+                    # GeoIP: lat/lon necessários para detecção de viagem impossível
+                    geo = geo_cache.get(source_ip, {})
+                    lat_val = geo.get('lat')
+                    lon_val = geo.get('lon')
+                    # Usa cidade/país do GeoIP quando FA não fornece
+                    if not country_name_val and geo.get('country_name'):
+                        country_name_val = geo['country_name']
+                        country_code_val = geo.get('country_code', '')
+                    if not fa_city and geo.get('city'):
+                        fa_city = geo['city']
+
                     log_entry, created = VPNLog.objects.update_or_create(
                         session_id=session_id,
                         defaults={
@@ -438,6 +477,8 @@ def fetch_vpn_logs_task(self):
                             'city': fa_city,
                             'country_name': country_name_val,
                             'country_code': country_code_val,
+                            'latitude': lat_val,
+                            'longitude': lon_val,
                             'last_activity': start_time_log
                         }
                     )

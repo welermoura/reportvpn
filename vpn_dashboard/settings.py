@@ -148,6 +148,13 @@ if db_config and db_config.get('setup_complete'):
             }
         }
 else:
+    # If in production and database is not configured, raise hard error to avoid silent SQLite fallback
+    if not DEBUG:
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured(
+            "Production database configuration (.db_config.json) is missing or incomplete. "
+            "Please complete the Setup Wizard or configure the database credentials manually."
+        )
     # Use SQLite for initial setup
     DATABASES = {
         'default': {

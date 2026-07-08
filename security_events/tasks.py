@@ -11,6 +11,22 @@ import logging
 import json
 import urllib.parse
 import hashlib
+import time
+
+
+def _fa_call_with_retry(fn, max_retries=3, backoff_base=30):
+    for attempt in range(max_retries):
+        try:
+            result = fn()
+            if result is not None:
+                return result
+        except Exception as e:
+            logger.warning(f"FA call falhou (tentativa {attempt + 1}/{max_retries}): {e}")
+        if attempt < max_retries - 1:
+            wait = backoff_base * (2 ** attempt)
+            logger.info(f"Aguardando {wait}s antes de tentar novamente...")
+            time.sleep(wait)
+    return None
 
 logger = logging.getLogger(__name__)
 
@@ -69,15 +85,17 @@ def fetch_security_events_task(self, target_subtype=None):
         for subtype in subtypes:
             logger.info(f"Iniciando coleta para subtype: {subtype['name']} (logtype: {subtype['log_type']})")
             
-            tid = fa_client.start_log_task(
-                log_type=subtype['log_type'],
-                start_time=start_date, 
-                limit=fetch_limit, 
-                log_filter=subtype['filter']
+            tid = _fa_call_with_retry(
+                lambda st=subtype: fa_client.start_log_task(
+                    log_type=st['log_type'],
+                    start_time=start_date,
+                    limit=fetch_limit,
+                    log_filter=st['filter']
+                )
             )
-            
+
             if not tid:
-                logger.error(f"Falha ao obter TID do FA para {subtype['name']}.")
+                logger.error(f"Falha ao obter TID do FA para {subtype['name']} após 3 tentativas.")
                 summary[subtype['name']] = "Failed to start task"
                 continue
                 
@@ -197,6 +215,13 @@ def fetch_security_events_task(self, target_subtype=None):
                 elif subtype['name'] == 'webfilter':
                     event.url = urllib.parse.unquote(log.get('url', ''))
                     event.category = log.get('catdesc', '')
+                    event.hostname = log.get('hostname', '')
+                    if not event.hostname and event.url:
+                        try:
+                            parsed_url = urllib.parse.urlparse(event.url)
+                            event.hostname = parsed_url.netloc or parsed_url.path.split('/')[0]
+                        except Exception:
+                            event.hostname = ''
                 elif subtype['name'] == 'app-control':
                     app_raw = str(log.get('app', '')).strip()
                     cat_raw = str(log.get('appcat', '')).strip()
@@ -225,8 +250,11 @@ def fetch_security_events_task(self, target_subtype=None):
                     elif url_path:
                         event.url = url_path
 
-                    # Bytes conversion (ensure 0 instead of None if we want data to show in charts)
-                    # Note: UTM logs might not have bytes, but we try to capture them if present
+                    # (Bytes conversion moved outside/globally to apply to both app-control and webfilter)
+                    pass
+
+                # Conversão de bytes se presente no log bruto (ex: webfilter, app-control)
+                if 'rcvdbyte' in log or 'sentbyte' in log:
                     try:
                         event.bytes_in = int(log.get('rcvdbyte', 0))
                     except (ValueError, TypeError):

@@ -1,8 +1,30 @@
 from django.db import models
 from django.db.models import Q
+from django.contrib.auth.models import User
 import logging
+from .fields import EncryptedCharField
 
 logger = logging.getLogger(__name__)
+
+
+class ConfigAuditLog(models.Model):
+    CONFIG_TYPES = [
+        ('fortianalyzer', 'FortiAnalyzer'),
+        ('activedirectory', 'Active Directory'),
+    ]
+    config_type = models.CharField(max_length=30, choices=CONFIG_TYPES, verbose_name="Configuração")
+    changed_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, verbose_name="Alterado por")
+    changed_at = models.DateTimeField(auto_now_add=True, verbose_name="Data/Hora")
+    changes = models.JSONField(verbose_name="Campos Alterados")
+
+    class Meta:
+        verbose_name = "Log de Auditoria de Configuração"
+        verbose_name_plural = "Logs de Auditoria de Configuração"
+        ordering = ['-changed_at']
+
+    def __str__(self):
+        user = self.changed_by.username if self.changed_by else "sistema"
+        return f"{self.get_config_type_display()} — {user} em {self.changed_at.strftime('%d/%m/%Y %H:%M')}"
 
 def sync_celery_tasks(enabled):
     """Enable or disable polling tasks based on FA config status."""
@@ -44,15 +66,39 @@ class FortiAnalyzerConfig(SingletonModel):
     host = models.CharField(max_length=255, default="https://fortianalyzer.example.com")
     port = models.IntegerField(default=443)
     adom = models.CharField(max_length=100, default="root", help_text="Nome do ADOM (ex: root)")
-    api_token = models.CharField(max_length=512, help_text="Token de API gerado no FortiAnalyzer")
+    api_token = EncryptedCharField(max_length=700, help_text="Token de API gerado no FortiAnalyzer")
     verify_ssl = models.BooleanField(default=False, help_text="Verificar certificado SSL?")
     trusted_countries = models.TextField(default="BR", help_text="Códigos de países confiáveis, separados por vírgula (ex: BR,US)")
     is_enabled = models.BooleanField(default=True, help_text="Ativar a coleta ativa (Polling) via API do FortiAnalyzer?")
-    
+
+    _AUDIT_FIELDS = ['host', 'port', 'adom', 'verify_ssl', 'trusted_countries', 'is_enabled']
+
     def save(self, *args, **kwargs):
-        # Sincroniza tarefas do Celery
         sync_celery_tasks(self.is_enabled)
+        self._record_audit('fortianalyzer')
         super().save(*args, **kwargs)
+
+    def _record_audit(self, config_type):
+        try:
+            previous = self.__class__.objects.filter(pk=1).first()
+            if previous is None:
+                return
+            changes = {}
+            for field in self._AUDIT_FIELDS:
+                old_val = getattr(previous, field)
+                new_val = getattr(self, field)
+                if old_val != new_val:
+                    display_old = '***' if field == 'api_token' else str(old_val)
+                    display_new = '***' if field == 'api_token' else str(new_val)
+                    changes[field] = {'de': display_old, 'para': display_new}
+            if changes:
+                ConfigAuditLog.objects.create(
+                    config_type=config_type,
+                    changed_by=getattr(self, '_audit_user', None),
+                    changes=changes,
+                )
+        except Exception as e:
+            logger.warning(f"ConfigAuditLog: could not record audit — {e}")
 
     def __str__(self):
         return "Configuração: Coleta via API (FortiAnalyzer)"
@@ -67,10 +113,38 @@ class ActiveDirectoryConfig(SingletonModel):
     use_ssl = models.BooleanField(default=False, help_text="Usar LDAPS?")
     base_dn = models.CharField(max_length=255, default="DC=example,DC=com")
     bind_user = models.CharField(max_length=255, help_text="Usuário para bind (ex: CN=BindUser,OU=ServiceAccounts,DC=example,DC=com)")
-    bind_password = models.CharField(max_length=255, help_text="Senha do usuário de bind")
+    bind_password = EncryptedCharField(max_length=400, help_text="Senha do usuário de bind")
     validate_certificate = models.BooleanField(default=False, verbose_name="Validar Certificado SSL/TLS", help_text="Exigir validação do certificado do AD (requer upload do certificado CA)")
     ca_cert_file = models.FileField(upload_to='certs/', null=True, blank=True, verbose_name="Certificado CA (PEM/CRT)", help_text="Faça o upload do certificado raiz da CA (formato .pem, .crt ou .cer)")
-    
+
+    _AUDIT_FIELDS = ['server', 'port', 'use_ssl', 'base_dn', 'bind_user', 'validate_certificate']
+
+    def save(self, *args, **kwargs):
+        self._record_audit('activedirectory')
+        super().save(*args, **kwargs)
+
+    def _record_audit(self, config_type):
+        try:
+            previous = self.__class__.objects.filter(pk=1).first()
+            if previous is None:
+                return
+            changes = {}
+            for field in self._AUDIT_FIELDS:
+                old_val = getattr(previous, field)
+                new_val = getattr(self, field)
+                if old_val != new_val:
+                    display_old = '***' if field == 'bind_password' else str(old_val)
+                    display_new = '***' if field == 'bind_password' else str(new_val)
+                    changes[field] = {'de': display_old, 'para': display_new}
+            if changes:
+                ConfigAuditLog.objects.create(
+                    config_type=config_type,
+                    changed_by=getattr(self, '_audit_user', None),
+                    changes=changes,
+                )
+        except Exception as e:
+            logger.warning(f"ConfigAuditLog: could not record audit — {e}")
+
     def __str__(self):
         return "Configuração do Active Directory"
 

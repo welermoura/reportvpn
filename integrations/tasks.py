@@ -29,21 +29,59 @@ def cleanup_old_logs():
     cutoff_date = timezone.now() - timedelta(days=days)
     logger.info(f"Iniciando limpeza de logs anteriores a {cutoff_date} ({days} dias).")
     
+    import time
+    
     try:
-        # VPN
-        vpn_del, _ = VPNLog.objects.filter(start_time__lt=cutoff_date).delete()
-        vpnf_del, _ = VPNFailure.objects.filter(timestamp__lt=cutoff_date).delete()
+        # 1. VPN Logs (Chunked Deletes)
+        vpn_del = 0
+        while True:
+            old_vpn_ids = list(VPNLog.objects.filter(start_time__lt=cutoff_date).values_list('id', flat=True)[:5000])
+            if not old_vpn_ids:
+                break
+            deleted, _ = VPNLog.objects.filter(id__in=old_vpn_ids).delete()
+            vpn_del += deleted
+            time.sleep(0.1)
         
-        # Security
-        sec_del, _ = SecurityEvent.objects.filter(timestamp__lt=cutoff_date).delete()
-        ad_del, _ = ADAuthEvent.objects.filter(timestamp__lt=cutoff_date).delete()
+        # 2. VPN Failures (Chunked Deletes)
+        vpnf_del = 0
+        while True:
+            old_vpnf_ids = list(VPNFailure.objects.filter(timestamp__lt=cutoff_date).values_list('id', flat=True)[:5000])
+            if not old_vpnf_ids:
+                break
+            deleted, _ = VPNFailure.objects.filter(id__in=old_vpnf_ids).delete()
+            vpnf_del += deleted
+            time.sleep(0.1)
         
-        # Dashboard Summary
-        dash_del, _ = DashboardMetric.objects.filter(date__lt=cutoff_date.date()).delete()
+        # 3. Security Events (Chunked Deletes)
+        sec_del = 0
+        while True:
+            old_sec_ids = list(SecurityEvent.objects.filter(timestamp__lt=cutoff_date).values_list('id', flat=True)[:5000])
+            if not old_sec_ids:
+                break
+            deleted, _ = SecurityEvent.objects.filter(id__in=old_sec_ids).delete()
+            sec_del += deleted
+            time.sleep(0.1)
         
-        total = vpn_del + vpnf_del + sec_del + ad_del + dash_del
-        msg = (f"Limpeza concluída. Removidos: {vpn_del} VPNLogs, {vpnf_del} VPNFailures, "
-               f"{sec_del} SecurityEvents, {ad_del} ADAuthEvents, {dash_del} Metrics. Total: {total}")
+        # 4. AD Auth Events (Chunked Deletes)
+        ad_del = 0
+        while True:
+            old_ad_ids = list(ADAuthEvent.objects.filter(timestamp__lt=cutoff_date).values_list('id', flat=True)[:5000])
+            if not old_ad_ids:
+                break
+            deleted, _ = ADAuthEvent.objects.filter(id__in=old_ad_ids).delete()
+            ad_del += deleted
+            time.sleep(0.1)
+        
+        # 5. Dashboard Metrics (DashboardMetric)
+        # IMPORTANTE: Preservamos os dados consolidados do DashboardMetric para que o histórico
+        # dos dashboards visuais nunca seja perdido, em conformidade com as exigências do usuário.
+        dash_del = 0
+        
+        total = vpn_del + vpnf_del + sec_del + ad_del
+        msg = (f"Limpeza de logs finalizada com segurança (Deleção em lotes de 5000). "
+               f"Removidos: {vpn_del} VPNLogs, {vpnf_del} VPNFailures, "
+               f"{sec_del} SecurityEvents, {ad_del} ADAuthEvents. "
+               f"DashboardMetric preservado: {dash_del} deletados. Total de logs limpos: {total}")
         logger.info(msg)
         return msg
         
